@@ -6,7 +6,7 @@ namespace Conductor.Infrastructure.Persistence.Sqlite;
 
 public static class SqlitePersistenceServiceCollectionExtensions
 {
-    private const string DefaultConnectionString = "Data Source=./data/conductor.db;Cache=Shared";
+    internal const string DefaultConnectionString = "Data Source=./data/conductor.db;Cache=Shared";
 
     public static IServiceCollection AddConductorPersistence(
         this IServiceCollection services,

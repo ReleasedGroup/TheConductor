@@ -24,3 +24,12 @@ dotnet test Conductor.slnx --no-build
 ```powershell
 dotnet run --project src/Conductor.Host/Conductor.Host.csproj
 ```
+
+## Persistence Migrations
+
+The host uses SQLite by default with `Data Source=./data/conductor.db;Cache=Shared`.
+Apply the current EF Core migration set with:
+
+```powershell
+dotnet ef database update --project src/Conductor.Infrastructure.Persistence.Sqlite --startup-project src/Conductor.Infrastructure.Persistence.Sqlite
+```
