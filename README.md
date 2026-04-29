@@ -26,7 +26,7 @@ dotnet format Conductor.slnx --no-restore --verify-no-changes
 dotnet run --project src/Conductor.Host/Conductor.Host.csproj
 ```
 
-The root route (`/`) serves the dashboard baseline for local startup checks, including a reusable repository orchestration health heatmap populated with starter projection data. The same startup baseline also exposes `/health/live` and `/health/ready`.
+The root route (`/`) serves the dashboard baseline for local startup checks, including a reusable repository orchestration health heatmap and live activity stream populated with starter projection data. The same startup baseline also exposes `/health/live` and `/health/ready`.
 
 ## Persistence Configuration
 

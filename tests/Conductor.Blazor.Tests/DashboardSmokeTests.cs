@@ -13,7 +13,8 @@ public sealed class DashboardSmokeTests
         IRenderedComponent<Home> dashboard = context.Render<Home>();
 
         Assert.Contains("Conductor Dashboard", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("SQLite persistence registration", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Live activity", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Tests failed and a continuation run started.", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Repository orchestration health", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Release Portal", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Startup verification", dashboard.Markup, StringComparison.Ordinal);
