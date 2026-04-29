@@ -1,7 +1,6 @@
 @page "/"
 @using System.Globalization
 @using System.Text.Json
-@using Conductor.Core.Application.Dashboard
 @inject IDashboardProjectionStore DashboardProjectionStore
 @inject IActiveRepositoryDashboardQuery ActiveRepositoryDashboardQuery
 
@@ -15,7 +14,7 @@
             <p class="dashboard-summary">Repository health, workload, pull requests, failures, and recent orchestration activity.</p>
         </div>
         <div class="dashboard-meta">
-            <span class="status-pill">Sprint 2 dashboard</span>
+            <StatusBadge Text="Sprint 2 dashboard" Tone="@StatusBadgeTone.Info" />
             @if (projection is not null)
             {
                 <span class="projection-stamp">Projection @projection.CapturedAtUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm", CultureInfo.InvariantCulture)</span>
@@ -25,17 +24,22 @@
 
     @if (loadError is not null)
     {
-        <div class="dashboard-state dashboard-state--error" role="alert">
-            Dashboard metrics could not be loaded.
-        </div>
+        <ErrorState
+            Title="Dashboard metrics could not be loaded."
+            Message="Check the dashboard projection source and try again."
+            Detail="@loadError" />
     }
     else if (projection is null)
     {
-        <div class="dashboard-state">Loading dashboard metrics...</div>
+        <LoadingState
+            Title="Loading dashboard metrics"
+            Message="Fetching persisted dashboard projection data." />
     }
     else if (projection.Metrics.Count == 0)
     {
-        <div class="dashboard-state">No dashboard metrics are available yet.</div>
+        <EmptyState
+            Title="No dashboard metrics are available yet."
+            Message="Metrics will appear after dashboard projection data is collected." />
     }
     else
     {
@@ -62,24 +66,24 @@
 
                 @if (isLoadingRepositories)
                 {
-                    <div class="table-state" role="status">
-                        <strong>Loading repositories</strong>
-                        <span>Reading the persisted dashboard projection.</span>
-                    </div>
+                    <LoadingState
+                        Title="Loading repositories"
+                        Message="Reading the persisted dashboard projection."
+                        Class="table-state" />
                 }
                 else if (repositoryLoadFailed)
                 {
-                    <div class="table-state table-state-warning" role="alert">
-                        <strong>Repository data is unavailable</strong>
-                        <span>The dashboard shell is running, but the repository projection could not be loaded.</span>
-                    </div>
+                    <ErrorState
+                        Title="Repository data is unavailable"
+                        Message="The dashboard shell is running, but the repository projection could not be loaded."
+                        Class="table-state" />
                 }
                 else if (ActiveRepositoryRows.Count == 0)
                 {
-                    <div class="table-state">
-                        <strong>No active repositories yet</strong>
-                        <span>Imported repositories will appear here after they are persisted.</span>
-                    </div>
+                    <EmptyState
+                        Title="No active repositories yet"
+                        Message="Imported repositories will appear here after they are persisted."
+                        Class="table-state" />
                 }
                 else
                 {
@@ -107,7 +111,7 @@
                                             <small>@repository.RepositoryFullName</small>
                                         </td>
                                         <td>
-                                            <span class="@HealthBadgeClass(repository.Health)">@HealthLabel(repository.Health)</span>
+                                            <StatusBadge Text="@HealthLabel(repository.Health)" Tone="@HealthTone(repository.Health)" />
                                         </td>
                                         <td class="numeric-cell">@repository.ActiveIssueCount</td>
                                         <td class="numeric-cell">@repository.RunningAgentCount</td>
@@ -136,10 +140,9 @@
             </section>
 
             <section class="startup-panel" aria-label="Startup verification">
-                <div>
-                    <h2>Startup verification</h2>
-                    <p>The local host can be checked from the dashboard route and the built-in health probes.</p>
-                </div>
+                <SuccessState
+                    Title="Startup verification"
+                    Message="The local host can be checked from the dashboard route and the built-in health probes." />
                 <dl>
                     @foreach ((string Label, string Route, string State) check in StartupChecks)
                     {
@@ -171,6 +174,13 @@
     private IReadOnlyList<DashboardAttentionItem> AttentionItems =>
         projection?.AttentionItems ?? Array.Empty<DashboardAttentionItem>();
 
+    private IReadOnlyList<ActiveRepositoryDashboardRow> ActiveRepositoryRows => activeRepositoryDashboard.Rows;
+
+    private string RepositoryCountLabel =>
+        ActiveRepositoryRows.Count == 1
+            ? "1 repository"
+            : $"{ActiveRepositoryRows.Count.ToString(CultureInfo.InvariantCulture)} repositories";
+
     private static readonly HealthHeatmapBucket[] HealthBuckets =
     [
         new("Conductor", "08:00", HealthHeatmapStatus.Healthy, 99, "All orchestration checks completed."),
@@ -198,13 +208,6 @@
         new("Operations Docs", "16:00", HealthHeatmapStatus.Warning, 80, "One stale branch requires attention."),
         new("Operations Docs", "18:00", HealthHeatmapStatus.Healthy, 95, "Stale branch warning cleared."),
     ];
-
-    private IReadOnlyList<ActiveRepositoryDashboardRow> ActiveRepositoryRows => activeRepositoryDashboard.Rows;
-
-    private string RepositoryCountLabel =>
-        ActiveRepositoryRows.Count == 1
-            ? "1 repository"
-            : $"{ActiveRepositoryRows.Count.ToString(CultureInfo.InvariantCulture)} repositories";
 
     private static readonly string[] Indicators =
     [
@@ -275,14 +278,14 @@
             _ => "Unknown",
         };
 
-    private static string HealthBadgeClass(DashboardRepositoryHealth health) =>
+    private static StatusBadgeTone HealthTone(DashboardRepositoryHealth health) =>
         health switch
         {
-            DashboardRepositoryHealth.Healthy => "health-badge health-badge-healthy",
-            DashboardRepositoryHealth.Warning => "health-badge health-badge-warning",
-            DashboardRepositoryHealth.Critical => "health-badge health-badge-critical",
-            DashboardRepositoryHealth.Offline => "health-badge health-badge-offline",
-            _ => "health-badge health-badge-unknown",
+            DashboardRepositoryHealth.Healthy => StatusBadgeTone.Success,
+            DashboardRepositoryHealth.Warning => StatusBadgeTone.Warning,
+            DashboardRepositoryHealth.Critical => StatusBadgeTone.Critical,
+            DashboardRepositoryHealth.Offline => StatusBadgeTone.Neutral,
+            _ => StatusBadgeTone.Neutral,
         };
 
     private static string FailedRunClass(int failedRunCount) =>
