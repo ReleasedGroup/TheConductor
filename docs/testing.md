@@ -35,6 +35,10 @@ dotnet format Conductor.slnx --verify-no-changes
 
 Warnings are treated as failures. Do not commit changes that require suppressing compiler, analyzer, package, formatter, or test warnings unless the suppression is intentional and documented.
 
+## Dashboard Projection Data
+
+The dashboard route loads from `src/Conductor.Host/Data/dashboard-projection.json` through `IDashboardProjectionStore`. The file-backed store is isolated behind the query interface so later EF Core projection queries can replace it without changing the Blazor components.
+
 ## External Tests
 
 Tests that require real external services must be opt-in so the default suite remains deterministic.

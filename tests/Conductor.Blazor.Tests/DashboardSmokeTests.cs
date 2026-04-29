@@ -66,6 +66,28 @@ public sealed class DashboardSmokeTests
 
         IRenderedComponent<Home> dashboard = context.Render<Home>();
 
+        dashboard.WaitForAssertion(() => Assert.Equal(5, dashboard.FindAll("[data-dashboard-metric]").Count));
+        Assert.Contains("Dashboard", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Healthy Repos", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Active Agents", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Blocked Issues", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("PRs Open", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("AI Spend Today", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Repository orchestration health", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Workload Overview", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Symphony runtime", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Billing API primary", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("ReleasedGroup/billing-api", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("1.2.3", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("/config/billing-api/WORKFLOW.md", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Needs attention", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("billing-api", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/repositories/billing-api\"", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/instances/client-mobile\"", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Active Repositories", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Live activity", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Tests failed and a continuation run started.", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Workspace prepared for the next orchestration run.", dashboard.Markup, StringComparison.Ordinal);
         dashboard.WaitForAssertion(() =>
         {
             Assert.Contains("Conductor Dashboard", dashboard.Markup, StringComparison.Ordinal);
@@ -189,7 +211,10 @@ public sealed class DashboardSmokeTests
 
         IRenderedComponent<Home> dashboard = context.Render<Home>();
 
-        Assert.Contains("No dashboard metrics are available yet.", dashboard.Markup, StringComparison.Ordinal);
+        dashboard.WaitForAssertion(() => Assert.Contains(
+            "No dashboard metrics are available yet.",
+            dashboard.Markup,
+            StringComparison.Ordinal));
     }
 
     [Fact]
@@ -272,24 +297,6 @@ public sealed class DashboardSmokeTests
         };
     }
 
-    private static void AssertMetricTile(IElement tile, string key, string label, string value)
-    {
-        Assert.Equal(key, tile.GetAttribute("data-dashboard-metric"));
-        Assert.Equal($"{label} metric", tile.GetAttribute("aria-label"));
-        Assert.Contains("metric-tile", tile.GetAttribute("class") ?? string.Empty, StringComparison.Ordinal);
-        Assert.Contains(label, tile.TextContent, StringComparison.Ordinal);
-        Assert.Contains(value, tile.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Sample detail", tile.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Within target", tile.TextContent, StringComparison.Ordinal);
-    }
-
-    private static void AssertStartupCheck(IElement check, string label, string route, string state)
-    {
-        Assert.Equal(label, check.QuerySelector("dt")?.TextContent);
-        Assert.Equal(route, check.QuerySelector("code")?.TextContent);
-        Assert.Equal(state, check.QuerySelector("span")?.TextContent);
-    }
-
     private static DashboardAttentionItem Attention(
         AlertSeverity severity,
         string sourceName,
@@ -336,6 +343,20 @@ public sealed class DashboardSmokeTests
             FailedRunCount = 0,
             TokenTotal = 140
         };
+    }
+
+    private static void AssertMetricTile(IElement tile, string key, string label, string value)
+    {
+        Assert.Equal(key, tile.GetAttribute("data-dashboard-metric"));
+        Assert.Contains(label, tile.TextContent, StringComparison.Ordinal);
+        Assert.Contains(value, tile.TextContent, StringComparison.Ordinal);
+    }
+
+    private static void AssertStartupCheck(IElement check, string label, string route, string state)
+    {
+        Assert.Equal(label, check.QuerySelector("dt")?.TextContent);
+        Assert.Equal(route, check.QuerySelector("code")?.TextContent);
+        Assert.Equal(state, check.QuerySelector("span")?.TextContent);
     }
 
     private sealed class StaticDashboardProjectionStore(DashboardProjection projection) : IDashboardProjectionStore

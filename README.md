@@ -26,7 +26,7 @@ dotnet format Conductor.slnx --no-restore --verify-no-changes
 dotnet run --project src/Conductor.Host/Conductor.Host.csproj
 ```
 
-The root route (`/`) serves the dashboard baseline for local startup checks, including reusable status badges, shared UI state components, a repository orchestration health heatmap, and a live activity stream populated with starter projection data. The same startup baseline also exposes `/health/live` and `/health/ready`.
+The root route (`/`) serves the dashboard baseline for local startup checks, including reusable status badges, shared UI state components, repository orchestration health, workload, needs-attention, active repository, quick-action, and live activity sections loaded through the dashboard projection query interface. The same startup baseline also exposes `/health/live` and `/health/ready`.
 
 In `Development`, startup applies the current EF Core migration set and inserts deterministic seed data for the SQLite dashboard and repository query services. The seed set includes projects, GitHub repositories, Symphony instances, and latest snapshot payloads, and it is safe to run repeatedly.
 

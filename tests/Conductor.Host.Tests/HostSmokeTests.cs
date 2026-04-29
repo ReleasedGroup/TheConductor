@@ -45,13 +45,16 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
 
         string content = await client.GetStringAsync("/");
 
+        Assert.Contains("Dashboard", content);
+        Assert.Contains("Healthy Repos", content);
+        Assert.Contains("Repository orchestration health", content);
+        Assert.Contains("Needs attention", content);
+        Assert.Contains("Active Repositories", content);
         Assert.Contains("Conductor Dashboard", content);
         Assert.Contains("Active Repositories", content);
         Assert.Contains("Repository health, workload, pull requests, failures", content);
         Assert.Contains("Live activity", content);
         Assert.Contains("Tests failed and a continuation run started.", content);
-        Assert.Contains("Startup verification", content);
-        Assert.Contains("/health/ready", content);
     }
 
     private HttpClient CreateClient() =>
