@@ -10,13 +10,6 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "ActiveIssueCount",
-                table: "InstanceSnapshots",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
-
             migrationBuilder.AddColumn<string>(
                 name: "ApplicationName",
                 table: "InstanceSnapshots",
@@ -31,12 +24,24 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                 maxLength: 128,
                 nullable: true);
 
+            migrationBuilder.AddColumn<string>(
+                name: "ErrorMessage",
+                table: "InstanceSnapshots",
+                type: "TEXT",
+                maxLength: 255,
+                nullable: true);
+
             migrationBuilder.AddColumn<int>(
-                name: "FailedRunCount",
+                name: "HttpStatusCode",
                 table: "InstanceSnapshots",
                 type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
+
+            migrationBuilder.AddColumn<long>(
+                name: "LatencyMilliseconds",
+                table: "InstanceSnapshots",
+                type: "INTEGER",
+                nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "PersistenceProvider",
@@ -44,20 +49,6 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                 type: "TEXT",
                 maxLength: 128,
                 nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "RetryQueueCount",
-                table: "InstanceSnapshots",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
-
-            migrationBuilder.AddColumn<int>(
-                name: "RunningSessionCount",
-                table: "InstanceSnapshots",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
 
             migrationBuilder.AddColumn<string>(
                 name: "RuntimeDefaultsJson",
@@ -71,20 +62,6 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                 type: "TEXT",
                 maxLength: 128,
                 nullable: true);
-
-            migrationBuilder.AddColumn<long>(
-                name: "TokenInputTotal",
-                table: "InstanceSnapshots",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0L);
-
-            migrationBuilder.AddColumn<long>(
-                name: "TokenOutputTotal",
-                table: "InstanceSnapshots",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0L);
 
             migrationBuilder.AddColumn<string>(
                 name: "WorkflowOwner",
@@ -112,10 +89,6 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "ActiveIssueCount",
-                table: "InstanceSnapshots");
-
-            migrationBuilder.DropColumn(
                 name: "ApplicationName",
                 table: "InstanceSnapshots");
 
@@ -124,19 +97,19 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                 table: "InstanceSnapshots");
 
             migrationBuilder.DropColumn(
-                name: "FailedRunCount",
+                name: "ErrorMessage",
+                table: "InstanceSnapshots");
+
+            migrationBuilder.DropColumn(
+                name: "HttpStatusCode",
+                table: "InstanceSnapshots");
+
+            migrationBuilder.DropColumn(
+                name: "LatencyMilliseconds",
                 table: "InstanceSnapshots");
 
             migrationBuilder.DropColumn(
                 name: "PersistenceProvider",
-                table: "InstanceSnapshots");
-
-            migrationBuilder.DropColumn(
-                name: "RetryQueueCount",
-                table: "InstanceSnapshots");
-
-            migrationBuilder.DropColumn(
-                name: "RunningSessionCount",
                 table: "InstanceSnapshots");
 
             migrationBuilder.DropColumn(
@@ -145,14 +118,6 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
 
             migrationBuilder.DropColumn(
                 name: "RuntimeInstanceId",
-                table: "InstanceSnapshots");
-
-            migrationBuilder.DropColumn(
-                name: "TokenInputTotal",
-                table: "InstanceSnapshots");
-
-            migrationBuilder.DropColumn(
-                name: "TokenOutputTotal",
                 table: "InstanceSnapshots");
 
             migrationBuilder.DropColumn(

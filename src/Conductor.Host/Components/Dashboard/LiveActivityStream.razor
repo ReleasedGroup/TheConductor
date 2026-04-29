@@ -1,0 +1,145 @@
+@using System.Globalization
+@using Conductor.Core.Application.Dashboard
+@using Conductor.Core.Domain
+
+<section class="live-activity-stream" aria-labelledby="@headingId">
+    <header class="live-activity-header">
+        <div>
+            <p class="eyebrow">Activity stream</p>
+            <h2 id="@headingId">@Title</h2>
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <p>@Description</p>
+            }
+        </div>
+        <span class="live-activity-state">Live</span>
+    </header>
+
+    @if (orderedEvents.Length == 0)
+    {
+        <p class="empty-state">No operational activity has been recorded yet.</p>
+    }
+    else
+    {
+        <ol class="live-activity-list">
+            @foreach (LiveActivityEvent activity in orderedEvents)
+            {
+                <li class="@GetItemClass(activity.Severity)">
+                    <span class="@GetSeverityMarkerClass(activity.Severity)" aria-hidden="true">
+                        @GetSeverityInitial(activity.Severity)
+                    </span>
+                    <div class="live-activity-body">
+                        <div class="live-activity-meta">
+                            <time datetime="@FormatDateTime(activity.OccurredAtUtc)">
+                                @GetRelativeTime(activity.OccurredAtUtc)
+                            </time>
+                            <span>@GetSeverityLabel(activity.Severity)</span>
+                            <span>@activity.EventType</span>
+                        </div>
+                        <p>
+                            <strong>@activity.SourceName</strong>
+                            @if (activity.IssueNumber is int issueNumber)
+                            {
+                                <span class="activity-issue">#@issueNumber.ToString(CultureInfo.InvariantCulture)</span>
+                            }
+                            <span>@activity.Message</span>
+                        </p>
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+</section>
+
+@code {
+    private readonly string headingId = $"live-activity-{Guid.NewGuid():N}";
+    private LiveActivityEvent[] orderedEvents = [];
+
+    [Parameter]
+    public string Title { get; set; } = "Live activity";
+
+    [Parameter]
+    public string? Description { get; set; } = "Recent operational events across repositories and Symphony instances.";
+
+    [Parameter]
+    public IReadOnlyList<LiveActivityEvent>? Events { get; set; }
+
+    [Parameter]
+    public DateTimeOffset? ReferenceTimeUtc { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        orderedEvents = (Events ?? [])
+            .OrderByDescending(activity => activity.OccurredAtUtc)
+            .ThenBy(activity => activity.SourceName, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private DateTimeOffset CurrentReferenceTimeUtc => ReferenceTimeUtc?.ToUniversalTime() ?? DateTimeOffset.UtcNow;
+
+    private static string GetItemClass(EventSeverity severity) =>
+        $"live-activity-item live-activity-item--{GetSeverityCssName(severity)}";
+
+    private static string GetSeverityMarkerClass(EventSeverity severity) =>
+        $"live-activity-marker live-activity-marker--{GetSeverityCssName(severity)}";
+
+    private static string GetSeverityCssName(EventSeverity severity) =>
+        severity switch
+        {
+            EventSeverity.Information => "information",
+            EventSeverity.Warning => "warning",
+            EventSeverity.Error => "error",
+            EventSeverity.Critical => "critical",
+            _ => "unknown",
+        };
+
+    private static string GetSeverityInitial(EventSeverity severity) =>
+        severity switch
+        {
+            EventSeverity.Information => "i",
+            EventSeverity.Warning => "!",
+            EventSeverity.Error => "x",
+            EventSeverity.Critical => "!",
+            _ => "?",
+        };
+
+    private static string GetSeverityLabel(EventSeverity severity) =>
+        severity switch
+        {
+            EventSeverity.Information => "Info",
+            EventSeverity.Warning => "Warning",
+            EventSeverity.Error => "Error",
+            EventSeverity.Critical => "Critical",
+            _ => "Unknown",
+        };
+
+    private static string FormatDateTime(DateTimeOffset value) =>
+        value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+
+    private string GetRelativeTime(DateTimeOffset occurredAtUtc)
+    {
+        TimeSpan elapsed = CurrentReferenceTimeUtc - occurredAtUtc.ToUniversalTime();
+
+        if (elapsed <= TimeSpan.Zero || elapsed < TimeSpan.FromMinutes(1))
+        {
+            return "Just now";
+        }
+
+        if (elapsed < TimeSpan.FromHours(1))
+        {
+            return FormatRelativeUnit((int)elapsed.TotalMinutes, "m");
+        }
+
+        if (elapsed < TimeSpan.FromDays(1))
+        {
+            return FormatRelativeUnit((int)elapsed.TotalHours, "h");
+        }
+
+        return FormatRelativeUnit((int)elapsed.TotalDays, "d");
+    }
+
+    private static string FormatRelativeUnit(int value, string unit) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{Math.Max(value, 1)}{unit} ago");
+}
