@@ -34,6 +34,8 @@ The secret descriptor list supports GitHub PAT and OpenAI API key credentials as
 
 Descriptors may include validation status, validation timestamp, a short validation message, and validation metadata JSON such as accepted token prefixes and the runtime environment variable used for injection. Plaintext token values are only accepted during create or rotate workflows and must not be returned in descriptor responses.
 
+Use the secret management page at `/settings/secrets` to add credential descriptors before wiring repositories or Symphony instances to credentials. Enter the value only when creating or rotating the descriptor; after the operation succeeds, Conductor stores the protected payload separately from descriptor metadata and renders only masked placeholders.
+
 ## Workflow Profile Management
 
 Workflow profiles are managed from `/settings/workflows`. Operators can create a profile, edit an existing profile, mark one profile as the default, and preview the raw `WORKFLOW.md` source before saving.

@@ -10,9 +10,11 @@ Initial user workflows will cover dashboard review, repository import, instance 
 
 The dashboard includes a needs-attention panel for active critical and warning items. Each row shows the affected repository or Symphony instance, the current severity, the reason it needs attention, and a link to the source area for follow-up.
 
-## Secret Review
+## Secret Management
 
-The Secrets page lists saved credential descriptors for orchestration. GitHub PAT and OpenAI API key descriptors are shown independently, and saved values are rendered only as masked placeholders.
+Open `/settings/secrets` to create and maintain credential descriptors. The page supports GitHub PAT, OpenAI API key, Codex home, and other secret descriptors scoped globally, by project, by repository, or by Symphony instance.
+
+Saved secret values are masked in the descriptor list. Operators can rotate or delete a descriptor from the list, but stored values are not shown again after creation or rotation.
 
 ## Manual Instance Registration
 
