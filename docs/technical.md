@@ -1030,6 +1030,13 @@ Behaviors:
 - Persist provenance.
 - Surface failure if release assets do not match target runtime.
 
+Compatible asset selection:
+
+- Match release assets by target execution mode, operating system, and architecture before download or cache lookup.
+- Ignore checksum/signature companion files as primary assets, but retain the matching checksum asset when one exists.
+- Local process mode selects the runtime archive for the host OS and architecture, preferring Windows `.zip` bundles and Linux/macOS `.tar.gz` bundles.
+- Docker and Azure container modes select Linux-compatible assets for the requested architecture, preferring container/image metadata assets when published and otherwise falling back to the Linux runtime archive used to build or prepare the container runtime.
+
 ## 16. Symphony API Integration
 
 ### 16.1 HTTP Client
