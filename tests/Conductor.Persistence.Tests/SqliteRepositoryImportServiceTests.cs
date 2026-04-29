@@ -3,6 +3,8 @@ using System.Text.Json;
 using Conductor.Core.Application.Repositories;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Auditing;
+using Conductor.Core.Domain.Ids;
+using Conductor.Core.Domain.Projects;
 using Conductor.Core.Domain.Repositories;
 using Conductor.Core.Domain.Symphony;
 using Conductor.Infrastructure.Persistence.Sqlite;
@@ -107,6 +109,42 @@ public sealed class SqliteRepositoryImportServiceTests
         Assert.Equal(RepositoryVisibility.Internal, repository.Visibility);
         Assert.Equal(1, await dbContext.SymphonyInstances.CountAsync());
         Assert.Equal(2, await dbContext.AuditEvents.CountAsync());
+    }
+
+    [Fact]
+    public async Task ImportAsync_Assigns_Selected_Project_And_Returns_Project_Metadata()
+    {
+        DateTimeOffset importedAtUtc = DateTimeOffset.Parse("2026-04-29T04:00:00Z");
+        await using ServiceProvider provider = BuildProvider(importedAtUtc);
+        await using AsyncServiceScope scope = provider.CreateAsyncScope();
+        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        await dbContext.Database.MigrateAsync();
+        ProjectId projectId = ProjectId.New();
+        dbContext.Projects.Add(new Project(
+            projectId,
+            "Platform",
+            "ReleasedGroup",
+            description: null,
+            "main",
+            ProjectStatus.Active,
+            importedAtUtc,
+            importedAtUtc));
+        await dbContext.SaveChangesAsync();
+        IRepositoryImportService importService = scope.ServiceProvider.GetRequiredService<IRepositoryImportService>();
+
+        RepositoryImportResult result = await importService.ImportAsync(new RepositoryImportRequest(
+            "ReleasedGroup/TheConductor",
+            ProjectId: projectId));
+
+        Repository repository = await dbContext.Repositories.SingleAsync();
+        AuditEvent auditEvent = await dbContext.AuditEvents.SingleAsync();
+        using JsonDocument metadata = JsonDocument.Parse(auditEvent.MetadataJson!);
+
+        Assert.Equal(projectId, repository.ProjectId);
+        Assert.Equal(projectId.ToString(), result.ProjectId);
+        Assert.Equal("Platform", result.ProjectName);
+        Assert.Equal(projectId.ToString(), metadata.RootElement.GetProperty("projectId").GetString());
+        Assert.Equal("Platform", metadata.RootElement.GetProperty("projectName").GetString());
     }
 
     [Fact]

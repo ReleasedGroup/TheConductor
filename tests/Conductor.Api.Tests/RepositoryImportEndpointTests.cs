@@ -3,6 +3,9 @@ using System.Net;
 using System.Net.Http.Json;
 using Conductor.Core.Abstractions.Symphony;
 using Conductor.Core.Domain;
+using Conductor.Core.Domain.Ids;
+using Conductor.Core.Domain.Projects;
+using Conductor.Core.Domain.Repositories;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -16,11 +19,15 @@ namespace Conductor.Api.Tests;
 
 public sealed class RepositoryImportEndpointTests
 {
+    private static readonly ProjectId PlatformProjectId =
+        ProjectId.Parse("13d27b97-d3aa-4a97-9f52-c598eac89df9");
+
     [Fact]
     public async Task Import_Creates_Repository_And_Instance_Shell()
     {
         await using RepositoryImportApiFactory factory = new();
         using HttpClient client = factory.CreateClient();
+        await SeedProjectAsync(factory);
 
         HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/repos/import",
@@ -29,6 +36,7 @@ public sealed class RepositoryImportEndpointTests
                 repositoryFullName = "ReleasedGroup/TheConductor",
                 defaultBranch = "main",
                 visibility = "Private",
+                projectId = PlatformProjectId.ToString(),
                 createSymphonyInstance = true,
                 instanceDisplayName = "Conductor local",
                 executionMode = "LocalProcess",
@@ -44,6 +52,8 @@ public sealed class RepositoryImportEndpointTests
         Assert.NotNull(body);
         Assert.Equal("ReleasedGroup/TheConductor", body.RepositoryFullName);
         Assert.True(body.CreatedRepository);
+        Assert.Equal(PlatformProjectId.ToString(), body.ProjectId);
+        Assert.Equal("Platform", body.ProjectName);
         Assert.True(body.CreatedSymphonyInstance);
         Assert.NotNull(body.SymphonyInstanceId);
 
@@ -53,6 +63,8 @@ public sealed class RepositoryImportEndpointTests
         Assert.Equal(1, await CountAsync(dbContext, "Repositories"));
         Assert.Equal(1, await CountAsync(dbContext, "SymphonyInstances"));
         Assert.Equal(1, await CountAsync(dbContext, "AuditEvents"));
+        Repository repository = await dbContext.Repositories.SingleAsync();
+        Assert.Equal(PlatformProjectId, repository.ProjectId);
     }
 
     [Fact]
@@ -89,6 +101,25 @@ public sealed class RepositoryImportEndpointTests
         object? value = await command.ExecuteScalarAsync();
 
         return Convert.ToInt64(value);
+    }
+
+    private static async Task SeedProjectAsync(RepositoryImportApiFactory factory)
+    {
+        await using AsyncServiceScope scope = factory.Services.CreateAsyncScope();
+        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        DateTimeOffset now = DateTimeOffset.Parse("2026-04-29T02:00:00Z");
+
+        dbContext.Projects.Add(new Project(
+            PlatformProjectId,
+            "Platform",
+            "ReleasedGroup",
+            description: null,
+            "main",
+            ProjectStatus.Active,
+            now,
+            now));
+
+        await dbContext.SaveChangesAsync();
     }
 
     private sealed class RepositoryImportApiFactory : WebApplicationFactory<Program>
@@ -187,5 +218,7 @@ public sealed class RepositoryImportEndpointTests
         string RepositoryFullName,
         bool CreatedRepository,
         bool CreatedSymphonyInstance,
-        string? SymphonyInstanceId);
+        string? SymphonyInstanceId,
+        string? ProjectId,
+        string? ProjectName);
 }

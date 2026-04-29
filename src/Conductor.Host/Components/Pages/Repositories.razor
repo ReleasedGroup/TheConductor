@@ -47,7 +47,7 @@
                 </label>
                 <label>
                     <span>Project</span>
-                    <select @bind="importForm.ProjectId" disabled="@isSubmitting">
+                    <select id="project-id" @bind="importForm.ProjectId" disabled="@isSubmitting">
                         <option value="">Unassigned</option>
                         @foreach (ProjectListItemProjection project in projects)
                         {
@@ -369,9 +369,13 @@
 
     private static string BuildImportSummary(RepositoryImportResult result)
     {
+        string projectSummary = string.IsNullOrWhiteSpace(result.ProjectName)
+            ? "It is unassigned."
+            : $"Linked to {result.ProjectName}.";
+
         return result.CreatedSymphonyInstance
-            ? $"{result.SymphonyInstanceDisplayName} was created in NotProvisioned state."
-            : "Repository metadata is ready for orchestration setup.";
+            ? $"{projectSummary} {result.SymphonyInstanceDisplayName} was created in NotProvisioned state."
+            : $"{projectSummary} Repository metadata is ready for orchestration setup.";
     }
 
     private sealed class RepositoryImportForm

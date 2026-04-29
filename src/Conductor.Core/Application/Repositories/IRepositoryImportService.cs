@@ -43,7 +43,9 @@ public sealed record RepositoryImportResult(
     string? SymphonyInstanceId,
     bool CreatedSymphonyInstance,
     string? SymphonyInstanceDisplayName,
-    DateTimeOffset ImportedAtUtc);
+    DateTimeOffset ImportedAtUtc,
+    string? ProjectId = null,
+    string? ProjectName = null);
 
 public sealed class RepositoryImportValidationException : Exception
 {
