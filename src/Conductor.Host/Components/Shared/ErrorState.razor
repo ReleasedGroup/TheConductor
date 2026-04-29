@@ -1,0 +1,42 @@
+<section class="@CssClass" role="alert">
+    <span class="ui-state-icon ui-state-icon--error" aria-hidden="true"></span>
+    <div class="ui-state-copy">
+        <h2>@Title</h2>
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <p>@Message</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(Detail))
+        {
+            <small>@Detail</small>
+        }
+        @if (ChildContent is not null)
+        {
+            <div class="ui-state-actions">
+                @ChildContent
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Something went wrong";
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public string? Detail { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string CssClass =>
+        string.IsNullOrWhiteSpace(Class)
+            ? "ui-state ui-state--error"
+            : $"ui-state ui-state--error {Class}";
+}
