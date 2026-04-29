@@ -371,6 +371,37 @@ Raw JSON fields:
 
 Frequently queried values must be extracted into first-class columns.
 
+### 7.5 Snapshot Normalized Columns
+
+`InstanceSnapshots` stores raw Symphony health, runtime, and state payloads together with normalized fields used by dashboard and reporting queries.
+
+Health normalization:
+
+- `HealthStatus`
+- `HttpStatusCode`
+- `LatencyMilliseconds`
+- `ErrorMessage`
+
+Runtime normalization:
+
+- `ApplicationName`
+- `ApplicationVersion`
+- `RuntimeInstanceId`
+- `WorkflowOwner`
+- `WorkflowRepository`
+- `WorkflowSourcePath`
+- `PersistenceProvider`
+- `RuntimeDefaultsJson`
+
+State normalization:
+
+- `ActiveIssueCount`
+- `RunningSessionCount`
+- `RetryQueueCount`
+- `FailedRunCount`
+- `TokenInputTotal`
+- `TokenOutputTotal`
+
 ## 8. Application Services
 
 ### 8.1 Repository Import
@@ -501,6 +532,11 @@ Initial alert rules:
 - High token usage.
 - Low GitHub rate limit.
 - Active issues with no running sessions.
+
+Offline instance evaluation records a health snapshot for each pollable registered
+Symphony instance. When an instance transitions to `Offline`, Conductor emits an
+`InstanceOffline` event and creates one unresolved critical in-app alert for that
+instance so repeated failed polls do not duplicate the same active alert.
 
 MVP alert delivery is in-app only. External delivery adapters are later sprints.
 

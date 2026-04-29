@@ -1,5 +1,7 @@
 using Conductor.Core.Application.Queries;
+using Conductor.Core.Application.Snapshots;
 using Conductor.Infrastructure.Persistence.Sqlite.Queries;
+using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,6 +36,7 @@ public static class SqlitePersistenceServiceCollectionExtensions
             provider.GetRequiredService<SqliteProjectionQueryService>());
         services.AddScoped<IInstanceSummaryQueryService>(provider =>
             provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<IInstanceSnapshotStore, SqliteInstanceSnapshotStore>();
 
         return services;
     }
