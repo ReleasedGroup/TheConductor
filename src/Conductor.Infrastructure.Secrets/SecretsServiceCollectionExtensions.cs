@@ -1,4 +1,5 @@
 using Conductor.Core.Abstractions.Secrets;
+using Conductor.Core.Application.Secrets;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -10,6 +11,7 @@ public static class SecretsServiceCollectionExtensions
     {
         services.AddDataProtection();
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<ISecretRedactor, SecretRedactor>();
         services.AddSingleton<DataProtectionSecretProtector>();
         services.AddScoped<ISecretStore, DataProtectionSecretStore>();
 
