@@ -92,7 +92,8 @@ a {
 
 .dashboard,
 .instances-page,
-.repositories-page {
+.repositories-page,
+.repository-detail-page {
   display: grid;
   gap: 24px;
   max-width: 1220px;
@@ -1150,7 +1151,8 @@ h2 {
 .instance-registration,
 .instances-panel,
 .repository-import,
-.repositories-panel {
+.repositories-panel,
+.repository-detail-panel {
   display: grid;
   gap: 18px;
   padding: 24px;
@@ -1438,13 +1440,17 @@ h2 {
 
 .instances-table td:first-child,
 .repositories-table td:first-child,
-.repositories-table td:nth-child(5) {
+.repositories-table td:nth-child(3),
+.repositories-table td:nth-child(4),
+.repositories-table td:nth-child(5),
+.repositories-table td:nth-child(6) {
   display: grid;
   gap: 5px;
 }
 
 .instances-table td:first-child a,
 .repositories-table td:first-child a,
+.instances-table small,
 .repositories-table small {
   width: fit-content;
   max-width: 100%;
@@ -1530,6 +1536,65 @@ h2 {
 
 .repositories-table small {
   color: #aeb9c5;
+}
+
+.breadcrumb-link,
+.metadata-link {
+  width: fit-content;
+  max-width: 100%;
+  color: #9cc2ff;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.breadcrumb-link {
+  display: inline-flex;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+
+.repository-metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.repository-metadata-grid div {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #2b3138;
+  border-radius: 8px;
+  background: #191f25;
+}
+
+.repository-metadata-grid .metadata-wide {
+  grid-column: 1 / -1;
+}
+
+.repository-metadata-grid dt {
+  color: #aeb9c5;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.repository-metadata-grid dd {
+  margin: 0;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.repository-metadata-grid code {
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #232a31;
+  color: #f2c14e;
+  overflow-wrap: anywhere;
 }
 
 .ui-state {
@@ -1688,6 +1753,7 @@ h2 {
   .registration-form,
   .credential-form-row,
   .form-fields,
+  .repository-metadata-grid,
   .import-form-grid,
   .live-activity-header,
   .startup-panel dl {

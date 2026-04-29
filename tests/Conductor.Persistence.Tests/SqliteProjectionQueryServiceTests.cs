@@ -32,6 +32,12 @@ public sealed class SqliteProjectionQueryServiceTests
         Assert.Equal(fixture.ApiRepositoryId, repository.Id);
         Assert.Equal("Alpha", repository.ProjectName);
         Assert.Equal("ReleasedGroup/api-service", repository.FullName);
+        Assert.Equal("https://github.com/ReleasedGroup/api-service.git", repository.CloneUrl.AbsoluteUri);
+        Assert.Equal(RepositoryVisibility.Public, repository.Visibility);
+        Assert.False(repository.IsArchived);
+        Assert.Equal(fixture.CreatedAtUtc, repository.LastSyncedAtUtc);
+        Assert.Equal(RepositoryOrchestrationStatus.Eligible, repository.OrchestrationStatus);
+        Assert.Null(repository.OrchestrationStatusReason);
         Assert.Equal(2, repository.InstanceCount);
         Assert.Equal(1, repository.RunningInstanceCount);
         Assert.Equal(InstanceHealthStatus.Warning, repository.WorstHealthStatus);
@@ -86,6 +92,33 @@ public sealed class SqliteProjectionQueryServiceTests
         Assert.Equal(0, repository.InstanceCount);
         Assert.Equal(InstanceHealthStatus.Unknown, repository.WorstHealthStatus);
         Assert.Null(repository.LastHealthCheckAtUtc);
+    }
+
+    [Fact]
+    public async Task GetRepositoryAsync_Returns_Metadata_And_Instance_Aggregates()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateDbContextAsync(connection);
+        var fixture = await SeedPortfolioAsync(dbContext);
+        SqliteProjectionQueryService queryService = new(dbContext);
+
+        RepositoryDetailProjection? repository =
+            await queryService.GetRepositoryAsync(fixture.ApiRepositoryId);
+
+        Assert.NotNull(repository);
+        Assert.Equal(fixture.ApiRepositoryId, repository.Id);
+        Assert.Equal("Alpha", repository.ProjectName);
+        Assert.Equal("ReleasedGroup/api-service", repository.FullName);
+        Assert.Equal("main", repository.DefaultBranch);
+        Assert.Equal("https://github.com/ReleasedGroup/api-service.git", repository.CloneUrl.AbsoluteUri);
+        Assert.Equal("https://github.com/ReleasedGroup/api-service", repository.WebUrl.AbsoluteUri);
+        Assert.Equal(RepositoryVisibility.Public, repository.Visibility);
+        Assert.Equal(fixture.CreatedAtUtc, repository.LastSyncedAtUtc);
+        Assert.Equal(RepositoryOrchestrationStatus.Eligible, repository.OrchestrationStatus);
+        Assert.Equal(2, repository.InstanceCount);
+        Assert.Equal(1, repository.RunningInstanceCount);
+        Assert.Equal(InstanceHealthStatus.Warning, repository.WorstHealthStatus);
+        Assert.Equal(fixture.WarningObservedAtUtc, repository.LastHealthCheckAtUtc);
     }
 
     [Fact]
@@ -245,6 +278,7 @@ public sealed class SqliteProjectionQueryServiceTests
             betaRepositoryId,
             apiPrimaryInstanceId,
             destroyedInstanceId,
+            createdAtUtc,
             warningObservedAtUtc,
             latestSnapshotAtUtc);
     }
@@ -399,6 +433,7 @@ public sealed class SqliteProjectionQueryServiceTests
         RepositoryId BetaRepositoryId,
         SymphonyInstanceId ApiPrimaryInstanceId,
         SymphonyInstanceId DestroyedInstanceId,
+        DateTimeOffset CreatedAtUtc,
         DateTimeOffset WarningObservedAtUtc,
         DateTimeOffset LatestSnapshotAtUtc);
 }

@@ -128,8 +128,13 @@ public sealed class SqliteProjectionQueryService :
                     repository.Name,
                     repository.FullName.Value,
                     repository.DefaultBranch,
+                    repository.CloneUrl,
                     repository.WebUrl,
+                    repository.Visibility,
                     repository.IsArchived,
+                    repository.LastSyncedAtUtc,
+                    repository.OrchestrationStatus,
+                    repository.OrchestrationStatusReason,
                     instances.Count,
                     instances.Count(instance => instance.LifecycleStatus == InstanceLifecycleStatus.Running),
                     worstHealthStatus,
@@ -139,6 +144,60 @@ public sealed class SqliteProjectionQueryService :
             .ThenBy(repository => repository.Owner)
             .ThenBy(repository => repository.Name)
             .ToArray();
+    }
+
+    public async Task<RepositoryDetailProjection?> GetRepositoryAsync(
+        RepositoryId repositoryId,
+        CancellationToken cancellationToken = default)
+    {
+        Repository? repository = await dbContext.Repositories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(candidate => candidate.Id == repositoryId, cancellationToken);
+
+        if (repository is null)
+        {
+            return null;
+        }
+
+        Dictionary<ProjectId, Project> projectsById = await LoadProjectsAsync(
+            [repository.ProjectId],
+            cancellationToken);
+        Dictionary<RepositoryId, List<SymphonyInstance>> instancesByRepositoryId =
+            await LoadActiveInstancesByRepositoryAsync([repository.Id], cancellationToken);
+        List<SymphonyInstance> instances = instancesByRepositoryId.GetValueOrDefault(repository.Id) ?? [];
+        InstanceHealthStatus worstHealthStatus = instances.Count == 0
+            ? InstanceHealthStatus.Unknown
+            : instances
+                .Select(instance => instance.HealthStatus)
+                .OrderByDescending(MapHealthSeverity)
+                .First();
+
+        Project? project = null;
+        if (repository.ProjectId is { } projectId)
+        {
+            projectsById.TryGetValue(projectId, out project);
+        }
+
+        return new RepositoryDetailProjection(
+            repository.Id,
+            repository.ProjectId,
+            project?.Name,
+            repository.Provider,
+            repository.Owner,
+            repository.Name,
+            repository.FullName.Value,
+            repository.DefaultBranch,
+            repository.CloneUrl,
+            repository.WebUrl,
+            repository.Visibility,
+            repository.IsArchived,
+            repository.LastSyncedAtUtc,
+            repository.OrchestrationStatus,
+            repository.OrchestrationStatusReason,
+            instances.Count,
+            instances.Count(instance => instance.LifecycleStatus == InstanceLifecycleStatus.Running),
+            worstHealthStatus,
+            instances.Select(instance => instance.LastHealthCheckAtUtc).Max());
     }
 
     public async Task<IReadOnlyList<ProjectListItemProjection>> ListProjectsAsync(

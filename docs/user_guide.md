@@ -27,3 +27,5 @@ Use the Repositories page to import a GitHub repository by `owner/name`. The ini
 When a project is selected during import, the repository is linked immediately and the import result confirms the project association.
 
 The page can also create a first Symphony instance shell in `NotProvisioned` state. The shell captures execution mode, instance URL, port, release selector, and credential inheritance choices so later provisioning work can start from a validated record.
+
+Imported repositories appear in the managed repository registry with project, visibility, default branch, archive state, orchestration eligibility, instance counts, last sync, and latest health metadata. Open a repository row to review its detail page, including clone and web URLs, sync metadata, orchestration status, and active Symphony instances attached to that repository.

@@ -216,10 +216,10 @@
                         <tr>
                             <th scope="col">Repository</th>
                             <th scope="col">Project</th>
-                            <th scope="col">Branch</th>
-                            <th scope="col">Health</th>
+                            <th scope="col">Metadata</th>
+                            <th scope="col">Orchestration</th>
                             <th scope="col">Instances</th>
-                            <th scope="col">Last health</th>
+                            <th scope="col">Last sync</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -233,17 +233,29 @@
                                     <a href="@repository.WebUrl.AbsoluteUri" target="_blank" rel="noreferrer">@repository.Provider</a>
                                 </td>
                                 <td>@(repository.ProjectName ?? "Unassigned")</td>
-                                <td>@repository.DefaultBranch</td>
+                                <td>
+                                    <span>@repository.Visibility</span>
+                                    <small>@repository.DefaultBranch branch</small>
+                                    <small>@(repository.IsArchived ? "Archived" : "Active")</small>
+                                </td>
                                 <td>
                                     <StatusBadge
-                                        Text="@repository.WorstHealthStatus.ToString()"
-                                        Tone="@MapHealthTone(repository.WorstHealthStatus)" />
+                                        Text="@repository.OrchestrationStatus.ToString()"
+                                        Tone="@MapOrchestrationTone(repository.OrchestrationStatus)" />
+                                    @if (!string.IsNullOrWhiteSpace(repository.OrchestrationStatusReason))
+                                    {
+                                        <small>@repository.OrchestrationStatusReason</small>
+                                    }
+                                    <small>@repository.WorstHealthStatus health</small>
                                 </td>
                                 <td>
                                     <span>@repository.InstanceCount total</span>
                                     <small>@repository.RunningInstanceCount running</small>
                                 </td>
-                                <td>@FormatTimestamp(repository.LastHealthCheckAtUtc)</td>
+                                <td>
+                                    <span>@FormatTimestamp(repository.LastSyncedAtUtc)</span>
+                                    <small>Health @FormatTimestamp(repository.LastHealthCheckAtUtc)</small>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -352,13 +364,10 @@
             : default;
     }
 
-    private static StatusBadgeTone MapHealthTone(InstanceHealthStatus healthStatus) => healthStatus switch
-    {
-        InstanceHealthStatus.Healthy => StatusBadgeTone.Success,
-        InstanceHealthStatus.Warning => StatusBadgeTone.Warning,
-        InstanceHealthStatus.Critical or InstanceHealthStatus.Offline => StatusBadgeTone.Critical,
-        _ => StatusBadgeTone.Neutral,
-    };
+    private static StatusBadgeTone MapOrchestrationTone(RepositoryOrchestrationStatus orchestrationStatus) =>
+        orchestrationStatus == RepositoryOrchestrationStatus.Eligible
+            ? StatusBadgeTone.Success
+            : StatusBadgeTone.Warning;
 
     private static string FormatTimestamp(DateTimeOffset? timestamp)
     {
