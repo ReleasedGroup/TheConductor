@@ -13,3 +13,9 @@ The dashboard includes a needs-attention panel for active critical and warning i
 ## Secret Review
 
 The Secrets page lists saved credential descriptors for orchestration. GitHub PAT and OpenAI API key descriptors are shown independently, and saved values are rendered only as masked placeholders.
+
+## Manual Instance Registration
+
+Use the Instances page to register an existing Symphony runtime. Provide the instance base URL and an optional display name. Conductor validates the Symphony health endpoint, reads runtime metadata, captures the first state snapshot when available, and then lists the runtime in the instance registry.
+
+If the health or runtime endpoint cannot be reached, Conductor shows the validation result and does not create an active instance record. A URL that is already registered returns a duplicate registration message.

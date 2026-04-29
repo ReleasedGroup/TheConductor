@@ -25,3 +25,9 @@ Run the dashboard slice checks with:
 ```powershell
 dotnet test Conductor.slnx
 ```
+
+## Instance Registry
+
+The `/instances` page provides the first manual Symphony registration UI. It uses
+the same registration service as `POST /api/instances/register`, then refreshes
+the persisted instance list from `IInstanceSummaryQueryService`.

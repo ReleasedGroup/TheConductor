@@ -1,0 +1,226 @@
+@page "/instances"
+@rendermode InteractiveServer
+@using Conductor.Core.Application.Instances
+@using Conductor.Core.Application.Queries
+@using Conductor.Core.Domain
+@inject IManualInstanceRegistrationService RegistrationService
+@inject IInstanceSummaryQueryService InstanceSummaryQueryService
+
+<PageTitle>Instances - Conductor</PageTitle>
+
+<section class="instances-page">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Symphony fleet</p>
+            <h1>Instances</h1>
+            <p class="dashboard-summary">Register and monitor existing Symphony runtimes.</p>
+        </div>
+        <div class="dashboard-meta">
+            <StatusBadge Text="@($"{instances.Count} registered")" Tone="@StatusBadgeTone.Info" />
+        </div>
+    </header>
+
+    <section class="instance-registration" aria-label="Register Symphony instance">
+        <form class="registration-form" @onsubmit="RegisterAsync" @onsubmit:preventDefault>
+            <div class="form-fields">
+                <label>
+                    <span>Instance URL</span>
+                    <input
+                        type="url"
+                        required
+                        inputmode="url"
+                        autocomplete="url"
+                        @bind="registrationForm.BaseUrl"
+                        disabled="@isSubmitting" />
+                </label>
+                <label>
+                    <span>Display name</span>
+                    <input
+                        type="text"
+                        maxlength="128"
+                        @bind="registrationForm.DisplayName"
+                        disabled="@isSubmitting" />
+                </label>
+            </div>
+            <button type="submit" disabled="@isSubmitting">
+                @(isSubmitting ? "Registering" : "Register")
+            </button>
+        </form>
+
+        @if (validationMessages.Count > 0)
+        {
+            <ErrorState
+                Title="Instance was not registered."
+                Message="Review the validation result and retry."
+                Detail="@string.Join(" ", validationMessages)" />
+        }
+        else if (registrationError is not null)
+        {
+            <ErrorState
+                Title="Instance was not registered."
+                Message="The registration request did not complete."
+                Detail="@registrationError" />
+        }
+        else if (registeredInstance is not null)
+        {
+            <SuccessState
+                Title="@($"{registeredInstance.DisplayName} registered")"
+                Message="@($"{registeredInstance.RepositoryFullName} is reporting {registeredInstance.HealthStatus} health.")" />
+        }
+    </section>
+
+    <section class="instances-panel" aria-label="Registered Symphony instances">
+        <div class="instances-panel-header">
+            <div>
+                <p class="eyebrow">Registry</p>
+                <h2>Registered instances</h2>
+            </div>
+        </div>
+
+        @if (loadError is not null)
+        {
+            <ErrorState
+                Title="Instances could not be loaded."
+                Message="Check the persistence store and retry."
+                Detail="@loadError" />
+        }
+        else if (isLoading)
+        {
+            <LoadingState
+                Title="Loading instances"
+                Message="Reading persisted Symphony registrations." />
+        }
+        else if (instances.Count == 0)
+        {
+            <EmptyState
+                Title="No Symphony instances are registered."
+                Message="Registered runtimes will appear here after Conductor validates them." />
+        }
+        else
+        {
+            <div class="instances-table-wrap">
+                <table class="instances-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Instance</th>
+                            <th scope="col">Repository</th>
+                            <th scope="col">Health</th>
+                            <th scope="col">Runtime</th>
+                            <th scope="col">Last seen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (InstanceSummaryProjection instance in instances)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@instance.DisplayName</strong>
+                                    <a href="@instance.BaseUrl.AbsoluteUri" target="_blank" rel="noreferrer">@instance.BaseUrl.Authority</a>
+                                </td>
+                                <td>@instance.RepositoryFullName</td>
+                                <td>
+                                    <StatusBadge
+                                        Text="@instance.HealthStatus.ToString()"
+                                        Tone="@MapHealthTone(instance.HealthStatus)" />
+                                </td>
+                                <td>@instance.LifecycleStatus</td>
+                                <td>@FormatTimestamp(instance.LastSeenAtUtc)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</section>
+
+@code {
+    private readonly RegistrationForm registrationForm = new();
+    private IReadOnlyList<InstanceSummaryProjection> instances = [];
+    private readonly List<string> validationMessages = [];
+    private ManualInstanceRegistrationResult? registeredInstance;
+    private string? registrationError;
+    private string? loadError;
+    private bool isLoading = true;
+    private bool isSubmitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInstancesAsync();
+    }
+
+    private async Task RegisterAsync()
+    {
+        validationMessages.Clear();
+        registrationError = null;
+        registeredInstance = null;
+        isSubmitting = true;
+
+        try
+        {
+            registeredInstance = await RegistrationService.RegisterAsync(new ManualInstanceRegistrationRequest(
+                registrationForm.BaseUrl,
+                registrationForm.DisplayName));
+            registrationForm.BaseUrl = string.Empty;
+            registrationForm.DisplayName = string.Empty;
+            await LoadInstancesAsync();
+        }
+        catch (ManualInstanceRegistrationValidationException ex)
+        {
+            validationMessages.AddRange(ex.Errors.SelectMany(error => error.Value));
+        }
+        catch (DuplicateSymphonyInstanceRegistrationException ex)
+        {
+            registrationError = ex.Message;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            registrationError = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task LoadInstancesAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            instances = await InstanceSummaryQueryService.ListInstanceSummariesAsync(new InstanceSummaryQuery());
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            loadError = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static StatusBadgeTone MapHealthTone(InstanceHealthStatus healthStatus) => healthStatus switch
+    {
+        InstanceHealthStatus.Healthy => StatusBadgeTone.Success,
+        InstanceHealthStatus.Warning => StatusBadgeTone.Warning,
+        InstanceHealthStatus.Critical or InstanceHealthStatus.Offline => StatusBadgeTone.Critical,
+        _ => StatusBadgeTone.Neutral,
+    };
+
+    private static string FormatTimestamp(DateTimeOffset? timestamp)
+    {
+        return timestamp is null
+            ? "Not seen"
+            : timestamp.Value.ToLocalTime().ToString("MMM d, yyyy HH:mm");
+    }
+
+    private sealed class RegistrationForm
+    {
+        public string BaseUrl { get; set; } = string.Empty;
+
+        public string? DisplayName { get; set; }
+    }
+}
