@@ -1,4 +1,6 @@
 @page "/"
+@using System.Text.Json
+@inject IDashboardProjectionStore DashboardProjectionStore
 
 <PageTitle>Conductor Dashboard</PageTitle>
 
@@ -7,20 +9,40 @@
         <div>
             <p class="eyebrow">Fleet overview</p>
             <h1>Conductor Dashboard</h1>
+            <p class="dashboard-summary">Good morning, Nick. Here's what's happening across your software orchestra.</p>
         </div>
-        <span class="status-pill">Sprint 2 dashboard</span>
+        <div class="dashboard-meta">
+            <span class="status-pill">Sprint 2 metrics</span>
+            @if (projection is not null)
+            {
+                <span class="projection-stamp">Projection @projection.CapturedAtUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm")</span>
+            }
+        </div>
     </header>
 
-    <section class="metric-grid" aria-label="Dashboard metrics">
-        @foreach ((string Label, string Value, string Hint) metric in Metrics)
-        {
-            <article class="metric-tile">
-                <span>@metric.Label</span>
-                <strong>@metric.Value</strong>
-                <small>@metric.Hint</small>
-            </article>
-        }
-    </section>
+    @if (loadError is not null)
+    {
+        <div class="dashboard-state dashboard-state--error" role="alert">
+            Dashboard metrics could not be loaded.
+        </div>
+    }
+    else if (projection is null)
+    {
+        <div class="dashboard-state">Loading dashboard metrics...</div>
+    }
+    else if (projection.Metrics.Count == 0)
+    {
+        <div class="dashboard-state">No dashboard metrics are available yet.</div>
+    }
+    else
+    {
+        <section class="metric-grid" aria-label="Dashboard metrics">
+            @foreach (DashboardMetric metric in projection.Metrics)
+            {
+                <MetricTile Metric="metric" />
+            }
+        </section>
+    }
 
     <HealthHeatmap Buckets="HealthBuckets" />
 
@@ -58,13 +80,8 @@
 </section>
 
 @code {
-    private static readonly (string Label, string Value, string Hint)[] Metrics =
-    [
-        ("Projects", "0", "Ready for Sprint 1 seed data"),
-        ("Repositories", "0", "Import workflow pending"),
-        ("Instances", "0", "Provisioning starts in later sprints"),
-        ("Alerts", "0", "In-app rules not active yet"),
-    ];
+    private DashboardProjection? projection;
+    private string? loadError;
 
     private static readonly HealthHeatmapBucket[] HealthBuckets =
     [
@@ -104,8 +121,20 @@
 
     private static readonly (string Label, string Route, string State)[] StartupChecks =
     [
-        ("Dashboard route", "/", "Dashboard served"),
+        ("Dashboard route", "/", "Metric tiles served"),
         ("Live health", "/health/live", "Probe available"),
         ("Ready health", "/health/ready", "Probe available"),
     ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            projection = await DashboardProjectionStore.GetCurrentAsync();
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            loadError = ex.Message;
+        }
+    }
 }

@@ -1,0 +1,61 @@
+@using Conductor.Core.Application.Dashboard
+
+<article class="metric-tile metric-tile--@ToneClass" data-dashboard-metric="@Metric.Key" aria-label="@Metric.Label metric">
+    <div class="metric-tile__icon" aria-hidden="true">
+        @switch (Metric.Icon)
+        {
+            case "pulse":
+                <svg viewBox="0 0 24 24" role="img">
+                    <path d="M3 12h4l2-6 4 12 3-8 2 2h3" />
+                </svg>
+                break;
+            case "agents":
+                <svg viewBox="0 0 24 24" role="img">
+                    <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM4 19c0-3 2-5 4-5s4 2 4 5m0 0c0-3 2-5 4-5s4 2 4 5" />
+                </svg>
+                break;
+            case "warning":
+                <svg viewBox="0 0 24 24" role="img">
+                    <path d="M12 4 3 20h18L12 4Zm0 5v5m0 3h.01" />
+                </svg>
+                break;
+            case "pull-request":
+                <svg viewBox="0 0 24 24" role="img">
+                    <path d="M6 6v12m0 0a2 2 0 1 0 0 .1M18 6a2 2 0 1 0 0 .1M18 8v3a4 4 0 0 1-4 4h-2m0 0 2-2m-2 2 2 2" />
+                </svg>
+                break;
+            default:
+                <span>$</span>
+                break;
+        }
+    </div>
+
+    <div class="metric-tile__content">
+        <p class="metric-tile__label">@Metric.Label</p>
+        <p class="metric-tile__value">@Metric.Value</p>
+
+        <div class="metric-tile__meta">
+            @if (!string.IsNullOrWhiteSpace(Metric.Detail))
+            {
+                <span>@Metric.Detail</span>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Metric.TrendText))
+            {
+                <span class="metric-tile__trend metric-tile__trend--@TrendClass">
+                    <span class="sr-only">Trend:</span>
+                    @Metric.TrendText
+                </span>
+            }
+        </div>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public required DashboardMetric Metric { get; set; }
+
+    private string ToneClass => Metric.Tone.ToString().ToLowerInvariant();
+
+    private string TrendClass => Metric.TrendDirection.ToString().ToLowerInvariant();
+}
