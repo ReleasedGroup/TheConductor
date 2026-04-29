@@ -19,3 +19,9 @@ The Secrets page lists saved credential descriptors for orchestration. GitHub PA
 Use the Instances page to register an existing Symphony runtime. Provide the instance base URL and an optional display name. Conductor validates the Symphony health endpoint, reads runtime metadata, captures the first state snapshot when available, and then lists the runtime in the instance registry.
 
 If the health or runtime endpoint cannot be reached, Conductor shows the validation result and does not create an active instance record. A URL that is already registered returns a duplicate registration message.
+
+## Repository Import
+
+Use the Repositories page to import a GitHub repository by `owner/name`. The initial flow stores repository metadata, optional project assignment, visibility, default branch, and archived state.
+
+The page can also create a first Symphony instance shell in `NotProvisioned` state. The shell captures execution mode, instance URL, port, release selector, and credential inheritance choices so later provisioning work can start from a validated record.

@@ -1,11 +1,13 @@
 using Conductor.Core.Application.Dashboard;
 using Conductor.Core.Application.Instances;
 using Conductor.Core.Application.Queries;
+using Conductor.Core.Application.Repositories;
 using Conductor.Core.Application.Secrets;
 using Conductor.Core.Application.Snapshots;
 using Conductor.Infrastructure.Persistence.Sqlite.Dashboard;
 using Conductor.Infrastructure.Persistence.Sqlite.Instances;
 using Conductor.Infrastructure.Persistence.Sqlite.Queries;
+using Conductor.Infrastructure.Persistence.Sqlite.Repositories;
 using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -38,6 +40,9 @@ public static class SqlitePersistenceServiceCollectionExtensions
             provider.GetRequiredService<SqliteProjectionQueryService>());
         services.AddScoped<IRepositoryListQueryService>(provider =>
             provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<IProjectListQueryService>(provider =>
+            provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<IRepositoryImportService, SqliteRepositoryImportService>();
         services.AddScoped<IInstanceSummaryQueryService>(provider =>
             provider.GetRequiredService<SqliteProjectionQueryService>());
         services.AddScoped<ISecretDescriptorQueryService, SqliteSecretDescriptorQueryService>();

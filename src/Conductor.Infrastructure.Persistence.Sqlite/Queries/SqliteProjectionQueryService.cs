@@ -14,6 +14,7 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Queries;
 public sealed class SqliteProjectionQueryService :
     IDashboardQueryService,
     IRepositoryListQueryService,
+    IProjectListQueryService,
     IInstanceSummaryQueryService
 {
     private readonly ConductorDbContext dbContext;
@@ -137,6 +138,36 @@ public sealed class SqliteProjectionQueryService :
             .ThenBy(repository => repository.Owner)
             .ThenBy(repository => repository.Name)
             .ToArray();
+    }
+
+    public async Task<IReadOnlyList<ProjectListItemProjection>> ListProjectsAsync(
+        ProjectListQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Project> projects = dbContext.Projects.AsNoTracking();
+
+        if (!query.IncludeArchived)
+        {
+            projects = projects.Where(project => project.Status != ProjectStatus.Archived);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            string search = query.Search.Trim();
+            projects = projects.Where(project =>
+                project.Name.Contains(search) ||
+                project.OwnerName.Contains(search));
+        }
+
+        return await projects
+            .OrderBy(project => project.Name)
+            .ThenBy(project => project.OwnerName)
+            .Select(project => new ProjectListItemProjection(
+                project.Id,
+                project.Name,
+                project.OwnerName,
+                project.Status))
+            .ToArrayAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<InstanceSummaryProjection>> ListInstanceSummariesAsync(
