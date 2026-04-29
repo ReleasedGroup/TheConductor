@@ -1,0 +1,256 @@
+@page "/repositories/{RepositoryId:guid}"
+@rendermode InteractiveServer
+@using Conductor.Core.Application.Queries
+@using Conductor.Core.Domain
+@using Conductor.Core.Domain.Ids
+@inject IRepositoryListQueryService RepositoryListQueryService
+@inject IInstanceSummaryQueryService InstanceSummaryQueryService
+
+<PageTitle>@BuildPageTitle() - Conductor</PageTitle>
+
+<section class="repository-detail-page">
+    <header class="dashboard-header">
+        <div>
+            <a class="breadcrumb-link" href="/repositories">Repositories</a>
+            <p class="eyebrow">Repository metadata</p>
+            <h1>@(repository?.FullName ?? "Repository")</h1>
+            <p class="dashboard-summary">@BuildHeaderSummary()</p>
+        </div>
+        @if (repository is { } headerRepository)
+        {
+            <div class="dashboard-meta">
+                <StatusBadge Text="@headerRepository.Visibility.ToString()" Tone="@StatusBadgeTone.Info" />
+                <StatusBadge
+                    Text="@headerRepository.OrchestrationStatus.ToString()"
+                    Tone="@MapOrchestrationTone(headerRepository.OrchestrationStatus)" />
+                <StatusBadge
+                    Text="@headerRepository.WorstHealthStatus.ToString()"
+                    Tone="@MapHealthTone(headerRepository.WorstHealthStatus)" />
+            </div>
+        }
+    </header>
+
+    @if (loadError is not null)
+    {
+        <ErrorState
+            Title="Repository could not be loaded."
+            Message="Check the persistence store and retry."
+            Detail="@loadError" />
+    }
+    else if (isLoading)
+    {
+        <LoadingState
+            Title="Loading repository"
+            Message="Reading repository metadata and instance summaries." />
+    }
+    else if (repository is null)
+    {
+        <EmptyState
+            Title="Repository was not found."
+            Message="The imported repository may have been removed or the link is stale." />
+    }
+    else
+    {
+        <section class="repository-detail-panel" aria-label="Repository metadata">
+            <div class="instances-panel-header">
+                <div>
+                    <p class="eyebrow">Metadata</p>
+                    <h2>Imported repository</h2>
+                </div>
+            </div>
+
+            <dl class="repository-metadata-grid">
+                <div>
+                    <dt>Provider</dt>
+                    <dd>@repository.Provider</dd>
+                </div>
+                <div>
+                    <dt>Project</dt>
+                    <dd>@(repository.ProjectName ?? "Unassigned")</dd>
+                </div>
+                <div>
+                    <dt>Owner</dt>
+                    <dd>@repository.Owner</dd>
+                </div>
+                <div>
+                    <dt>Name</dt>
+                    <dd>@repository.Name</dd>
+                </div>
+                <div>
+                    <dt>Default branch</dt>
+                    <dd>@repository.DefaultBranch</dd>
+                </div>
+                <div>
+                    <dt>Visibility</dt>
+                    <dd>@repository.Visibility</dd>
+                </div>
+                <div>
+                    <dt>Archived</dt>
+                    <dd>@(repository.IsArchived ? "Yes" : "No")</dd>
+                </div>
+                <div>
+                    <dt>Last synced</dt>
+                    <dd>@FormatTimestamp(repository.LastSyncedAtUtc)</dd>
+                </div>
+                <div>
+                    <dt>Orchestration</dt>
+                    <dd>@repository.OrchestrationStatus</dd>
+                </div>
+                <div>
+                    <dt>Health</dt>
+                    <dd>@repository.WorstHealthStatus</dd>
+                </div>
+                <div class="metadata-wide">
+                    <dt>Clone URL</dt>
+                    <dd><code>@repository.CloneUrl.AbsoluteUri</code></dd>
+                </div>
+                <div class="metadata-wide">
+                    <dt>Repository URL</dt>
+                    <dd>
+                        <a class="metadata-link" href="@repository.WebUrl.AbsoluteUri" target="_blank" rel="noreferrer">
+                            @repository.WebUrl.AbsoluteUri
+                        </a>
+                    </dd>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(repository.OrchestrationStatusReason))
+                {
+                    <div class="metadata-wide">
+                        <dt>Status reason</dt>
+                        <dd>@repository.OrchestrationStatusReason</dd>
+                    </div>
+                }
+            </dl>
+        </section>
+
+        <section class="repository-detail-panel" aria-label="Repository instances">
+            <div class="instances-panel-header">
+                <div>
+                    <p class="eyebrow">Symphony</p>
+                    <h2>Repository instances</h2>
+                </div>
+                <StatusBadge Text="@($"{instances.Count} active")" Tone="@StatusBadgeTone.Info" />
+            </div>
+
+            @if (instances.Count == 0)
+            {
+                <EmptyState
+                    Title="No active instances are registered."
+                    Message="Create a Symphony instance shell during import or register an instance later." />
+            }
+            else
+            {
+                <div class="instances-table-wrap">
+                    <table class="instances-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Instance</th>
+                                <th scope="col">Health</th>
+                                <th scope="col">Runtime</th>
+                                <th scope="col">Release</th>
+                                <th scope="col">Last seen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (InstanceSummaryProjection instance in instances)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@instance.DisplayName</strong>
+                                        <a href="@instance.BaseUrl.AbsoluteUri" target="_blank" rel="noreferrer">@instance.BaseUrl.Authority</a>
+                                    </td>
+                                    <td>
+                                        <StatusBadge
+                                            Text="@instance.HealthStatus.ToString()"
+                                            Tone="@MapHealthTone(instance.HealthStatus)" />
+                                    </td>
+                                    <td>
+                                        <span>@instance.LifecycleStatus</span>
+                                        <small>@(instance.SymphonyVersion ?? "Version unknown")</small>
+                                    </td>
+                                    <td>@(instance.SymphonyReleaseTag ?? "Not selected")</td>
+                                    <td>@FormatTimestamp(instance.LastSeenAtUtc, "Not seen")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public Guid RepositoryId { get; set; }
+
+    private RepositoryDetailProjection? repository;
+    private IReadOnlyList<InstanceSummaryProjection> instances = [];
+    private string? loadError;
+    private bool isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        repository = null;
+        instances = [];
+        loadError = null;
+        isLoading = true;
+        var repositoryId = new RepositoryId(RepositoryId);
+
+        try
+        {
+            repository = await RepositoryListQueryService.GetRepositoryAsync(repositoryId);
+            if (repository is not null)
+            {
+                instances = await InstanceSummaryQueryService.ListInstanceSummariesAsync(
+                    new InstanceSummaryQuery(RepositoryId: repositoryId));
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            loadError = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string BuildPageTitle()
+    {
+        return repository is null
+            ? "Repository"
+            : repository.FullName;
+    }
+
+    private string BuildHeaderSummary()
+    {
+        if (repository is null)
+        {
+            return "Review imported repository metadata and attached Symphony instances.";
+        }
+
+        string projectName = repository.ProjectName ?? "unassigned";
+
+        return $"{repository.Provider} repository in {projectName}, synced {FormatTimestamp(repository.LastSyncedAtUtc)}.";
+    }
+
+    private static StatusBadgeTone MapHealthTone(InstanceHealthStatus healthStatus) => healthStatus switch
+    {
+        InstanceHealthStatus.Healthy => StatusBadgeTone.Success,
+        InstanceHealthStatus.Warning => StatusBadgeTone.Warning,
+        InstanceHealthStatus.Critical or InstanceHealthStatus.Offline => StatusBadgeTone.Critical,
+        _ => StatusBadgeTone.Neutral,
+    };
+
+    private static StatusBadgeTone MapOrchestrationTone(RepositoryOrchestrationStatus orchestrationStatus) =>
+        orchestrationStatus == RepositoryOrchestrationStatus.Eligible
+            ? StatusBadgeTone.Success
+            : StatusBadgeTone.Warning;
+
+    private static string FormatTimestamp(DateTimeOffset? timestamp, string fallback = "Not synced")
+    {
+        return timestamp is null
+            ? fallback
+            : timestamp.Value.ToLocalTime().ToString("MMM d, yyyy HH:mm");
+    }
+}

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -21,6 +22,12 @@ public sealed class ManualInstanceRegistrationEndpointTests
         FakeSymphonyApiClient symphonyApiClient = FakeSymphonyApiClient.Healthy();
         await using RegistrationApiFactory factory = new(symphonyApiClient);
         using HttpClient client = factory.CreateClient();
+        await using AsyncServiceScope scope = factory.Services.CreateAsyncScope();
+        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        long initialInstanceCount = await CountAsync(dbContext, "SymphonyInstances");
+        long initialSnapshotCount = await CountAsync(dbContext, "InstanceSnapshots");
+        long initialEventCount = await CountAsync(dbContext, "Events");
+        long initialAuditEventCount = await CountAsync(dbContext, "AuditEvents");
 
         HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/instances/register",
@@ -37,13 +44,10 @@ public sealed class ManualInstanceRegistrationEndpointTests
         Assert.Equal(1, symphonyApiClient.RuntimeCallCount);
         Assert.Equal(1, symphonyApiClient.StateCallCount);
 
-        await using AsyncServiceScope scope = factory.Services.CreateAsyncScope();
-        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
-
-        Assert.Equal(1, await CountAsync(dbContext, "SymphonyInstances"));
-        Assert.Equal(1, await CountAsync(dbContext, "InstanceSnapshots"));
-        Assert.Equal(1, await CountAsync(dbContext, "Events"));
-        Assert.Equal(1, await CountAsync(dbContext, "AuditEvents"));
+        Assert.Equal(initialInstanceCount + 1, await CountAsync(dbContext, "SymphonyInstances"));
+        Assert.Equal(initialSnapshotCount + 1, await CountAsync(dbContext, "InstanceSnapshots"));
+        Assert.Equal(initialEventCount + 1, await CountAsync(dbContext, "Events"));
+        Assert.Equal(initialAuditEventCount + 1, await CountAsync(dbContext, "AuditEvents"));
     }
 
     [Fact]
@@ -51,6 +55,10 @@ public sealed class ManualInstanceRegistrationEndpointTests
     {
         await using RegistrationApiFactory factory = new(FakeSymphonyApiClient.Offline());
         using HttpClient client = factory.CreateClient();
+        await using AsyncServiceScope scope = factory.Services.CreateAsyncScope();
+        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        long initialInstanceCount = await CountAsync(dbContext, "SymphonyInstances");
+        long initialSnapshotCount = await CountAsync(dbContext, "InstanceSnapshots");
 
         HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/instances/register",
@@ -58,11 +66,8 @@ public sealed class ManualInstanceRegistrationEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
-        await using AsyncServiceScope scope = factory.Services.CreateAsyncScope();
-        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
-
-        Assert.Equal(0, await CountAsync(dbContext, "SymphonyInstances"));
-        Assert.Equal(0, await CountAsync(dbContext, "InstanceSnapshots"));
+        Assert.Equal(initialInstanceCount, await CountAsync(dbContext, "SymphonyInstances"));
+        Assert.Equal(initialSnapshotCount, await CountAsync(dbContext, "InstanceSnapshots"));
     }
 
     private static async Task<long> CountAsync(ConductorDbContext dbContext, string tableName)
@@ -89,9 +94,18 @@ public sealed class ManualInstanceRegistrationEndpointTests
         {
             connection.Open();
 
+            builder.ConfigureAppConfiguration((_, configuration) =>
+            {
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["InstanceCollector:Enabled"] = "false",
+                });
+            });
             builder.ConfigureServices(services =>
             {
+                services.RemoveAll<ConductorDbContext>();
                 services.RemoveAll<DbContextOptions<ConductorDbContext>>();
+                services.RemoveAll<IDbContextFactory<ConductorDbContext>>();
                 services.RemoveAll<ISymphonyApiClient>();
 
                 services.AddDbContext<ConductorDbContext>(options => options.UseSqlite(connection));

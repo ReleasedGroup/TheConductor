@@ -1,5 +1,8 @@
 using System.Data.Common;
 using System.Globalization;
+using Conductor.Core.Abstractions.Secrets;
+using Conductor.Core.Application.Queries;
+using Conductor.Core.Application.Secrets;
 using Conductor.Core.Application.Snapshots;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Alerts;
@@ -17,11 +20,13 @@ using Conductor.Core.Domain.Symphony;
 using Conductor.Core.Domain.SymphonyReleases;
 using Conductor.Core.Domain.Workflows;
 using Conductor.Infrastructure.Persistence.Sqlite;
+using Conductor.Infrastructure.Persistence.Sqlite.Queries;
 using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using DomainEvent = Conductor.Core.Domain.Events.Event;
 
 namespace Conductor.Persistence.Tests;
@@ -43,6 +48,7 @@ public sealed class SqlitePersistenceSmokeTests
         "Alerts",
         "Reports",
         "SecretDescriptors",
+        "EncryptedSecretValues",
         "AuditEvents",
         "BackgroundOperations",
     ];
@@ -73,7 +79,6 @@ public sealed class SqlitePersistenceSmokeTests
     {
         await using SqliteConnection connection = await OpenConnectionAsync();
         await using ConductorDbContext dbContext = CreateDbContext(connection);
-
         await dbContext.Database.MigrateAsync();
 
         HashSet<string> tableNames = await LoadTableNamesAsync(connection);
@@ -145,10 +150,15 @@ public sealed class SqlitePersistenceSmokeTests
         var secret = new SecretDescriptor(
             secretId,
             "Repository GitHub token",
-            SecretType.GitHubToken,
+            SecretType.GitHubPersonalAccessToken,
             SecretScopeType.Repository,
             repositoryId.ToString(),
             now);
+        secret.RecordValidation(
+            SecretValidationStatus.Valid,
+            now.AddMinutes(1),
+            "GitHub token permissions verified.",
+            """{"scopes":["repo"]}""");
         var instance = new SymphonyInstance(
             instanceId,
             repositoryId,
@@ -322,6 +332,10 @@ public sealed class SqlitePersistenceSmokeTests
         Assert.Equal("""{"running":1}""", savedSnapshot.StateJson);
         Assert.Equal(secretId, savedSecret.Id);
         Assert.Equal(SecretScopeType.Repository, savedSecret.ScopeType);
+        Assert.Equal(SecretValidationStatus.Valid, savedSecret.ValidationStatus);
+        Assert.Equal(now.AddMinutes(1), savedSecret.ValidatedAtUtc);
+        Assert.Equal("GitHub token permissions verified.", savedSecret.ValidationMessage);
+        Assert.Equal("""{"scopes":["repo"]}""", savedSecret.ValidationMetadataJson);
         Assert.Equal(new Uri("https://github.com/ReleasedGroup/TheConductor/pull/126"), savedRun.PullRequestUrl);
         Assert.Equal(AlertStatus.Acknowledged, savedAlert.Status);
         Assert.Equal(BackgroundOperationStatus.Running, savedOperation.Status);
@@ -563,12 +577,61 @@ public sealed class SqlitePersistenceSmokeTests
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
         ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
         IInstanceSnapshotStore snapshotStore = scope.ServiceProvider.GetRequiredService<IInstanceSnapshotStore>();
+        ISecretDescriptorQueryService secretDescriptorQueryService =
+            scope.ServiceProvider.GetRequiredService<ISecretDescriptorQueryService>();
 
         await dbContext.Database.OpenConnectionAsync();
 
         Assert.True(await dbContext.Database.CanConnectAsync());
         Assert.IsType<SqliteInstanceSnapshotStore>(snapshotStore);
+        Assert.NotNull(secretDescriptorQueryService);
         Assert.True(Directory.Exists(Path.GetDirectoryName(databasePath)));
+    }
+
+    [Fact]
+    public async Task Secret_Descriptor_Query_Returns_OpenAi_Descriptors_With_Masked_Display()
+    {
+        string databasePath = CreateTemporaryDatabasePath();
+        IConfiguration configuration = BuildConfiguration(databasePath);
+        ServiceCollection services = new();
+
+        services.AddConductorPersistence(configuration);
+
+        await using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
+        await using AsyncServiceScope scope = provider.CreateAsyncScope();
+        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        ISecretDescriptorQueryService queryService =
+            scope.ServiceProvider.GetRequiredService<ISecretDescriptorQueryService>();
+        DateTimeOffset createdAtUtc = DateTimeOffset.Parse("2026-04-29T00:10:00Z");
+
+        await dbContext.Database.EnsureCreatedAsync();
+        dbContext.SecretDescriptors.AddRange(
+            new SecretDescriptor(
+                SecretId.New(),
+                "Default GitHub PAT",
+                SecretType.GitHubToken,
+                SecretScopeType.Global,
+                scopeId: null,
+                createdAtUtc),
+            new SecretDescriptor(
+                SecretId.New(),
+                "Production OpenAI key",
+                SecretType.OpenAiApiKey,
+                SecretScopeType.Global,
+                scopeId: null,
+                createdAtUtc));
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+
+        IReadOnlyList<SecretDescriptorView> openAiDescriptors =
+            await queryService.ListAsync(new SecretQuery(SecretType.OpenAiApiKey));
+        SecretDescriptorView openAiDescriptor = Assert.Single(openAiDescriptors);
+
+        Assert.Equal("Production OpenAI key", openAiDescriptor.Name);
+        Assert.Equal(SecretType.OpenAiApiKey, openAiDescriptor.SecretType);
+        Assert.Equal("OpenAI API key", openAiDescriptor.SecretTypeLabel);
+        Assert.Equal("OPENAI_API_KEY", openAiDescriptor.EnvironmentVariableName);
+        Assert.Equal(SecretTypeMetadata.MaskedDisplayValue, openAiDescriptor.MaskedValue);
     }
 
     [Fact]
@@ -591,6 +654,68 @@ public sealed class SqlitePersistenceSmokeTests
         Assert.Equal(1, await ExecuteLongPragmaAsync(connection, "PRAGMA foreign_keys;"));
         Assert.Equal(SqlitePersistenceOptions.DefaultBusyTimeoutMilliseconds, await ExecuteLongPragmaAsync(connection, "PRAGMA busy_timeout;"));
         Assert.Equal("wal", await ExecuteTextPragmaAsync(connection, "PRAGMA journal_mode;"));
+    }
+
+    [Fact]
+    public async Task DevelopmentSeedData_Is_Idempotent_And_Populates_Dashboard_Data()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateMigratedDbContextAsync(connection);
+
+        await DevelopmentSeedData.SeedAsync(dbContext);
+        await DevelopmentSeedData.SeedAsync(dbContext);
+
+        Assert.Equal(2, await CountRowsAsync(connection, "Projects"));
+        Assert.Equal(3, await CountRowsAsync(connection, "Repositories"));
+        Assert.Equal(3, await CountRowsAsync(connection, "SymphonyInstances"));
+        Assert.Equal(3, await CountRowsAsync(connection, "InstanceSnapshots"));
+    }
+
+    [Fact]
+    public async Task ReadModelQueries_Return_Seeded_Dashboard_Projection()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateMigratedDbContextAsync(connection);
+        await DevelopmentSeedData.SeedAsync(dbContext);
+
+        SqliteProjectionQueryService queries = new(dbContext);
+
+        DashboardProjection summary = await queries.GetDashboardAsync(new DashboardQuery());
+
+        Assert.Equal(3, summary.Metrics.ManagedRepositoryCount);
+        Assert.Equal(1, summary.Metrics.HealthyRepositoryCount);
+        Assert.Equal(2, summary.Metrics.ActiveAgentCount);
+        Assert.Equal(0, summary.Metrics.BlockedIssueCount);
+        Assert.Equal(0, summary.Metrics.OpenPullRequestCount);
+        Assert.Contains(summary.ActiveRepositories, repository => repository.FullName == "ReleasedGroup/TheConductor");
+        Assert.Contains(summary.InstanceSummaries, instance => instance.HealthStatus == InstanceHealthStatus.Offline);
+        Assert.Equal(1, summary.HealthBuckets.Single(bucket => bucket.Status == InstanceHealthStatus.Healthy).Count);
+        Assert.Equal(1, summary.HealthBuckets.Single(bucket => bucket.Status == InstanceHealthStatus.Warning).Count);
+        Assert.Equal(1, summary.HealthBuckets.Single(bucket => bucket.Status == InstanceHealthStatus.Offline).Count);
+    }
+
+    [Fact]
+    public async Task DevelopmentBootstrap_Migrates_And_Seeds_Configured_Database()
+    {
+        string databasePath = CreateTemporaryDatabasePath();
+        IConfiguration configuration = BuildConfiguration(databasePath);
+        ServiceCollection services = new();
+
+        services.AddConductorPersistence(configuration);
+
+        await using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
+        await provider.BootstrapDevelopmentDatabaseAsync(NullLogger.Instance);
+
+        await using AsyncServiceScope scope = provider.CreateAsyncScope();
+        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        await dbContext.Database.OpenConnectionAsync();
+
+        DbConnection connection = dbContext.Database.GetDbConnection();
+
+        Assert.Equal(2, await CountRowsAsync(connection, "Projects"));
+        Assert.Equal(3, await CountRowsAsync(connection, "Repositories"));
+        Assert.Equal(3, await CountRowsAsync(connection, "SymphonyInstances"));
+        Assert.Equal(3, await CountRowsAsync(connection, "InstanceSnapshots"));
     }
 
     private static async Task<ConductorDbContext> CreateMigratedDbContextAsync(SqliteConnection connection)
@@ -891,6 +1016,13 @@ public sealed class SqlitePersistenceSmokeTests
         command.CommandText = commandText;
 
         return await command.ExecuteScalarAsync();
+    }
+
+    private static async Task<long> CountRowsAsync(DbConnection connection, string tableName)
+    {
+        object? value = await ExecuteScalarAsync(connection, $"SELECT COUNT(*) FROM {QuoteIdentifier(tableName)};");
+
+        return Convert.ToInt64(value, CultureInfo.InvariantCulture);
     }
 
     private static string QuoteIdentifier(string identifier)

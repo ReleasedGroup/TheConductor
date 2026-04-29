@@ -541,6 +541,26 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                     b.ToTable("RunAttempts", (string)null);
                 });
 
+            modelBuilder.Entity("Conductor.Core.Domain.Secrets.EncryptedSecretValue", b =>
+                {
+                    b.Property<Guid>("SecretId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProtectedValue")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("RotatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("SecretId");
+
+                    b.ToTable("EncryptedSecretValues", (string)null);
+                });
+
             modelBuilder.Entity("Conductor.Core.Domain.Secrets.SecretDescriptor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -569,6 +589,21 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                     b.Property<string>("SecretType")
                         .IsRequired()
                         .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ValidatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ValidationMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ValidationMetadataJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ValidationStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -900,6 +935,15 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                     b.HasOne("Conductor.Core.Domain.Runs.Run", null)
                         .WithMany()
                         .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Conductor.Core.Domain.Secrets.EncryptedSecretValue", b =>
+                {
+                    b.HasOne("Conductor.Core.Domain.Secrets.SecretDescriptor", null)
+                        .WithOne()
+                        .HasForeignKey("Conductor.Core.Domain.Secrets.EncryptedSecretValue", "SecretId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

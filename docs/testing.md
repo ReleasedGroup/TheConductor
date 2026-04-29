@@ -8,8 +8,8 @@ The solution includes the Sprint 0 test skeletons from `docs/technical.md`:
 
 | Project | Purpose |
 | --- | --- |
-| `tests/Conductor.Core.Tests` | Unit tests for domain rules, application services, workflow generation, release selection, secret behavior, and alert logic. |
-| `tests/Conductor.Persistence.Tests` | SQLite persistence tests for migrations, repositories, query projections, retention, and audit writes. |
+| `tests/Conductor.Core.Tests` | Unit tests for domain rules, application services, workflow generation, release selection, secret behavior, redaction, and alert logic. |
+| `tests/Conductor.Persistence.Tests` | SQLite persistence tests for migrations, repositories, query projections, retention, secret value storage, and audit writes. |
 | `tests/Conductor.Api.Tests` | Minimal API tests using `WebApplicationFactory` for endpoint behavior, authorization, and validation responses. |
 | `tests/Conductor.Blazor.Tests` | bUnit component tests for dashboard UI, shared loading/empty/error/success states, status badges, forms, and secret-safe rendering. |
 | `tests/Conductor.Integration.Tests` | Fixture-backed integration tests for clients, runners, and cross-project workflows that do not require external credentials by default. |
@@ -18,6 +18,8 @@ The solution includes the Sprint 0 test skeletons from `docs/technical.md`:
 All test projects target `net10.0`, use xUnit, and are included in `Conductor.slnx`.
 
 Symphony API response fixtures live under `tests/Conductor.Integration.Tests/Fixtures/Symphony` and are copied into the integration test output for deterministic client and mapping tests.
+
+GitHub repository discovery tests use fake HTTP handlers with queued GraphQL responses. The default suite verifies organization discovery, repository metadata mapping, repository search payloads, PAT access validation mapping, and DI registration without requiring live GitHub credentials.
 
 ## Local Validation
 
@@ -40,6 +42,13 @@ The dashboard route loads from `src/Conductor.Host/Data/dashboard-projection.jso
 ## External Tests
 
 Tests that require real external services must be opt-in so the default suite remains deterministic.
+
+GitHub repository discovery tests should use `FakeGitHubRepositoryClient` from
+`Conductor.Infrastructure.GitHub` unless they are explicitly validating live
+GitHub behavior. Seed the fake with `GitHubOrganizationSummary` and
+`GitHubRepositorySummary` values, then use `QueueSearchFailure` or repository
+access validation requests to exercise error-handling paths without live
+credentials.
 
 Use these flags when those suites are added:
 

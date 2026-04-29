@@ -1,5 +1,6 @@
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
+using Conductor.Core.Domain.Secrets;
 
 namespace Conductor.Core.Application.Queries;
 
@@ -38,4 +39,10 @@ public sealed record InstanceSummaryProjection(
     int RunningSessionCount = 0,
     int RetryQueueCount = 0,
     int FailedRunCount = 0,
-    long TokenTotal = 0);
+    long TokenTotal = 0,
+    CredentialInheritanceMode GitHubCredentialInheritanceMode = CredentialInheritanceMode.InheritDefault,
+    SecretId? GitHubCredentialSecretId = null,
+    string? GitHubCredentialName = null,
+    CredentialInheritanceMode OpenAiCredentialInheritanceMode = CredentialInheritanceMode.InheritDefault,
+    SecretId? OpenAiCredentialSecretId = null,
+    string? OpenAiCredentialName = null);

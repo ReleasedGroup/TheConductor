@@ -2,7 +2,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Conductor.Core\Conductor.Core.csproj" />
+    <ProjectReference Include="..\Conductor.Infrastructure.GitHub\Conductor.Infrastructure.GitHub.csproj" />
     <ProjectReference Include="..\Conductor.Infrastructure.Persistence.Sqlite\Conductor.Infrastructure.Persistence.Sqlite.csproj" />
+    <ProjectReference Include="..\Conductor.Infrastructure.Secrets\Conductor.Infrastructure.Secrets.csproj" />
     <ProjectReference Include="..\Conductor.Infrastructure.Symphony\Conductor.Infrastructure.Symphony.csproj" />
   </ItemGroup>
 

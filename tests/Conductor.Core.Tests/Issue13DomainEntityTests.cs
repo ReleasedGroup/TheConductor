@@ -48,7 +48,7 @@ public sealed class Issue13DomainEntityTests
         var descriptor = new SecretDescriptor(
             SecretId.New(),
             "  GitHub PAT  ",
-            SecretType.GitHubToken,
+            SecretType.GitHubPersonalAccessToken,
             SecretScopeType.SymphonyInstance,
             instanceId.ToString(),
             createdAt);
@@ -56,11 +56,13 @@ public sealed class Issue13DomainEntityTests
         descriptor.MarkRotated(rotatedAt);
 
         Assert.Equal("GitHub PAT", descriptor.Name);
-        Assert.Equal(SecretType.GitHubToken, descriptor.SecretType);
+        Assert.Equal(SecretType.GitHubPersonalAccessToken, descriptor.SecretType);
         Assert.Equal(SecretScopeType.SymphonyInstance, descriptor.ScopeType);
         Assert.Equal(instanceId.ToString(), descriptor.ScopeId);
         Assert.Equal(createdAt, descriptor.CreatedAtUtc);
         Assert.Equal(rotatedAt, descriptor.RotatedAtUtc);
+        Assert.Equal(SecretValidationStatus.NotValidated, descriptor.ValidationStatus);
+        Assert.Null(descriptor.ValidatedAtUtc);
         Assert.DoesNotContain(
             typeof(SecretDescriptor).GetProperties(),
             property => property.Name.Contains("Value", StringComparison.OrdinalIgnoreCase));
@@ -74,7 +76,7 @@ public sealed class Issue13DomainEntityTests
         var error = Assert.Throws<ArgumentException>(() => new SecretDescriptor(
             SecretId.New(),
             "Repository PAT",
-            SecretType.GitHubToken,
+            SecretType.GitHubPersonalAccessToken,
             SecretScopeType.Repository,
             scopeId: " ",
             createdAt));
@@ -96,5 +98,20 @@ public sealed class Issue13DomainEntityTests
             createdAt));
 
         Assert.Equal("scopeId", error.ParamName);
+    }
+
+    [Fact]
+    public void SecretTypeMetadata_Labels_OpenAi_Api_Key_For_Masked_Display()
+    {
+        SecretTypeDisplay metadata = SecretTypeMetadata.Get(SecretType.OpenAiApiKey);
+
+        Assert.Equal(SecretType.OpenAiApiKey, metadata.SecretType);
+        Assert.Equal("OpenAI API key", metadata.Label);
+        Assert.Equal("OPENAI_API_KEY", metadata.EnvironmentVariableName);
+        Assert.Equal(SecretTypeMetadata.MaskedDisplayValue, metadata.MaskedDisplayValue);
+        Assert.DoesNotContain("sk-", metadata.MaskedDisplayValue, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            SecretTypeMetadata.CredentialTypes,
+            secretType => secretType.SecretType == SecretType.OpenAiApiKey);
     }
 }

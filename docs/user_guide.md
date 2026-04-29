@@ -10,8 +10,22 @@ Initial user workflows will cover dashboard review, repository import, instance 
 
 The dashboard includes a needs-attention panel for active critical and warning items. Each row shows the affected repository or Symphony instance, the current severity, the reason it needs attention, and a link to the source area for follow-up.
 
+## Secret Review
+
+The Secrets page lists saved credential descriptors for orchestration. GitHub PAT and OpenAI API key descriptors are shown independently, and saved values are rendered only as masked placeholders.
+
 ## Manual Instance Registration
 
 Use the Instances page to register an existing Symphony runtime. Provide the instance base URL and an optional display name. Conductor validates the Symphony health endpoint, reads runtime metadata, captures the first state snapshot when available, and then lists the runtime in the instance registry.
 
 If the health or runtime endpoint cannot be reached, Conductor shows the validation result and does not create an active instance record. A URL that is already registered returns a duplicate registration message.
+
+## Repository Import
+
+Use the Repositories page to import a GitHub repository by `owner/name`. The initial flow stores repository metadata, optional project assignment, visibility, default branch, and archived state.
+
+When a project is selected during import, the repository is linked immediately and the import result confirms the project association.
+
+The page can also create a first Symphony instance shell in `NotProvisioned` state. The shell captures execution mode, instance URL, port, release selector, and credential inheritance choices so later provisioning work can start from a validated record.
+
+Imported repositories appear in the managed repository registry with project, visibility, default branch, archive state, orchestration eligibility, instance counts, last sync, and latest health metadata. Open a repository row to review its detail page, including clone and web URLs, sync metadata, orchestration status, and active Symphony instances attached to that repository.

@@ -329,6 +329,7 @@ Initial migration should create:
 - `Alerts`
 - `Reports`
 - `SecretDescriptors`
+- `EncryptedSecretValues`
 - `AuditEvents`
 - `BackgroundOperations`
 
@@ -621,12 +622,13 @@ public interface ISecretStore
     Task<SecretDescriptor> CreateAsync(CreateSecretRequest request, CancellationToken ct);
     Task RotateAsync(SecretId secretId, RotateSecretRequest request, CancellationToken ct);
     Task<ResolvedSecret> ResolveAsync(SecretReference reference, CancellationToken ct);
+    Task<ResolvedSecret?> ResolveAsync(SecretResolutionRequest request, CancellationToken ct);
     Task<IReadOnlyList<SecretDescriptor>> ListAsync(SecretQuery query, CancellationToken ct);
     Task DeleteAsync(SecretId secretId, CancellationToken ct);
 }
 ```
 
-Secret values must only be returned to runner/provisioning code paths that need to inject them. UI and ordinary API responses must receive descriptors only.
+Secret values must be protected with ASP.NET Core Data Protection before persistence. `SecretDescriptor` rows contain only metadata; encrypted payloads are stored separately and must only be returned to runner/provisioning code paths that need to inject them. UI and ordinary API responses must receive descriptors only.
 
 ### 9.4 Release Resolver
 
@@ -848,10 +850,16 @@ Resolution precedence:
 3. Project-scoped secret.
 4. Global default.
 
+Credential modes:
+
+- `SpecificSecret` resolves the selected secret descriptor directly.
+- `InheritDefault` resolves scoped descriptors using the precedence order above.
+- `None` resolves no credential even when scoped defaults exist.
+
 Secret storage:
 
 - Store encrypted values using ASP.NET Core Data Protection for MVP.
-- Store secret descriptors separately from encrypted payloads.
+- Store secret descriptors separately from encrypted payloads in `SecretDescriptors` and `EncryptedSecretValues`.
 - Never return secret values through ordinary APIs.
 - Never persist resolved secret values in operation logs.
 
@@ -986,6 +994,8 @@ MVP uses one or more stored GitHub PATs. Each repository or instance can use its
 
 The GitHub client receives a `SecretReference`, resolves it only for the request scope, and disposes of the plaintext value immediately after use.
 
+Selected PATs are validated against the target repository before import where practical. The GitHub adapter calls the repository metadata endpoint with the selected token, treats `200` as repository reachability, inspects the returned repository permissions when GitHub includes them, and maps invalid-token, not-found/no-access, forbidden/SSO-policy, and rate-limit responses to actionable validation results without storing the plaintext token.
+
 ### 15.2 Repository Discovery
 
 Use GitHub REST or GraphQL depending on API coverage. Keep a repository-facing abstraction so the rest of the app does not care which API is used.
@@ -1019,6 +1029,13 @@ Behaviors:
 - Download compatible assets.
 - Persist provenance.
 - Surface failure if release assets do not match target runtime.
+
+Compatible asset selection:
+
+- Match release assets by target execution mode, operating system, and architecture before download or cache lookup.
+- Ignore checksum/signature companion files as primary assets, but retain the matching checksum asset when one exists.
+- Local process mode selects the runtime archive for the host OS and architecture, preferring Windows `.zip` bundles and Linux/macOS `.tar.gz` bundles.
+- Docker and Azure container modes select Linux-compatible assets for the requested architecture, preferring container/image metadata assets when published and otherwise falling back to the Linux runtime archive used to build or prepare the container runtime.
 
 ## 16. Symphony API Integration
 
