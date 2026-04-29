@@ -38,6 +38,10 @@ Data Source=./data/conductor.db;Cache=Shared
 
 The SQLite registration creates the database directory when a file-backed connection string is used and applies the required startup PRAGMAs for foreign keys, WAL journaling, and a 5 second busy timeout when EF Core opens a connection.
 
+## Instance Collector
+
+The host registers an `InstanceCollector` background worker that polls non-destroyed Symphony instances from persistence. Defaults are configured in `src/Conductor.Host/appsettings.json`: health every 10 seconds, state every 30 seconds, runtime every 2 minutes, with a 1 second loop delay. Each collection writes an `InstanceSnapshots` row, updates the instance health timestamps, emits health transition events, and creates or resolves the built-in offline alert.
+
 ## Persistence Migrations
 
 Apply the current EF Core migration set with:

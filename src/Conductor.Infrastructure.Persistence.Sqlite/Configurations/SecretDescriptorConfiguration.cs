@@ -38,6 +38,18 @@ internal sealed class SecretDescriptorConfiguration : IEntityTypeConfiguration<S
 
         builder.Property(secret => secret.RotatedAtUtc);
 
+        builder.Property(secret => secret.ValidationStatus)
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .IsRequired();
+
+        builder.Property(secret => secret.ValidatedAtUtc);
+
+        builder.Property(secret => secret.ValidationMessage)
+            .HasMaxLength(500);
+
+        builder.Property(secret => secret.ValidationMetadataJson);
+
         builder.HasIndex(secret => new
         {
             secret.ScopeType,

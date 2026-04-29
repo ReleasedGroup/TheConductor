@@ -1,9 +1,13 @@
+using Conductor.Core.Application.Dashboard;
+using Conductor.Core.Application.InstanceCollection;
 using Conductor.Core.Application.Instances;
 using Conductor.Core.Application.Queries;
 using Conductor.Core.Application.Secrets;
 using Conductor.Core.Application.Snapshots;
+using Conductor.Infrastructure.Persistence.Sqlite.Dashboard;
 using Conductor.Infrastructure.Persistence.Sqlite.Instances;
 using Conductor.Infrastructure.Persistence.Sqlite.Queries;
+using Conductor.Infrastructure.Persistence.Sqlite.Repositories;
 using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +26,7 @@ public static class SqlitePersistenceServiceCollectionExtensions
             ?? SqlitePersistenceOptions.DefaultConnectionString;
 
         services.AddSingleton<SqliteConnectionPragmaInterceptor>();
+        services.AddScoped<IActiveRepositoryDashboardQuery, SqliteActiveRepositoryDashboardQuery>();
 
         services.AddDbContext<ConductorDbContext>((serviceProvider, options) =>
         {
@@ -39,6 +44,7 @@ public static class SqlitePersistenceServiceCollectionExtensions
             provider.GetRequiredService<SqliteProjectionQueryService>());
         services.AddScoped<ISecretDescriptorQueryService, SqliteSecretDescriptorQueryService>();
         services.AddScoped<IManualInstanceRegistrationService, SqliteManualInstanceRegistrationService>();
+        services.AddScoped<IInstanceCollectionStore, SqliteInstanceCollectionStore>();
         services.AddScoped<IInstanceSnapshotStore, SqliteInstanceSnapshotStore>();
         services.TryAddSingleton(TimeProvider.System);
 
