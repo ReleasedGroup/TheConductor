@@ -91,6 +91,7 @@ Request:
   "repositoryFullName": "ReleasedGroup/TheConductor",
   "defaultBranch": "main",
   "visibility": "Private",
+  "projectId": "13d27b97-d3aa-4a97-9f52-c598eac89df9",
   "createSymphonyInstance": true,
   "instanceBaseUrl": "http://localhost:8080/",
   "port": 8080,
@@ -103,11 +104,12 @@ Request:
 Behavior:
 
 - Validates `owner/name` repository identity and derives GitHub clone/web URLs when explicit URLs are not provided.
+- Validates the selected project when `projectId` is supplied and links the imported repository to that project.
 - Creates or updates the repository registry record.
 - Creates a `NotProvisioned` Symphony instance shell when orchestration is requested.
 - Records an audit event for the import.
 
 Responses:
 
-- `201 Created` with repository and optional instance identifiers.
+- `201 Created` with repository, linked project, and optional instance identifiers.
 - `400 Bad Request` with validation errors when repository identity, instance URL, port, or specific secret references are invalid.

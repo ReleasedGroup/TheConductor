@@ -24,4 +24,6 @@ If the health or runtime endpoint cannot be reached, Conductor shows the validat
 
 Use the Repositories page to import a GitHub repository by `owner/name`. The initial flow stores repository metadata, optional project assignment, visibility, default branch, and archived state.
 
+When a project is selected during import, the repository is linked immediately and the import result confirms the project association.
+
 The page can also create a first Symphony instance shell in `NotProvisioned` state. The shell captures execution mode, instance URL, port, release selector, and credential inheritance choices so later provisioning work can start from a validated record.

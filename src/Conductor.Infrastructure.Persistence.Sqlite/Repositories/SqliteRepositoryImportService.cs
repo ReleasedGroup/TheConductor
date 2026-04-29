@@ -30,7 +30,8 @@ internal sealed class SqliteRepositoryImportService : IRepositoryImportService
         CancellationToken cancellationToken = default)
     {
         RepositoryImportPlan plan = RepositoryImportPlan.Create(request);
-        await ValidateReferencesAsync(plan, cancellationToken);
+        RepositoryImportReferenceValidationResult referenceResult =
+            await ValidateReferencesAsync(plan, cancellationToken);
 
         DateTimeOffset now = timeProvider.GetUtcNow();
 
@@ -45,6 +46,8 @@ internal sealed class SqliteRepositoryImportService : IRepositoryImportService
         string metadataJson = JsonSerializer.Serialize(new
         {
             repositoryFullName = plan.FullName.Value,
+            projectId = plan.ProjectId?.ToString(),
+            projectName = referenceResult.ProjectName,
             createdRepository = repositoryResult.CreatedRepository,
             createSymphonyInstance = plan.InstancePlan is not null,
             createdSymphonyInstance = instanceResult.CreatedInstance,
@@ -76,19 +79,32 @@ internal sealed class SqliteRepositoryImportService : IRepositoryImportService
             instanceResult.Instance?.Id.ToString(),
             instanceResult.CreatedInstance,
             instanceResult.Instance?.DisplayName,
-            now);
+            now,
+            plan.ProjectId?.ToString(),
+            referenceResult.ProjectName);
     }
 
-    private async Task ValidateReferencesAsync(
+    private async Task<RepositoryImportReferenceValidationResult> ValidateReferencesAsync(
         RepositoryImportPlan plan,
         CancellationToken cancellationToken)
     {
         Dictionary<string, List<string>> errors = new(StringComparer.Ordinal);
+        string? projectName = null;
 
-        if (plan.ProjectId is { } projectId &&
-            !await dbContext.Projects.AsNoTracking().AnyAsync(project => project.Id == projectId, cancellationToken))
+        if (plan.ProjectId is { } projectId)
         {
-            AddError(errors, nameof(RepositoryImportRequest.ProjectId), "The selected project does not exist.");
+            Project? project = await dbContext.Projects
+                .AsNoTracking()
+                .FirstOrDefaultAsync(candidate => candidate.Id == projectId, cancellationToken);
+
+            if (project is null)
+            {
+                AddError(errors, nameof(RepositoryImportRequest.ProjectId), "The selected project does not exist.");
+            }
+            else
+            {
+                projectName = project.Name;
+            }
         }
 
         if (plan.InstancePlan?.WorkflowProfileId is { } workflowProfileId &&
@@ -117,6 +133,8 @@ internal sealed class SqliteRepositoryImportService : IRepositoryImportService
         {
             throw new RepositoryImportValidationException(ToErrorDictionary(errors));
         }
+
+        return new RepositoryImportReferenceValidationResult(projectName);
     }
 
     private async Task ValidateSecretReferenceAsync(
@@ -267,4 +285,6 @@ internal sealed class SqliteRepositoryImportService : IRepositoryImportService
             item => item.Value.ToArray(),
             StringComparer.Ordinal);
     }
+
+    private sealed record RepositoryImportReferenceValidationResult(string? ProjectName);
 }

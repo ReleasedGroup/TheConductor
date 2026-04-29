@@ -21,6 +21,7 @@ public sealed class RepositoriesPageTests
 
         IRenderedComponent<Repositories> page = context.Render<Repositories>();
         page.Find("#repository-full-name").Change("ReleasedGroup/TheConductor");
+        page.Find("#project-id").Change(StaticProjectListQueryService.PlatformProjectId.ToString());
         page.Find("#create-instance-shell").Change(true);
         page.Find("#instance-base-url").Change("http://localhost:8080/");
 
@@ -28,10 +29,12 @@ public sealed class RepositoriesPageTests
 
         Assert.NotNull(importService.LastRequest);
         Assert.Equal("ReleasedGroup/TheConductor", importService.LastRequest.RepositoryFullName);
+        Assert.Equal(StaticProjectListQueryService.PlatformProjectId, importService.LastRequest.ProjectId);
         Assert.True(importService.LastRequest.CreateSymphonyInstance);
         Assert.Equal("http://localhost:8080/", importService.LastRequest.InstanceBaseUrl);
         Assert.Equal(CredentialInheritanceMode.InheritDefault, importService.LastRequest.GitHubCredentialInheritanceMode);
         Assert.Contains("ReleasedGroup/TheConductor imported", page.Markup, StringComparison.Ordinal);
+        Assert.Contains("Linked to Platform.", page.Markup, StringComparison.Ordinal);
         Assert.Contains("Conductor local was created in NotProvisioned state.", page.Markup, StringComparison.Ordinal);
         Assert.Contains("Managed repositories", page.Markup, StringComparison.Ordinal);
         Assert.Contains("ReleasedGroup/ExistingService", page.Markup, StringComparison.Ordinal);
@@ -54,7 +57,9 @@ public sealed class RepositoriesPageTests
                 Guid.NewGuid().ToString("D"),
                 CreatedSymphonyInstance: true,
                 "Conductor local",
-                DateTimeOffset.Parse("2026-04-29T02:00:00Z")));
+                DateTimeOffset.Parse("2026-04-29T02:00:00Z"),
+                request.ProjectId?.ToString(),
+                request.ProjectId is null ? null : "Platform"));
         }
     }
 
@@ -89,6 +94,9 @@ public sealed class RepositoriesPageTests
 
     private sealed class StaticProjectListQueryService : IProjectListQueryService
     {
+        public static readonly ProjectId PlatformProjectId =
+            ProjectId.Parse("bdfe0e41-15b5-4d7d-9153-7dd0f6fe1032");
+
         public Task<IReadOnlyList<ProjectListItemProjection>> ListProjectsAsync(
             ProjectListQuery query,
             CancellationToken cancellationToken = default)
@@ -96,7 +104,7 @@ public sealed class RepositoriesPageTests
             IReadOnlyList<ProjectListItemProjection> projects =
             [
                 new ProjectListItemProjection(
-                    ProjectId.New(),
+                    PlatformProjectId,
                     "Platform",
                     "ReleasedGroup",
                     ProjectStatus.Active),
