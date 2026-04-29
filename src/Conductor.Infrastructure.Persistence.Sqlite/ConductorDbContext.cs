@@ -128,18 +128,31 @@ public sealed class ConductorDbContext(DbContextOptions<ConductorDbContext> opti
         var builder = modelBuilder.Entity<InstanceSnapshot>();
 
         builder.ToTable("InstanceSnapshots");
-        builder.HasKey(snapshot => new
-        {
-            snapshot.SymphonyInstanceId,
-            snapshot.CapturedAtUtc,
-        });
+        builder.HasKey(snapshot => snapshot.Id);
+        builder.Property(snapshot => snapshot.Id)
+            .HasConversion(id => id.Value, value => new InstanceSnapshotId(value))
+            .ValueGeneratedNever();
         builder.Property(snapshot => snapshot.SymphonyInstanceId)
             .HasConversion(id => id.Value, value => new SymphonyInstanceId(value));
         builder.Property(snapshot => snapshot.CapturedAtUtc)
-            .HasConversion(value => value.UtcTicks, value => new DateTimeOffset(value, TimeSpan.Zero));
+            .HasConversion(value => value.UtcTicks, value => new DateTimeOffset(value, TimeSpan.Zero))
+            .IsRequired();
         builder.Property(snapshot => snapshot.HealthStatus).IsRequired();
         builder.Property(snapshot => snapshot.HealthJson);
         builder.Property(snapshot => snapshot.RuntimeJson);
         builder.Property(snapshot => snapshot.StateJson);
+        builder.Property(snapshot => snapshot.ActiveIssueCount).IsRequired();
+        builder.Property(snapshot => snapshot.RunningSessionCount).IsRequired();
+        builder.Property(snapshot => snapshot.RetryQueueCount).IsRequired();
+        builder.Property(snapshot => snapshot.FailedRunCount).IsRequired();
+        builder.Property(snapshot => snapshot.TokenInputTotal).IsRequired();
+        builder.Property(snapshot => snapshot.TokenOutputTotal).IsRequired();
+        builder.Ignore(snapshot => snapshot.TokenTotal);
+
+        builder.HasIndex(snapshot => new
+        {
+            snapshot.SymphonyInstanceId,
+            snapshot.CapturedAtUtc,
+        });
     }
 }

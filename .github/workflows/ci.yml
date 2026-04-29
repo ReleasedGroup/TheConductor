@@ -9,9 +9,17 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-test:
     runs-on: windows-latest
+    timeout-minutes: 15
+
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: true
 
     steps:
       - name: Checkout
@@ -32,4 +40,4 @@ jobs:
         run: dotnet test Conductor.slnx --no-build --collect:"XPlat Code Coverage"
 
       - name: Format check
-        run: dotnet format Conductor.slnx --verify-no-changes
+        run: dotnet format Conductor.slnx --no-restore --verify-no-changes

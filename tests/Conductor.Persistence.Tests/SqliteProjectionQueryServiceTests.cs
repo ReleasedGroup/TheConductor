@@ -216,19 +216,33 @@ public sealed class SqliteProjectionQueryServiceTests
         dbContext.AddRange(apiPrimaryInstance, apiCanaryInstance, webInstance, destroyedInstance);
         dbContext.AddRange(
             new InstanceSnapshot(
+                InstanceSnapshotId.New(),
                 apiPrimaryInstance.Id,
                 healthyObservedAtUtc,
                 InstanceHealthStatus.Healthy,
                 """{"status":"healthy"}""",
                 "{}",
-                "{}"),
+                "{}",
+                activeIssueCount: 3,
+                runningSessionCount: 1,
+                retryQueueCount: 0,
+                failedRunCount: 0,
+                tokenInputTotal: 100,
+                tokenOutputTotal: 50),
             new InstanceSnapshot(
+                InstanceSnapshotId.New(),
                 apiPrimaryInstance.Id,
                 latestSnapshotAtUtc,
                 InstanceHealthStatus.Healthy,
                 """{"status":"healthy"}""",
                 "{}",
-                "{}"));
+                "{}",
+                activeIssueCount: 4,
+                runningSessionCount: 2,
+                retryQueueCount: 1,
+                failedRunCount: 0,
+                tokenInputTotal: 160,
+                tokenOutputTotal: 80));
 
         await dbContext.SaveChangesAsync();
 
