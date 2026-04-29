@@ -114,6 +114,62 @@ public sealed class SymphonyApiClientTests
     }
 
     [Fact]
+    public async Task Health_Returns_Offline_For_Timeout()
+    {
+        var handler = new BlockingHandler();
+        using HttpClient httpClient = TimeoutHttpClient(handler);
+        var client = new SymphonyApiClient(httpClient);
+
+        SymphonyHealthResponse health = await client.GetHealthAsync(BaseUri, CancellationToken.None);
+
+        Assert.Equal(InstanceHealthStatus.Offline, health.Status);
+        Assert.Null(health.HttpStatusCode);
+        Assert.True(health.Latency > TimeSpan.Zero);
+        Assert.Contains("\"kind\":\"timeout\"", health.RawJson, StringComparison.Ordinal);
+        Assert.Equal("GET /root/api/v1/health", Format(Assert.Single(handler.Requests)));
+    }
+
+    [Fact]
+    public async Task Health_Propagates_Caller_Cancellation()
+    {
+        var handler = new BlockingHandler();
+        using HttpClient httpClient = new(handler);
+        var client = new SymphonyApiClient(httpClient);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(25));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => client.GetHealthAsync(BaseUri, cancellation.Token));
+
+        Assert.Equal("GET /root/api/v1/health", Format(Assert.Single(handler.Requests)));
+    }
+
+    [Fact]
+    public async Task NonHealth_Endpoints_Propagate_Timeout_Cancellations()
+    {
+        await AssertEndpointTimesOutAsync(
+            "GET /root/api/v1/runtime",
+            (client, cancellationToken) => client.GetRuntimeAsync(BaseUri, cancellationToken));
+        await AssertEndpointTimesOutAsync(
+            "GET /root/api/v1/workflow",
+            (client, cancellationToken) => client.GetWorkflowAsync(BaseUri, cancellationToken));
+        await AssertEndpointTimesOutAsync(
+            "PUT /root/api/v1/workflow",
+            (client, cancellationToken) => client.SaveWorkflowAsync(
+                BaseUri,
+                new SymphonyWorkflowDocument("# Workflow", "\"workflow-1\""),
+                cancellationToken));
+        await AssertEndpointTimesOutAsync(
+            "GET /root/api/v1/state",
+            (client, cancellationToken) => client.GetStateAsync(BaseUri, cancellationToken));
+        await AssertEndpointTimesOutAsync(
+            "GET /root/api/v1/issue-42",
+            (client, cancellationToken) => client.GetIssueAsync(BaseUri, "issue-42", cancellationToken));
+        await AssertEndpointTimesOutAsync(
+            "POST /root/api/v1/refresh",
+            (client, cancellationToken) => client.RequestRefreshAsync(BaseUri, cancellationToken));
+    }
+
+    [Fact]
     public void AddConductorSymphony_Registers_Api_Client()
     {
         ServiceCollection services = [];
@@ -129,6 +185,26 @@ public sealed class SymphonyApiClientTests
 
     private static string Format(RecordedRequest request) =>
         $"{request.Method} {request.Uri.AbsolutePath}";
+
+    private static HttpClient TimeoutHttpClient(HttpMessageHandler handler) =>
+        new(handler)
+        {
+            Timeout = TimeSpan.FromMilliseconds(50),
+        };
+
+    private static async Task AssertEndpointTimesOutAsync(
+        string expectedRequest,
+        Func<SymphonyApiClient, CancellationToken, Task> operation)
+    {
+        var handler = new BlockingHandler();
+        using HttpClient httpClient = TimeoutHttpClient(handler);
+        var client = new SymphonyApiClient(httpClient);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => operation(client, CancellationToken.None));
+
+        Assert.Equal(expectedRequest, Format(Assert.Single(handler.Requests)));
+    }
 
     private static HttpResponseMessage JsonResponse(
         HttpStatusCode statusCode,
@@ -152,6 +228,24 @@ public sealed class SymphonyApiClientTests
         return response;
     }
 
+    private static async Task<RecordedRequest> RecordRequestAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        string? content = request.Content is null
+            ? null
+            : await request.Content.ReadAsStringAsync(cancellationToken);
+        string? ifMatch = request.Headers.TryGetValues("If-Match", out IEnumerable<string>? values)
+            ? values.SingleOrDefault()
+            : null;
+
+        return new RecordedRequest(
+            request.Method.Method,
+            request.RequestUri ?? throw new InvalidOperationException("Request URI was not set."),
+            content,
+            ifMatch);
+    }
+
     private sealed class QueueHandler(
         params Func<RecordedRequest, HttpResponseMessage>[] responses) : HttpMessageHandler
     {
@@ -163,21 +257,25 @@ public sealed class SymphonyApiClientTests
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            string? content = request.Content is null
-                ? null
-                : await request.Content.ReadAsStringAsync(cancellationToken);
-            string? ifMatch = request.Headers.TryGetValues("If-Match", out IEnumerable<string>? values)
-                ? values.SingleOrDefault()
-                : null;
-            var recordedRequest = new RecordedRequest(
-                request.Method.Method,
-                request.RequestUri ?? throw new InvalidOperationException("Request URI was not set."),
-                content,
-                ifMatch);
+            RecordedRequest recordedRequest = await RecordRequestAsync(request, cancellationToken);
 
             Requests.Add(recordedRequest);
-
             return responses.Dequeue()(recordedRequest);
+        }
+    }
+
+    private sealed class BlockingHandler : HttpMessageHandler
+    {
+        public List<RecordedRequest> Requests { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(await RecordRequestAsync(request, cancellationToken));
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+
+            throw new InvalidOperationException("The blocking handler should be cancelled.");
         }
     }
 
