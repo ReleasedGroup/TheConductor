@@ -66,14 +66,14 @@ public sealed class HealthHeatmapTests
         IRenderedComponent<HealthHeatmap> component = context.Render<HealthHeatmap>(parameters => parameters
             .Add(component => component.Buckets, buckets));
 
-        IReadOnlyList<IElement> summaries = component.FindAll(".heatmap-legend-item");
+        IReadOnlyList<IElement> summaries = component.FindAll(".heatmap-summary .status-badge");
 
         Assert.Collection(
             summaries,
-            summary => AssertLegendItem(summary, "Healthy", "2", "heatmap-cell--healthy"),
-            summary => AssertLegendItem(summary, "Warning", "1", "heatmap-cell--warning"),
-            summary => AssertLegendItem(summary, "Critical", "1", "heatmap-cell--critical"),
-            summary => AssertLegendItem(summary, "Offline", "1", "heatmap-cell--offline"));
+            summary => AssertSummaryBadge(summary, "Healthy 2", "status-badge--success"),
+            summary => AssertSummaryBadge(summary, "Warning 1", "status-badge--warning"),
+            summary => AssertSummaryBadge(summary, "Critical 1", "status-badge--critical"),
+            summary => AssertSummaryBadge(summary, "Offline 1", "status-badge--neutral"));
     }
 
     [Fact]
@@ -164,11 +164,10 @@ public sealed class HealthHeatmapTests
         Assert.Equal("Mon", periods[0].TextContent);
     }
 
-    private static void AssertLegendItem(IElement summary, string label, string count, string expectedClass)
+    private static void AssertSummaryBadge(IElement summary, string label, string expectedClass)
     {
         Assert.Contains(label, summary.TextContent, StringComparison.Ordinal);
-        Assert.Equal(count, summary.QuerySelector("strong")?.TextContent);
-        AssertClassContains(summary.QuerySelector(".heatmap-legend-swatch"), expectedClass);
+        Assert.Contains(expectedClass, summary.GetAttribute("class") ?? string.Empty, StringComparison.Ordinal);
     }
 
     private static void AssertHeatmapCell(
