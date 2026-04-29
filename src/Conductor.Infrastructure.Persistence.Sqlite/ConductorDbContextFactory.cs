@@ -7,9 +7,19 @@ public sealed class ConductorDbContextFactory : IDesignTimeDbContextFactory<Cond
 {
     public ConductorDbContext CreateDbContext(string[] args)
     {
-        DbContextOptionsBuilder<ConductorDbContext> options = new();
-        options.UseSqlite(SqlitePersistenceServiceCollectionExtensions.DefaultConnectionString);
+        string connectionString = ResolveConnectionString(args);
+        SqliteConnectionPragmaInterceptor pragmaInterceptor = new();
 
-        return new ConductorDbContext(options.Options);
+        DbContextOptionsBuilder<ConductorDbContext> optionsBuilder = new();
+        optionsBuilder
+            .UseConductorSqlite(connectionString)
+            .AddInterceptors(pragmaInterceptor);
+
+        return new ConductorDbContext(optionsBuilder.Options);
     }
+
+    private static string ResolveConnectionString(string[] args) =>
+        args.FirstOrDefault(argument => !string.IsNullOrWhiteSpace(argument))
+        ?? Environment.GetEnvironmentVariable("ConnectionStrings__Conductor")
+        ?? SqlitePersistenceOptions.DefaultConnectionString;
 }
