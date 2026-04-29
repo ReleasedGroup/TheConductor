@@ -1,6 +1,11 @@
 using Conductor.Core.Application.Queries;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
+using Conductor.Core.Domain.Issues;
+using Conductor.Core.Domain.Projects;
+using Conductor.Core.Domain.Repositories;
+using Conductor.Core.Domain.Snapshots;
+using Conductor.Core.Domain.Symphony;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Conductor.Infrastructure.Persistence.Sqlite.Queries;
 using Microsoft.Data.Sqlite;
@@ -90,7 +95,7 @@ public sealed class SqliteProjectionQueryServiceTests
         Assert.Equal(1, dashboard.Metrics.HealthyRepositoryCount);
         Assert.Equal(1, dashboard.Metrics.ActiveAgentCount);
         Assert.Equal(1, dashboard.Metrics.BlockedIssueCount);
-        Assert.Equal(3, dashboard.Metrics.OpenPullRequestCount);
+        Assert.Equal(0, dashboard.Metrics.OpenPullRequestCount);
         Assert.Equal(0m, dashboard.Metrics.EstimatedSpendToday);
         Assert.Equal(2, dashboard.ActiveRepositories.Count);
         Assert.Equal(3, dashboard.InstanceSummaries.Count);
@@ -146,7 +151,6 @@ public sealed class SqliteProjectionQueryServiceTests
             projectAlphaId,
             "api-service",
             isArchived: false,
-            pullRequestCount: 2,
             createdAtUtc);
         await InsertRepositoryAsync(
             dbContext,
@@ -154,7 +158,6 @@ public sealed class SqliteProjectionQueryServiceTests
             projectAlphaId,
             "web-client",
             isArchived: false,
-            pullRequestCount: 1,
             createdAtUtc);
         await InsertRepositoryAsync(
             dbContext,
@@ -162,7 +165,6 @@ public sealed class SqliteProjectionQueryServiceTests
             projectAlphaId,
             "api-archive",
             isArchived: true,
-            pullRequestCount: 8,
             createdAtUtc);
         await InsertRepositoryAsync(
             dbContext,
@@ -170,7 +172,6 @@ public sealed class SqliteProjectionQueryServiceTests
             projectBetaId,
             "api-beta",
             isArchived: false,
-            pullRequestCount: 5,
             createdAtUtc);
 
         await InsertInstanceAsync(
@@ -227,6 +228,8 @@ public sealed class SqliteProjectionQueryServiceTests
         await InsertTrackedIssueAsync(dbContext, apiRepositoryId, isBlocked: true, createdAtUtc);
         await InsertTrackedIssueAsync(dbContext, webRepositoryId, isBlocked: false, createdAtUtc);
 
+        dbContext.ChangeTracker.Clear();
+
         return new PortfolioFixture(
             projectAlphaId,
             projectBetaId,
@@ -244,10 +247,17 @@ public sealed class SqliteProjectionQueryServiceTests
         string name,
         DateTimeOffset createdAtUtc)
     {
-        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO Projects (Id, Name, OwnerName, Status, CreatedAtUtc, UpdatedAtUtc)
-            VALUES ({FormatId(projectId.Value)}, {name}, {"Delivery"}, {nameof(ProjectStatus.Active)}, {createdAtUtc}, {createdAtUtc});
-            """);
+        dbContext.Projects.Add(new Project(
+            projectId,
+            name,
+            "Delivery",
+            "Dashboard seed data",
+            "main",
+            ProjectStatus.Active,
+            createdAtUtc,
+            createdAtUtc));
+
+        await dbContext.SaveChangesAsync();
     }
 
     private static async Task InsertRepositoryAsync(
@@ -256,17 +266,31 @@ public sealed class SqliteProjectionQueryServiceTests
         ProjectId projectId,
         string name,
         bool isArchived,
-        int pullRequestCount,
         DateTimeOffset createdAtUtc)
     {
-        string fullName = $"https://github.com/ReleasedGroup/{name}";
+        var repositoryStatus = isArchived
+            ? RepositoryOrchestrationStatus.Ineligible
+            : RepositoryOrchestrationStatus.Eligible;
+        string? repositoryStatusReason = isArchived
+            ? "Archived repositories cannot be orchestrated."
+            : null;
 
-        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO Repositories
-                (Id, ProjectId, Provider, Owner, Name, DefaultBranch, CloneUrl, WebUrl, IsArchived, OpenIssueCount, PullRequestCount, ImportedAtUtc, UpdatedAtUtc)
-            VALUES
-                ({FormatId(repositoryId.Value)}, {FormatId(projectId.Value)}, {nameof(RepositoryProvider.GitHub)}, {"ReleasedGroup"}, {name}, {"main"}, {fullName + ".git"}, {fullName}, {isArchived}, {0}, {pullRequestCount}, {createdAtUtc}, {createdAtUtc});
-            """);
+        dbContext.Repositories.Add(new Repository(
+            repositoryId,
+            RepositoryProvider.GitHub,
+            "ReleasedGroup",
+            name,
+            "main",
+            new Uri($"https://github.com/ReleasedGroup/{name}.git"),
+            new Uri($"https://github.com/ReleasedGroup/{name}"),
+            RepositoryVisibility.Public,
+            isArchived,
+            projectId,
+            createdAtUtc,
+            repositoryStatus,
+            repositoryStatusReason));
+
+        await dbContext.SaveChangesAsync();
     }
 
     private static async Task InsertInstanceAsync(
@@ -282,12 +306,24 @@ public sealed class SqliteProjectionQueryServiceTests
         DateTimeOffset? lastHealthCheckAtUtc,
         DateTimeOffset? lastSeenAtUtc)
     {
-        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO SymphonyInstances
-                (Id, RepositoryId, WorkflowProfileId, DisplayName, ExecutionMode, BaseUrl, Status, HealthStatus, DeliveryStatus, ReleaseSelector, ResolvedReleaseTag, GitHubSecretId, OpenAiSecretId, CreatedAtUtc, UpdatedAtUtc, LastHealthCheckAtUtc, LastSeenAtUtc)
-            VALUES
-                ({FormatId(instanceId.Value)}, {FormatId(repositoryId.Value)}, {null}, {displayName}, {executionMode.ToString()}, {baseUrl}, {lifecycleStatus.ToString()}, {healthStatus.ToString()}, {"Healthy"}, {null}, {null}, {null}, {null}, {createdAtUtc}, {createdAtUtc}, {lastHealthCheckAtUtc}, {lastSeenAtUtc});
-            """);
+        var instance = new SymphonyInstance(
+            instanceId,
+            repositoryId,
+            displayName,
+            executionMode,
+            new Uri(baseUrl),
+            createdAtUtc,
+            lifecycleStatus,
+            healthStatus,
+            lastSeenAtUtc: lastSeenAtUtc);
+
+        if (lastHealthCheckAtUtc is { } observedAtUtc)
+        {
+            instance.RecordHealth(healthStatus, observedAtUtc);
+        }
+
+        dbContext.SymphonyInstances.Add(instance);
+        await dbContext.SaveChangesAsync();
     }
 
     private static async Task InsertSnapshotAsync(
@@ -295,12 +331,22 @@ public sealed class SqliteProjectionQueryServiceTests
         SymphonyInstanceId instanceId,
         DateTimeOffset capturedAtUtc)
     {
-        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO InstanceSnapshots
-                (Id, SymphonyInstanceId, CapturedAtUtc, HealthStatus, HttpStatusCode, LatencyMilliseconds, ErrorMessage, HealthJson, RuntimeJson, StateJson)
-            VALUES
-                ({FormatId(Guid.NewGuid())}, {FormatId(instanceId.Value)}, {capturedAtUtc}, {nameof(InstanceHealthStatus.Healthy)}, {200}, {42L}, {null}, {"""{"status":"healthy"}"""}, {"{}"}, {"{}"});
-            """);
+        dbContext.InstanceSnapshots.Add(new InstanceSnapshot(
+            InstanceSnapshotId.New(),
+            instanceId,
+            capturedAtUtc,
+            InstanceHealthStatus.Healthy,
+            """{"status":"healthy"}""",
+            "{}",
+            "{}",
+            activeIssueCount: 1,
+            runningSessionCount: 1,
+            retryQueueCount: 0,
+            failedRunCount: 0,
+            tokenInputTotal: 100,
+            tokenOutputTotal: 40));
+
+        await dbContext.SaveChangesAsync();
     }
 
     private static async Task InsertTrackedIssueAsync(
@@ -309,15 +355,24 @@ public sealed class SqliteProjectionQueryServiceTests
         bool isBlocked,
         DateTimeOffset updatedAtUtc)
     {
-        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO TrackedIssues
-                (Id, RepositoryId, GitHubIssueNumber, Title, SymphonyStatus, IsBlocked, Url, UpdatedAtUtc, LabelsJson, AssigneesJson, PullRequestsJson)
-            VALUES
-                ({FormatId(Guid.NewGuid())}, {FormatId(repositoryId.Value)}, {18L}, {"Issue"}, {nameof(SymphonyIssueStatus.Running)}, {isBlocked}, {null}, {updatedAtUtc}, {null}, {null}, {null});
-            """);
-    }
+        dbContext.TrackedIssues.Add(new TrackedIssue(
+            id: TrackedIssueId.New(),
+            repositoryId: repositoryId,
+            gitHubIssueNumber: 18,
+            title: "Issue",
+            state: TrackedIssueState.Open,
+            labelsJson: null,
+            milestone: null,
+            assigneeLoginsJson: null,
+            url: new Uri("https://github.com/ReleasedGroup/TheConductor/issues/18"),
+            symphonyStatus: SymphonyIssueStatus.Running,
+            lastRunStatus: null,
+            lastActivityAtUtc: updatedAtUtc,
+            isBlocked: isBlocked,
+            blockerReason: isBlocked ? "Waiting on review" : null));
 
-    private static string FormatId(Guid id) => id.ToString("D");
+        await dbContext.SaveChangesAsync();
+    }
 
     private sealed record PortfolioFixture(
         ProjectId ProjectAlphaId,

@@ -166,7 +166,7 @@ public sealed class HealthHeatmapTests
 
     private static void AssertSummaryBadge(IElement summary, string text, string expectedClass)
     {
-        Assert.Contains(text, summary.TextContent, StringComparison.Ordinal);
+        Assert.Equal(text, summary.TextContent.Trim());
         AssertClassContains(summary, expectedClass);
     }
 

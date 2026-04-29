@@ -17,7 +17,7 @@ The solution includes the Sprint 0 test skeletons from `docs/technical.md`:
 
 All test projects target `net10.0`, use xUnit, and are included in `Conductor.slnx`.
 
-Symphony API response fixtures live under `tests/Fixtures/Symphony` and are copied into the integration test output for deterministic mapping tests.
+Symphony API response fixtures live under `tests/Conductor.Integration.Tests/Fixtures/Symphony` and are copied into the integration test output for deterministic client and mapping tests.
 
 ## Local Validation
 
