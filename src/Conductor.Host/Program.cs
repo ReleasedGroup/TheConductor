@@ -22,10 +22,16 @@ builder.Services.AddConductorWorkers(builder.Configuration);
 
 WebApplication app = builder.Build();
 
-if (app.Environment.IsDevelopment() &&
-    app.Configuration.GetValue("Conductor:BootstrapDevelopmentDatabase", defaultValue: true))
+if (app.Environment.IsDevelopment())
 {
-    await app.Services.BootstrapDevelopmentDatabaseAsync(app.Logger);
+    if (app.Configuration.GetValue("Conductor:BootstrapDevelopmentDatabase", defaultValue: true))
+    {
+        await app.Services.BootstrapDevelopmentDatabaseAsync(app.Logger);
+    }
+}
+else
+{
+    await app.Services.ApplyConductorPersistenceMigrationsAsync();
 }
 
 if (!app.Environment.IsDevelopment())
@@ -40,6 +46,7 @@ app.UseAntiforgery();
 
 app.MapGet("/favicon.ico", () => Results.NoContent()).ExcludeFromDescription();
 app.MapConductorHealth();
+app.MapConductorInstances();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

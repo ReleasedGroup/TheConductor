@@ -10,6 +10,7 @@ namespace Conductor.Host.Tests;
 
 public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global::Program>>, IDisposable
 {
+    private readonly string databasePath = CreateTemporaryDatabasePath();
     private readonly WebApplicationFactory<global::Program> factory;
 
     public HostSmokeTests(WebApplicationFactory<global::Program> factory)
@@ -21,6 +22,7 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
             {
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
+                    ["ConnectionStrings:Conductor"] = $"Data Source={databasePath};Cache=Shared",
                     ["Conductor:BootstrapDevelopmentDatabase"] = "false",
                 });
             });
@@ -68,7 +70,20 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
     public void Dispose()
     {
         factory.Dispose();
+
+        string? databaseDirectory = Path.GetDirectoryName(databasePath);
+        if (!string.IsNullOrWhiteSpace(databaseDirectory) && Directory.Exists(databaseDirectory))
+        {
+            Directory.Delete(databaseDirectory, recursive: true);
+        }
     }
+
+    private static string CreateTemporaryDatabasePath() =>
+        Path.Combine(
+            Path.GetTempPath(),
+            "conductor-host-tests",
+            Guid.NewGuid().ToString("N"),
+            "conductor.db");
 
     private sealed class StaticDashboardProjectionStore(DashboardProjection projection) : IDashboardProjectionStore
     {
