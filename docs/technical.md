@@ -994,6 +994,8 @@ MVP uses one or more stored GitHub PATs. Each repository or instance can use its
 
 The GitHub client receives a `SecretReference`, resolves it only for the request scope, and disposes of the plaintext value immediately after use.
 
+Selected PATs are validated against the target repository before import where practical. The GitHub adapter calls the repository metadata endpoint with the selected token, treats `200` as repository reachability, inspects the returned repository permissions when GitHub includes them, and maps invalid-token, not-found/no-access, forbidden/SSO-policy, and rate-limit responses to actionable validation results without storing the plaintext token.
+
 ### 15.2 Repository Discovery
 
 Use GitHub REST or GraphQL depending on API coverage. Keep a repository-facing abstraction so the rest of the app does not care which API is used.

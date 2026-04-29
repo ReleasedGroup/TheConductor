@@ -3,6 +3,7 @@ using Conductor.Host.Components;
 using Conductor.Host.Dashboard;
 using Conductor.Host.Endpoints;
 using Conductor.Host.Workers;
+using Conductor.Infrastructure.GitHub;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Conductor.Infrastructure.Secrets;
 using Conductor.Infrastructure.Symphony;
@@ -18,6 +19,7 @@ builder.Services.Configure<DashboardProjectionOptions>(
 builder.Services.AddSingleton<IDashboardProjectionStore, JsonFileDashboardProjectionStore>();
 builder.Services.AddHealthChecks();
 builder.Services.AddConductorPersistence(builder.Configuration);
+builder.Services.AddConductorGitHub();
 builder.Services.AddConductorSecrets();
 builder.Services.AddConductorSymphony();
 builder.Services.AddConductorWorkers(builder.Configuration);

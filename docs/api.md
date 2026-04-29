@@ -46,3 +46,9 @@ Responses:
 - `201 Created` with the registered instance summary.
 - `400 Bad Request` with validation errors when the URL, health probe, or runtime probe fails.
 - `409 Conflict` when the normalized base URL is already registered.
+
+## GitHub Repository Client
+
+Conductor registers a typed HTTP client called `GitHubRepository` for GitHub repository discovery and credential checks.
+
+PAT validation uses `GET /repos/{owner}/{repo}` with the selected token as a bearer token. A `200` response confirms the token can reach the target repository metadata; when GitHub returns a repository `permissions` object, Conductor also checks that at least one read-capable repository permission is present. `401`, `403`, `404`, and rate-limit responses are mapped to actionable validation statuses without storing or returning the PAT value.

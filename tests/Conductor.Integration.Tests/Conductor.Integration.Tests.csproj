@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Conductor.Core\Conductor.Core.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.GitHub\Conductor.Infrastructure.GitHub.csproj" />
     <ProjectReference Include="..\..\src\Conductor.Infrastructure.Persistence.Sqlite\Conductor.Infrastructure.Persistence.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\Conductor.Infrastructure.Symphony\Conductor.Infrastructure.Symphony.csproj" />
   </ItemGroup>
