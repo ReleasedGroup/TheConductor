@@ -66,7 +66,7 @@ public sealed class HealthHeatmapTests
         IRenderedComponent<HealthHeatmap> component = context.Render<HealthHeatmap>(parameters => parameters
             .Add(component => component.Buckets, buckets));
 
-        IReadOnlyList<IElement> summaries = component.FindAll(".status-badge");
+        IReadOnlyList<IElement> summaries = component.FindAll(".heatmap-summary .status-badge");
 
         Assert.Collection(
             summaries,
