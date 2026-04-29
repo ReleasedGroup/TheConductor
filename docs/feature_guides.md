@@ -21,3 +21,7 @@ The table includes:
 - most recent repository activity timestamp
 
 When no repository projection data exists, the dashboard renders an empty state. If the persistence projection cannot be read, the dashboard keeps the shell available and shows an unavailable-data state for the table.
+
+## Secret Handling
+
+The secret descriptor list supports GitHub PAT and OpenAI API key credentials as separate types. Descriptor rows show the credential name, scope, target environment variable, and a masked value only. OpenAI API key descriptors map to `OPENAI_API_KEY`; GitHub PAT descriptors map to `GITHUB_TOKEN`.

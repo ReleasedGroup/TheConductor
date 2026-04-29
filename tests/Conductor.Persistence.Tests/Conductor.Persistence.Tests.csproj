@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Conductor.Infrastructure.Persistence.Sqlite\Conductor.Infrastructure.Persistence.Sqlite.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.Secrets\Conductor.Infrastructure.Secrets.csproj" />
   </ItemGroup>
 
 </Project>
