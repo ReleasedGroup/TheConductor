@@ -1,8 +1,10 @@
+using Conductor.Core.Application.InstanceCollection;
 using Conductor.Core.Application.Instances;
 using Conductor.Core.Application.Queries;
 using Conductor.Core.Application.Snapshots;
 using Conductor.Infrastructure.Persistence.Sqlite.Instances;
 using Conductor.Infrastructure.Persistence.Sqlite.Queries;
+using Conductor.Infrastructure.Persistence.Sqlite.Repositories;
 using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -37,6 +39,7 @@ public static class SqlitePersistenceServiceCollectionExtensions
         services.AddScoped<IInstanceSummaryQueryService>(provider =>
             provider.GetRequiredService<SqliteProjectionQueryService>());
         services.AddScoped<IManualInstanceRegistrationService, SqliteManualInstanceRegistrationService>();
+        services.AddScoped<IInstanceCollectionStore, SqliteInstanceCollectionStore>();
         services.AddScoped<IInstanceSnapshotStore, SqliteInstanceSnapshotStore>();
         services.TryAddSingleton(TimeProvider.System);
 
