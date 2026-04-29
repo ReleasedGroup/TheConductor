@@ -14,34 +14,41 @@ public sealed class DashboardSmokeTests
     public void Home_Renders_Initial_Dashboard()
     {
         using BunitContext context = new();
-        context.Services.AddSingleton<IDashboardProjectionStore>(
-            new StaticDashboardProjectionStore(new DashboardProjection
-            {
-                CapturedAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
-                Metrics =
-                [
-                    Metric("healthy-repositories", "Healthy Repos", "36 / 42"),
-                    Metric("active-agents", "Active Agents", "18"),
-                    Metric("blocked-issues", "Blocked Issues", "7"),
-                    Metric("open-pull-requests", "PRs Open", "23"),
-                    Metric("ai-spend-today", "AI Spend Today", "$128.40")
-                ],
-                AttentionItems =
-                [
-                    Attention(
-                        AlertSeverity.Critical,
-                        "billing-api",
-                        "2 failed runs in the last 30 minutes",
-                        "/repositories/billing-api",
-                        "repository"),
-                    Attention(
-                        AlertSeverity.Warning,
-                        "client-mobile",
-                        "Symphony instance is offline",
-                        "/instances/client-mobile",
-                        "instance")
-                ]
-            }));
+        context.Services.AddSingleton<IDashboardProjectionStore>(new StaticDashboardProjectionStore(new DashboardProjection
+        {
+            CapturedAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
+            Metrics =
+            [
+                Metric("healthy-repositories", "Healthy Repos", "36 / 42"),
+                Metric("active-agents", "Active Agents", "18"),
+                Metric("blocked-issues", "Blocked Issues", "7"),
+                Metric("open-pull-requests", "PRs Open", "23"),
+                Metric("ai-spend-today", "AI Spend Today", "$128.40")
+            ],
+            AttentionItems =
+            [
+                Attention(
+                    AlertSeverity.Critical,
+                    "billing-api",
+                    "2 failed runs in the last 30 minutes",
+                    "/repositories/billing-api",
+                    "repository"),
+                Attention(
+                    AlertSeverity.Warning,
+                    "client-mobile",
+                    "Symphony instance is offline",
+                    "/instances/client-mobile",
+                    "instance")
+            ],
+            InstanceRuntimes =
+            [
+                InstanceRuntime(
+                    "billing-api-primary",
+                    "Billing API primary",
+                    InstanceHealthStatus.Healthy,
+                    InstanceLifecycleStatus.Running)
+            ]
+        }));
 
         IRenderedComponent<Home> dashboard = context.Render<Home>();
 
@@ -54,6 +61,11 @@ public sealed class DashboardSmokeTests
         Assert.Contains("AI Spend Today", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Repository orchestration health", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Workload Overview", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Symphony runtime", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Billing API primary", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("ReleasedGroup/billing-api", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("1.2.3", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("/config/billing-api/WORKFLOW.md", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Needs attention", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("billing-api", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("href=\"/repositories/billing-api\"", dashboard.Markup, StringComparison.Ordinal);
@@ -197,6 +209,35 @@ public sealed class DashboardSmokeTests
             TargetKind = targetKind,
             CreatedAtUtc = DateTimeOffset.Parse("2026-04-29T01:58:00Z"),
             AgeLabel = "2m ago"
+        };
+    }
+
+    private static DashboardInstanceRuntime InstanceRuntime(
+        string key,
+        string displayName,
+        InstanceHealthStatus healthStatus,
+        InstanceLifecycleStatus lifecycleStatus)
+    {
+        return new DashboardInstanceRuntime
+        {
+            Key = key,
+            DisplayName = displayName,
+            RepositoryFullName = "ReleasedGroup/billing-api",
+            BaseUrl = new Uri("http://localhost:5010/"),
+            HealthStatus = healthStatus,
+            LifecycleStatus = lifecycleStatus,
+            SymphonyVersion = "1.2.3",
+            WorkflowOwner = "ReleasedGroup",
+            WorkflowRepository = "billing-api",
+            WorkflowSourcePath = "/config/billing-api/WORKFLOW.md",
+            LastHealthCheckAtUtc = DateTimeOffset.Parse("2026-04-29T01:58:00Z"),
+            LastSnapshotCapturedAtUtc = DateTimeOffset.Parse("2026-04-29T01:57:30Z"),
+            LastSeenAtUtc = DateTimeOffset.Parse("2026-04-29T01:58:00Z"),
+            ActiveIssueCount = 4,
+            RunningSessionCount = 2,
+            RetryQueueCount = 0,
+            FailedRunCount = 0,
+            TokenTotal = 140
         };
     }
 

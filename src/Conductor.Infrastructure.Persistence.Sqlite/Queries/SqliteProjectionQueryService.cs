@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Conductor.Core.Application.Queries;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
@@ -174,7 +175,7 @@ public sealed class SqliteProjectionQueryService :
         Dictionary<ProjectId, Project> projectsById = await LoadProjectsAsync(
             repositoryRows.Select(repository => repository.ProjectId),
             cancellationToken);
-        Dictionary<SymphonyInstanceId, DateTimeOffset> latestSnapshotByInstanceId = await LoadLatestSnapshotsByInstanceAsync(
+        Dictionary<SymphonyInstanceId, LatestInstanceSnapshot> latestSnapshotByInstanceId = await LoadLatestSnapshotsByInstanceAsync(
             instanceRows.Select(instance => instance.Id),
             cancellationToken);
 
@@ -188,7 +189,7 @@ public sealed class SqliteProjectionQueryService :
                     projectsById.TryGetValue(repositoryProjectId, out project);
                 }
 
-                latestSnapshotByInstanceId.TryGetValue(instance.Id, out DateTimeOffset latestSnapshotAtUtc);
+                latestSnapshotByInstanceId.TryGetValue(instance.Id, out LatestInstanceSnapshot? latestSnapshot);
 
                 return new InstanceSummaryProjection(
                     instance.Id,
@@ -203,7 +204,17 @@ public sealed class SqliteProjectionQueryService :
                     instance.HealthStatus,
                     instance.LastHealthCheckAtUtc,
                     instance.LastSeenAtUtc,
-                    latestSnapshotAtUtc == default ? null : latestSnapshotAtUtc);
+                    latestSnapshot?.CapturedAtUtc,
+                    instance.SymphonyVersion ?? latestSnapshot?.RuntimeMetadata.Version,
+                    instance.SymphonyReleaseTag,
+                    latestSnapshot?.RuntimeMetadata.WorkflowOwner,
+                    latestSnapshot?.RuntimeMetadata.WorkflowRepository,
+                    latestSnapshot?.RuntimeMetadata.WorkflowSourcePath,
+                    latestSnapshot?.ActiveIssueCount ?? 0,
+                    latestSnapshot?.RunningSessionCount ?? 0,
+                    latestSnapshot?.RetryQueueCount ?? 0,
+                    latestSnapshot?.FailedRunCount ?? 0,
+                    latestSnapshot?.TokenTotal ?? 0);
             })
             .OrderBy(instance => instance.RepositoryFullName)
             .ThenBy(instance => instance.DisplayName)
@@ -270,7 +281,7 @@ public sealed class SqliteProjectionQueryService :
                 group => group.ToList());
     }
 
-    private async Task<Dictionary<SymphonyInstanceId, DateTimeOffset>> LoadLatestSnapshotsByInstanceAsync(
+    private async Task<Dictionary<SymphonyInstanceId, LatestInstanceSnapshot>> LoadLatestSnapshotsByInstanceAsync(
         IEnumerable<SymphonyInstanceId> instanceIds,
         CancellationToken cancellationToken)
     {
@@ -290,7 +301,99 @@ public sealed class SqliteProjectionQueryService :
             .GroupBy(snapshot => snapshot.SymphonyInstanceId)
             .ToDictionary(
                 group => group.Key,
-                group => group.Max(snapshot => snapshot.CapturedAtUtc));
+                group =>
+                {
+                    InstanceSnapshot snapshot = group
+                        .OrderByDescending(candidate => candidate.CapturedAtUtc)
+                        .First();
+
+                    return new LatestInstanceSnapshot(
+                        snapshot.CapturedAtUtc,
+                        TryReadRuntimeMetadata(snapshot.RuntimeJson),
+                        snapshot.ActiveIssueCount,
+                        snapshot.RunningSessionCount,
+                        snapshot.RetryQueueCount,
+                        snapshot.FailedRunCount,
+                        snapshot.TokenTotal);
+                });
+    }
+
+    private static RuntimeMetadata TryReadRuntimeMetadata(string? runtimeJson)
+    {
+        if (string.IsNullOrWhiteSpace(runtimeJson))
+        {
+            return RuntimeMetadata.Empty;
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(runtimeJson);
+
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return RuntimeMetadata.Empty;
+            }
+
+            JsonElement root = document.RootElement;
+            string? version = ReadStringProperty(root, "version");
+            string? workflowOwner = null;
+            string? workflowRepository = null;
+            string? workflowSourcePath = null;
+
+            if (TryGetObjectProperty(root, "workflow", out JsonElement workflow))
+            {
+                workflowOwner = ReadStringProperty(workflow, "owner");
+                workflowRepository = ReadStringProperty(workflow, "repository");
+                workflowSourcePath = ReadStringProperty(workflow, "sourcePath")
+                    ?? ReadStringProperty(workflow, "path");
+            }
+
+            return new RuntimeMetadata(
+                version,
+                workflowOwner,
+                workflowRepository,
+                workflowSourcePath);
+        }
+        catch (JsonException)
+        {
+            return RuntimeMetadata.Empty;
+        }
+    }
+
+    private static bool TryGetObjectProperty(
+        JsonElement element,
+        string propertyName,
+        out JsonElement propertyValue)
+    {
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if ((property.NameEquals(propertyName)
+                    || string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                && property.Value.ValueKind == JsonValueKind.Object)
+            {
+                propertyValue = property.Value;
+                return true;
+            }
+        }
+
+        propertyValue = default;
+        return false;
+    }
+
+    private static string? ReadStringProperty(JsonElement element, string propertyName)
+    {
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (property.NameEquals(propertyName)
+                || string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                return property.Value.ValueKind == JsonValueKind.String
+                    ? property.Value.GetString()
+                    : null;
+            }
+        }
+
+        return null;
     }
 
     private static int MapHealthSeverity(InstanceHealthStatus status) => status switch
@@ -302,4 +405,22 @@ public sealed class SqliteProjectionQueryService :
         InstanceHealthStatus.Offline => 4,
         _ => 1,
     };
+
+    private sealed record LatestInstanceSnapshot(
+        DateTimeOffset CapturedAtUtc,
+        RuntimeMetadata RuntimeMetadata,
+        int ActiveIssueCount,
+        int RunningSessionCount,
+        int RetryQueueCount,
+        int FailedRunCount,
+        long TokenTotal);
+
+    private sealed record RuntimeMetadata(
+        string? Version,
+        string? WorkflowOwner,
+        string? WorkflowRepository,
+        string? WorkflowSourcePath)
+    {
+        public static RuntimeMetadata Empty { get; } = new(null, null, null, null);
+    }
 }

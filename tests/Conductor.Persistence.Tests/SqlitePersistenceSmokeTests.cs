@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
+using Conductor.Core.Application.Snapshots;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Alerts;
 using Conductor.Core.Domain.Auditing;
@@ -16,6 +17,7 @@ using Conductor.Core.Domain.Symphony;
 using Conductor.Core.Domain.SymphonyReleases;
 using Conductor.Core.Domain.Workflows;
 using Conductor.Infrastructure.Persistence.Sqlite;
+using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -390,6 +392,111 @@ public sealed class SqlitePersistenceSmokeTests
     }
 
     [Fact]
+    public async Task Snapshot_Store_RoundTrips_Raw_And_Normalized_Values()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateMigratedDbContextAsync(connection);
+        SqliteInstanceSnapshotStore store = new(dbContext);
+        DateTimeOffset createdAtUtc = new(2026, 4, 29, 1, 0, 0, TimeSpan.Zero);
+        ProjectId projectId = ProjectId.New();
+        RepositoryId repositoryId = RepositoryId.New();
+        SymphonyInstanceId instanceId = SymphonyInstanceId.New();
+        InstanceSnapshotId snapshotId = InstanceSnapshotId.New();
+        DateTimeOffset capturedAtUtc = new(2026, 4, 29, 1, 20, 0, TimeSpan.Zero);
+
+        dbContext.AddRange(
+            new Project(
+                projectId,
+                "Platform",
+                "ReleasedGroup",
+                "Snapshot persistence",
+                "main",
+                ProjectStatus.Active,
+                createdAtUtc,
+                createdAtUtc),
+            new Repository(
+                repositoryId,
+                RepositoryProvider.GitHub,
+                "ReleasedGroup",
+                "TheConductor",
+                "main",
+                new Uri("https://github.com/ReleasedGroup/TheConductor.git"),
+                new Uri("https://github.com/ReleasedGroup/TheConductor"),
+                RepositoryVisibility.Public,
+                isArchived: false,
+                projectId,
+                createdAtUtc,
+                RepositoryOrchestrationStatus.Eligible,
+                orchestrationStatusReason: null),
+            new SymphonyInstance(
+                instanceId,
+                repositoryId,
+                "TheConductor main",
+                ExecutionMode.LocalProcess,
+                new Uri("http://localhost:5001"),
+                createdAtUtc,
+                InstanceLifecycleStatus.Running,
+                InstanceHealthStatus.Healthy));
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+
+        InstanceSnapshot snapshot = new(
+            snapshotId,
+            instanceId,
+            capturedAtUtc,
+            InstanceHealthStatus.Warning,
+            """{"status":"warning"}""",
+            """{"applicationName":"Symphony","version":"1.2.3"}""",
+            """{"activeIssues":8,"tokenTotals":{"input":1200,"output":340}}""",
+            activeIssueCount: 8,
+            runningSessionCount: 2,
+            retryQueueCount: 1,
+            failedRunCount: 3,
+            tokenInputTotal: 1200,
+            tokenOutputTotal: 340,
+            httpStatusCode: 200,
+            latencyMilliseconds: 44,
+            errorMessage: null,
+            applicationName: "Symphony",
+            applicationVersion: "1.2.3",
+            runtimeInstanceId: "runtime-primary",
+            workflowOwner: "ReleasedGroup",
+            workflowRepository: "TheConductor",
+            workflowSourcePath: "/config/WORKFLOW.md",
+            persistenceProvider: "SQLite",
+            runtimeDefaultsJson: """{"maxTurns":8}""");
+
+        await store.AddAsync(snapshot);
+
+        InstanceSnapshot? latestSnapshot = await store.GetLatestAsync(instanceId);
+
+        Assert.NotNull(latestSnapshot);
+        Assert.Equal(snapshotId, latestSnapshot.Id);
+        Assert.Equal(capturedAtUtc, latestSnapshot.CapturedAtUtc);
+        Assert.Equal(InstanceHealthStatus.Warning, latestSnapshot.HealthStatus);
+        Assert.Equal(200, latestSnapshot.HttpStatusCode);
+        Assert.Equal(44, latestSnapshot.LatencyMilliseconds);
+        Assert.Equal("""{"status":"warning"}""", latestSnapshot.HealthJson);
+        Assert.Equal("""{"applicationName":"Symphony","version":"1.2.3"}""", latestSnapshot.RuntimeJson);
+        Assert.Equal("""{"activeIssues":8,"tokenTotals":{"input":1200,"output":340}}""", latestSnapshot.StateJson);
+        Assert.Equal("Symphony", latestSnapshot.ApplicationName);
+        Assert.Equal("1.2.3", latestSnapshot.ApplicationVersion);
+        Assert.Equal("runtime-primary", latestSnapshot.RuntimeInstanceId);
+        Assert.Equal("ReleasedGroup", latestSnapshot.WorkflowOwner);
+        Assert.Equal("TheConductor", latestSnapshot.WorkflowRepository);
+        Assert.Equal("/config/WORKFLOW.md", latestSnapshot.WorkflowSourcePath);
+        Assert.Equal("SQLite", latestSnapshot.PersistenceProvider);
+        Assert.Equal("""{"maxTurns":8}""", latestSnapshot.RuntimeDefaultsJson);
+        Assert.Equal(8, latestSnapshot.ActiveIssueCount);
+        Assert.Equal(2, latestSnapshot.RunningSessionCount);
+        Assert.Equal(1, latestSnapshot.RetryQueueCount);
+        Assert.Equal(3, latestSnapshot.FailedRunCount);
+        Assert.Equal(1200, latestSnapshot.TokenInputTotal);
+        Assert.Equal(340, latestSnapshot.TokenOutputTotal);
+        Assert.Equal(1540, latestSnapshot.TokenTotal);
+    }
+
+    [Fact]
     public async Task Projection_Query_Loads_Instance_Summaries_With_Latest_Snapshot()
     {
         await using SqliteConnection connection = await OpenConnectionAsync();
@@ -455,10 +562,12 @@ public sealed class SqlitePersistenceSmokeTests
         await using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
         ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        IInstanceSnapshotStore snapshotStore = scope.ServiceProvider.GetRequiredService<IInstanceSnapshotStore>();
 
         await dbContext.Database.OpenConnectionAsync();
 
         Assert.True(await dbContext.Database.CanConnectAsync());
+        Assert.IsType<SqliteInstanceSnapshotStore>(snapshotStore);
         Assert.True(Directory.Exists(Path.GetDirectoryName(databasePath)));
     }
 

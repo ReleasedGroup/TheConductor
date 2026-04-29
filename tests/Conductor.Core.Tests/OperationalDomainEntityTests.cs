@@ -29,11 +29,33 @@ public sealed class OperationalDomainEntityTests
             retryQueueCount: 1,
             failedRunCount: 3,
             tokenInputTotal: 120,
-            tokenOutputTotal: 30);
+            tokenOutputTotal: 30,
+            httpStatusCode: 503,
+            latencyMilliseconds: 87,
+            errorMessage: " degraded ",
+            applicationName: " Symphony ",
+            applicationVersion: " 1.2.3 ",
+            runtimeInstanceId: " conductor-demo ",
+            workflowOwner: " ReleasedGroup ",
+            workflowRepository: " TheConductor ",
+            workflowSourcePath: " /config/WORKFLOW.md ",
+            persistenceProvider: " SQLite ",
+            runtimeDefaultsJson: " {\"maxTurns\":8} ");
 
         Assert.Equal("{\"status\":\"warning\"}", snapshot.HealthJson);
         Assert.Null(snapshot.RuntimeJson);
         Assert.Null(snapshot.StateJson);
+        Assert.Equal(503, snapshot.HttpStatusCode);
+        Assert.Equal(87, snapshot.LatencyMilliseconds);
+        Assert.Equal("degraded", snapshot.ErrorMessage);
+        Assert.Equal("Symphony", snapshot.ApplicationName);
+        Assert.Equal("1.2.3", snapshot.ApplicationVersion);
+        Assert.Equal("conductor-demo", snapshot.RuntimeInstanceId);
+        Assert.Equal("ReleasedGroup", snapshot.WorkflowOwner);
+        Assert.Equal("TheConductor", snapshot.WorkflowRepository);
+        Assert.Equal("/config/WORKFLOW.md", snapshot.WorkflowSourcePath);
+        Assert.Equal("SQLite", snapshot.PersistenceProvider);
+        Assert.Equal("{\"maxTurns\":8}", snapshot.RuntimeDefaultsJson);
         Assert.Equal(150, snapshot.TokenTotal);
     }
 

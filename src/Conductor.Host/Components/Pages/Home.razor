@@ -59,6 +59,7 @@ else
                 Description="Repository health over the latest orchestration windows."
                 Buckets="HealthBuckets" />
             <WorkloadDonut Workload="Workload" />
+            <InstanceRuntimePanel Items="InstanceRuntimes" />
             <NeedsAttentionPanel Items="AttentionItems" />
             <RepositoryTable Repositories="Repositories" />
             <QuickActions Actions="QuickActions" />
@@ -75,6 +76,9 @@ else
 
     private IReadOnlyList<DashboardAttentionItem> AttentionItems =>
         projection?.AttentionItems ?? Array.Empty<DashboardAttentionItem>();
+
+    private IReadOnlyList<DashboardInstanceRuntime> InstanceRuntimes =>
+        projection?.InstanceRuntimes ?? Array.Empty<DashboardInstanceRuntime>();
 
     private static readonly HealthHeatmapBucket[] HealthBuckets =
     [

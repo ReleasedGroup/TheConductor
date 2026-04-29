@@ -26,6 +26,13 @@ internal sealed class InstanceSnapshotConfiguration : IEntityTypeConfiguration<I
             .HasMaxLength(32)
             .IsRequired();
 
+        builder.Property(snapshot => snapshot.HttpStatusCode);
+
+        builder.Property(snapshot => snapshot.LatencyMilliseconds);
+
+        builder.Property(snapshot => snapshot.ErrorMessage)
+            .HasMaxLength(255);
+
         builder.Property(snapshot => snapshot.HealthJson)
             .HasColumnType("TEXT");
 
@@ -33,6 +40,30 @@ internal sealed class InstanceSnapshotConfiguration : IEntityTypeConfiguration<I
             .HasColumnType("TEXT");
 
         builder.Property(snapshot => snapshot.StateJson)
+            .HasColumnType("TEXT");
+
+        builder.Property(snapshot => snapshot.ApplicationName)
+            .HasMaxLength(128);
+
+        builder.Property(snapshot => snapshot.ApplicationVersion)
+            .HasMaxLength(128);
+
+        builder.Property(snapshot => snapshot.RuntimeInstanceId)
+            .HasMaxLength(128);
+
+        builder.Property(snapshot => snapshot.WorkflowOwner)
+            .HasMaxLength(128);
+
+        builder.Property(snapshot => snapshot.WorkflowRepository)
+            .HasMaxLength(128);
+
+        builder.Property(snapshot => snapshot.WorkflowSourcePath)
+            .HasMaxLength(2048);
+
+        builder.Property(snapshot => snapshot.PersistenceProvider)
+            .HasMaxLength(128);
+
+        builder.Property(snapshot => snapshot.RuntimeDefaultsJson)
             .HasColumnType("TEXT");
 
         builder.Property(snapshot => snapshot.ActiveIssueCount)

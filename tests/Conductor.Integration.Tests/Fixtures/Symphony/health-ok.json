@@ -1,5 +1,13 @@
 {
-  "status": "healthy",
-  "version": "1.2.3",
-  "checkedAtUtc": "2026-04-29T00:00:00Z"
+  "status": "Healthy",
+  "totalDuration": "00:00:00.0041289",
+  "entries": {
+    "sqlite": {
+      "status": "Healthy",
+      "duration": "00:00:00.0035012",
+      "tags": [
+        "ready"
+      ]
+    }
+  }
 }
