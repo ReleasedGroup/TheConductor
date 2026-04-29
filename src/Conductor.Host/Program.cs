@@ -18,7 +18,7 @@ builder.Services.AddSingleton<IDashboardProjectionStore, JsonFileDashboardProjec
 builder.Services.AddHealthChecks();
 builder.Services.AddConductorPersistence(builder.Configuration);
 builder.Services.AddConductorSymphony();
-builder.Services.AddConductorWorkers();
+builder.Services.AddConductorWorkers(builder.Configuration);
 
 WebApplication app = builder.Build();
 

@@ -164,9 +164,9 @@ public sealed class HealthHeatmapTests
         Assert.Equal("Mon", periods[0].TextContent);
     }
 
-    private static void AssertSummaryBadge(IElement summary, string label, string expectedClass)
+    private static void AssertSummaryBadge(IElement summary, string text, string expectedClass)
     {
-        Assert.Equal(label, summary.TextContent.Trim());
+        Assert.Equal(text, summary.TextContent.Trim());
         AssertClassContains(summary, expectedClass);
     }
 

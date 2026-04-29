@@ -41,7 +41,15 @@ internal sealed class SqliteManualInstanceRegistrationService : IManualInstanceR
         SymphonyHealthResponse health = await ProbeHealthAsync(baseUri, cancellationToken);
         SymphonyRuntimeResponse runtime = await ProbeRuntimeAsync(baseUri, cancellationToken);
         SymphonyStateResponse? state = await TryProbeStateAsync(baseUri, cancellationToken);
-        RuntimeMetadata metadata = RuntimeMetadata.Parse(runtime.RawJson);
+        RuntimeMetadata parsedMetadata = RuntimeMetadata.Parse(runtime.RawJson);
+        RuntimeMetadata metadata = parsedMetadata with
+        {
+            Version = RuntimeMetadata.First(runtime.ApplicationVersion, parsedMetadata.Version),
+            InstanceId = RuntimeMetadata.First(runtime.InstanceId, parsedMetadata.InstanceId),
+            Owner = RuntimeMetadata.First(runtime.WorkflowOwner, parsedMetadata.Owner),
+            RepositoryName = RuntimeMetadata.First(runtime.WorkflowRepository, parsedMetadata.RepositoryName),
+            DefaultBranch = RuntimeMetadata.First(runtime.WorkspaceBaseBranch, parsedMetadata.DefaultBranch),
+        };
 
         DateTimeOffset now = timeProvider.GetUtcNow();
         string repositoryOwner = metadata.Owner ?? ManualRepositoryOwner;
@@ -100,7 +108,17 @@ internal sealed class SqliteManualInstanceRegistrationService : IManualInstanceR
             stateMetrics.RetryQueueCount,
             stateMetrics.FailedRunCount,
             stateMetrics.TokenInputTotal,
-            stateMetrics.TokenOutputTotal));
+            stateMetrics.TokenOutputTotal,
+            health.HttpStatusCode,
+            (long)Math.Round(health.Latency.TotalMilliseconds),
+            health.ErrorMessage,
+            runtime.ApplicationName,
+            runtime.ApplicationVersion ?? metadata.Version,
+            runtime.InstanceId ?? metadata.InstanceId,
+            runtime.WorkflowOwner ?? metadata.Owner,
+            runtime.WorkflowRepository ?? metadata.RepositoryName,
+            runtime.WorkflowSourcePath,
+            runtime.PersistenceProvider));
         dbContext.Events.Add(new DomainEvent(
             EventId.New(),
             instanceId,
@@ -413,6 +431,9 @@ internal sealed class SqliteManualInstanceRegistrationService : IManualInstanceR
         string? ExecutionMode)
     {
         public bool HasRepositoryMetadata => Owner is not null && RepositoryName is not null;
+
+        public static string? First(params string?[] values) =>
+            values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
         public static RuntimeMetadata Parse(string rawJson)
         {
