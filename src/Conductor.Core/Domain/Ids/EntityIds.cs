@@ -1,5 +1,61 @@
 namespace Conductor.Core.Domain.Ids;
 
+public readonly record struct AlertId
+{
+    public AlertId(Guid value)
+    {
+        Value = EntityIdGuards.NotEmpty(value, nameof(value));
+    }
+
+    public Guid Value { get; }
+
+    public static AlertId New() => new(Guid.NewGuid());
+
+    public static AlertId Parse(string value) => new(EntityIdGuards.Parse(value));
+
+    public static bool TryParse(string? value, out AlertId id)
+    {
+        if (EntityIdGuards.TryParse(value, out Guid parsed))
+        {
+            id = new AlertId(parsed);
+            return true;
+        }
+
+        id = default;
+        return false;
+    }
+
+    public override string ToString() => Value.ToString("D");
+}
+
+public readonly record struct AuditEventId
+{
+    public AuditEventId(Guid value)
+    {
+        Value = EntityIdGuards.NotEmpty(value, nameof(value));
+    }
+
+    public Guid Value { get; }
+
+    public static AuditEventId New() => new(Guid.NewGuid());
+
+    public static AuditEventId Parse(string value) => new(EntityIdGuards.Parse(value));
+
+    public static bool TryParse(string? value, out AuditEventId id)
+    {
+        if (EntityIdGuards.TryParse(value, out Guid parsed))
+        {
+            id = new AuditEventId(parsed);
+            return true;
+        }
+
+        id = default;
+        return false;
+    }
+
+    public override string ToString() => Value.ToString("D");
+}
+
 public readonly record struct BackgroundOperationId
 {
     public BackgroundOperationId(Guid value)
@@ -18,6 +74,62 @@ public readonly record struct BackgroundOperationId
         if (EntityIdGuards.TryParse(value, out Guid parsed))
         {
             id = new BackgroundOperationId(parsed);
+            return true;
+        }
+
+        id = default;
+        return false;
+    }
+
+    public override string ToString() => Value.ToString("D");
+}
+
+public readonly record struct EventId
+{
+    public EventId(Guid value)
+    {
+        Value = EntityIdGuards.NotEmpty(value, nameof(value));
+    }
+
+    public Guid Value { get; }
+
+    public static EventId New() => new(Guid.NewGuid());
+
+    public static EventId Parse(string value) => new(EntityIdGuards.Parse(value));
+
+    public static bool TryParse(string? value, out EventId id)
+    {
+        if (EntityIdGuards.TryParse(value, out Guid parsed))
+        {
+            id = new EventId(parsed);
+            return true;
+        }
+
+        id = default;
+        return false;
+    }
+
+    public override string ToString() => Value.ToString("D");
+}
+
+public readonly record struct InstanceSnapshotId
+{
+    public InstanceSnapshotId(Guid value)
+    {
+        Value = EntityIdGuards.NotEmpty(value, nameof(value));
+    }
+
+    public Guid Value { get; }
+
+    public static InstanceSnapshotId New() => new(Guid.NewGuid());
+
+    public static InstanceSnapshotId Parse(string value) => new(EntityIdGuards.Parse(value));
+
+    public static bool TryParse(string? value, out InstanceSnapshotId id)
+    {
+        if (EntityIdGuards.TryParse(value, out Guid parsed))
+        {
+            id = new InstanceSnapshotId(parsed);
             return true;
         }
 
@@ -112,6 +224,34 @@ public readonly record struct RepositoryId
     public override string ToString() => Value.ToString("D");
 }
 
+public readonly record struct RunAttemptId
+{
+    public RunAttemptId(Guid value)
+    {
+        Value = EntityIdGuards.NotEmpty(value, nameof(value));
+    }
+
+    public Guid Value { get; }
+
+    public static RunAttemptId New() => new(Guid.NewGuid());
+
+    public static RunAttemptId Parse(string value) => new(EntityIdGuards.Parse(value));
+
+    public static bool TryParse(string? value, out RunAttemptId id)
+    {
+        if (EntityIdGuards.TryParse(value, out Guid parsed))
+        {
+            id = new RunAttemptId(parsed);
+            return true;
+        }
+
+        id = default;
+        return false;
+    }
+
+    public override string ToString() => Value.ToString("D");
+}
+
 public readonly record struct RunId
 {
     public RunId(Guid value)
@@ -186,6 +326,34 @@ public readonly record struct SymphonyInstanceId
         if (EntityIdGuards.TryParse(value, out Guid parsed))
         {
             id = new SymphonyInstanceId(parsed);
+            return true;
+        }
+
+        id = default;
+        return false;
+    }
+
+    public override string ToString() => Value.ToString("D");
+}
+
+public readonly record struct TrackedIssueId
+{
+    public TrackedIssueId(Guid value)
+    {
+        Value = EntityIdGuards.NotEmpty(value, nameof(value));
+    }
+
+    public Guid Value { get; }
+
+    public static TrackedIssueId New() => new(Guid.NewGuid());
+
+    public static TrackedIssueId Parse(string value) => new(EntityIdGuards.Parse(value));
+
+    public static bool TryParse(string? value, out TrackedIssueId id)
+    {
+        if (EntityIdGuards.TryParse(value, out Guid parsed))
+        {
+            id = new TrackedIssueId(parsed);
             return true;
         }
 

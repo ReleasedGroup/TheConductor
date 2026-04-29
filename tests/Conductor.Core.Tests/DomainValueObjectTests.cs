@@ -11,13 +11,19 @@ public sealed class DomainValueObjectTests
     [Fact]
     public void EntityIds_Reject_Empty_Guid_Values()
     {
+        Assert.Throws<ArgumentException>(() => new AlertId(Guid.Empty));
+        Assert.Throws<ArgumentException>(() => new AuditEventId(Guid.Empty));
         Assert.Throws<ArgumentException>(() => new BackgroundOperationId(Guid.Empty));
+        Assert.Throws<ArgumentException>(() => new EventId(Guid.Empty));
+        Assert.Throws<ArgumentException>(() => new InstanceSnapshotId(Guid.Empty));
         Assert.Throws<ArgumentException>(() => new ProjectId(Guid.Empty));
         Assert.Throws<ArgumentException>(() => new ReportId(Guid.Empty));
         Assert.Throws<ArgumentException>(() => new RepositoryId(Guid.Empty));
+        Assert.Throws<ArgumentException>(() => new RunAttemptId(Guid.Empty));
         Assert.Throws<ArgumentException>(() => new RunId(Guid.Empty));
         Assert.Throws<ArgumentException>(() => new SecretId(Guid.Empty));
         Assert.Throws<ArgumentException>(() => new SymphonyInstanceId(Guid.Empty));
+        Assert.Throws<ArgumentException>(() => new TrackedIssueId(Guid.Empty));
         Assert.Throws<ArgumentException>(() => new WorkflowProfileId(Guid.Empty));
     }
 
