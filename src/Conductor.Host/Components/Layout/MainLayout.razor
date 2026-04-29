@@ -1,0 +1,21 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <aside class="side-nav" aria-label="Primary">
+        <a class="brand" href="/">
+            <span class="brand-mark" aria-hidden="true">C</span>
+            <span>Conductor</span>
+        </a>
+        <nav>
+            <a href="/" aria-current="page">Dashboard</a>
+            <a href="/projects">Projects</a>
+            <a href="/repositories">Repositories</a>
+            <a href="/instances">Instances</a>
+            <a href="/reports">Reports</a>
+        </nav>
+    </aside>
+
+    <main class="main-panel">
+        @Body
+    </main>
+</div>
