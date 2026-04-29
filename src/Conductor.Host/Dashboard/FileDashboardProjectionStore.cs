@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 
 namespace Conductor.Host.Dashboard;
@@ -13,7 +14,10 @@ public sealed class FileDashboardProjectionStore(
     IOptions<DashboardProjectionOptions> options,
     ILogger<FileDashboardProjectionStore> logger) : IDashboardProjectionStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
 
     public async ValueTask<DashboardProjection> GetCurrentAsync(CancellationToken cancellationToken = default)
     {

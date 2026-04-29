@@ -1,19 +1,47 @@
 # Conductor
 
-Conductor is the software delivery control surface for supervising many Symphony instances across projects and repositories.
+Conductor is the fleet control layer above Symphony. It is being built as a .NET 10 modular monolith with a thin host, a core domain/application layer, and infrastructure adapters for external systems.
 
-## Local Development
+## Solution Layout
 
-Run the Blazor host:
+- `Conductor.slnx` is the .NET solution entry point.
+- `src/Conductor.Host` contains the Blazor Web App host, health endpoints, worker registration, the dashboard, and reusable dashboard components.
+- `src/Conductor.Core` contains domain types, value objects, and infrastructure-facing contracts, including the workflow profile, release artifact, and secret descriptor entities.
+- `src/Conductor.Infrastructure.Persistence.Sqlite` contains the EF Core SQLite persistence project, DbContext registration, and migration target.
+- `src/Conductor.Infrastructure.*` projects contain adapter boundaries for GitHub, Symphony HTTP, runners, secrets, reporting, and notifications.
+- `tests/Conductor.*.Tests` projects contain the initial unit, persistence, API, Blazor, host, and integration test suites.
 
-```powershell
-dotnet run --project src/Conductor.Host/Conductor.Host.csproj
-```
-
-Run validation:
+## Build And Test
 
 ```powershell
 dotnet restore Conductor.slnx
 dotnet build Conductor.slnx --no-restore --warnaserror
 dotnet test Conductor.slnx --no-build
+dotnet format Conductor.slnx --no-restore --verify-no-changes
+```
+
+## Run Locally
+
+```powershell
+dotnet run --project src/Conductor.Host/Conductor.Host.csproj
+```
+
+The root route (`/`) serves the dashboard baseline for local startup checks, including repository orchestration health, workload, needs-attention, active repository, quick-action, and live activity sections loaded through the dashboard projection query interface. The same startup baseline also exposes `/health/live` and `/health/ready`.
+
+## Persistence Configuration
+
+The host registers `ConductorDbContext` from `src/Conductor.Infrastructure.Persistence.Sqlite` using the `ConnectionStrings:Conductor` value. The default is:
+
+```text
+Data Source=./data/conductor.db;Cache=Shared
+```
+
+The SQLite registration creates the database directory when a file-backed connection string is used and applies the required startup PRAGMAs for foreign keys, WAL journaling, and a 5 second busy timeout when EF Core opens a connection.
+
+## Persistence Migrations
+
+Apply the current EF Core migration set with:
+
+```powershell
+dotnet ef database update --project src/Conductor.Infrastructure.Persistence.Sqlite --startup-project src/Conductor.Infrastructure.Persistence.Sqlite
 ```

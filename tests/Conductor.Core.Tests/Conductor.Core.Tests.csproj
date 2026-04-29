@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Conductor.Core\Conductor.Core.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.GitHub\Conductor.Infrastructure.GitHub.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.Symphony\Conductor.Infrastructure.Symphony.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.Runners.Local\Conductor.Infrastructure.Runners.Local.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.Runners.Docker\Conductor.Infrastructure.Runners.Docker.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.Secrets\Conductor.Infrastructure.Secrets.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.Reporting\Conductor.Infrastructure.Reporting.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.Notifications\Conductor.Infrastructure.Notifications.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.Persistence.Sqlite\Conductor.Infrastructure.Persistence.Sqlite.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -89,13 +89,9 @@ public sealed class DashboardComponentTests : BunitContext
                 Icon = "pulse"
             }
         ],
-        HealthRows =
+        HealthBuckets =
         [
-            new HealthHeatmapRow
-            {
-                Repository = "acme-portal",
-                Buckets = ["Healthy", "Warning", "Critical", "Offline"]
-            }
+            new("acme-portal", "Now", HealthHeatmapStatus.Healthy, 99, "All checks completed.")
         ],
         Workload = new WorkloadProjection
         {

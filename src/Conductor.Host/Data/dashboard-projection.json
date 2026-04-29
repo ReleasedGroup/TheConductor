@@ -45,35 +45,32 @@
       "icon": "$"
     }
   ],
-  "healthRows": [
-    {
-      "repository": "acme-portal",
-      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Offline"]
-    },
-    {
-      "repository": "billing-api",
-      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Warning", "Warning", "Healthy", "Healthy", "Offline"]
-    },
-    {
-      "repository": "client-mobile",
-      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Warning", "Healthy", "Critical", "Critical", "Critical", "Healthy", "Offline"]
-    },
-    {
-      "repository": "crm-sync",
-      "buckets": ["Healthy", "Healthy", "Warning", "Warning", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Offline"]
-    },
-    {
-      "repository": "data-pipeline",
-      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Warning", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Critical", "Critical", "Offline"]
-    },
-    {
-      "repository": "internal-tools",
-      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Critical", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Critical", "Critical", "Offline"]
-    },
-    {
-      "repository": "marketing-site",
-      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Critical", "Critical", "Offline"]
-    }
+  "healthBuckets": [
+    { "repositoryName": "acme-portal", "periodLabel": "24h", "status": "Healthy", "score": 99, "detail": "All orchestration checks completed." },
+    { "repositoryName": "acme-portal", "periodLabel": "18h", "status": "Healthy", "score": 98, "detail": "Workers and health probes are responsive." },
+    { "repositoryName": "acme-portal", "periodLabel": "12h", "status": "Healthy", "score": 97, "detail": "Backlog recovered after retry." },
+    { "repositoryName": "acme-portal", "periodLabel": "6h", "status": "Healthy", "score": 99, "detail": "No active orchestration alerts." },
+    { "repositoryName": "acme-portal", "periodLabel": "Now", "status": "Healthy", "score": 99, "detail": "All repositories are within policy." },
+    { "repositoryName": "billing-api", "periodLabel": "24h", "status": "Healthy", "score": 94, "detail": "Runtime checks passed." },
+    { "repositoryName": "billing-api", "periodLabel": "18h", "status": "Warning", "score": 78, "detail": "Release polling reported elevated latency." },
+    { "repositoryName": "billing-api", "periodLabel": "12h", "status": "Warning", "score": 72, "detail": "Two failed runs are queued for retry." },
+    { "repositoryName": "billing-api", "periodLabel": "6h", "status": "Critical", "score": 42, "detail": "Workflow dispatch failed repeatedly." },
+    { "repositoryName": "billing-api", "periodLabel": "Now", "status": "Warning", "score": 76, "detail": "Dispatch recovered with retry backlog." },
+    { "repositoryName": "client-mobile", "periodLabel": "24h", "status": "Offline", "score": 0, "detail": "No agent heartbeat received." },
+    { "repositoryName": "client-mobile", "periodLabel": "18h", "status": "Critical", "score": 38, "detail": "Repository credentials need rotation." },
+    { "repositoryName": "client-mobile", "periodLabel": "12h", "status": "Warning", "score": 69, "detail": "Credential rotation started." },
+    { "repositoryName": "client-mobile", "periodLabel": "6h", "status": "Warning", "score": 72, "detail": "Pending PR checks are draining." },
+    { "repositoryName": "client-mobile", "periodLabel": "Now", "status": "Offline", "score": 0, "detail": "Symphony instance is offline." },
+    { "repositoryName": "crm-sync", "periodLabel": "24h", "status": "Healthy", "score": 96, "detail": "Documentation validation passed." },
+    { "repositoryName": "crm-sync", "periodLabel": "18h", "status": "Healthy", "score": 96, "detail": "No blocked documentation runs." },
+    { "repositoryName": "crm-sync", "periodLabel": "12h", "status": "Healthy", "score": 97, "detail": "Review queue is clear." },
+    { "repositoryName": "crm-sync", "periodLabel": "6h", "status": "Warning", "score": 80, "detail": "One stale branch requires attention." },
+    { "repositoryName": "crm-sync", "periodLabel": "Now", "status": "Healthy", "score": 95, "detail": "Stale branch warning cleared." },
+    { "repositoryName": "data-pipeline", "periodLabel": "24h", "status": "Healthy", "score": 92, "detail": "Collectors completed normally." },
+    { "repositoryName": "data-pipeline", "periodLabel": "18h", "status": "Warning", "score": 71, "detail": "Queue depth increased." },
+    { "repositoryName": "data-pipeline", "periodLabel": "12h", "status": "Healthy", "score": 91, "detail": "Queue depth recovered." },
+    { "repositoryName": "data-pipeline", "periodLabel": "6h", "status": "Critical", "score": 35, "detail": "High failure rate detected." },
+    { "repositoryName": "data-pipeline", "periodLabel": "Now", "status": "Critical", "score": 40, "detail": "Failure rate remains elevated." }
   ],
   "workload": {
     "totalActiveIssues": 138,

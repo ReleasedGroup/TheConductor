@@ -33,14 +33,17 @@ else
         </div>
 
         <div class="metric-grid" aria-label="Fleet metrics">
-            @foreach (var metric in _dashboard.Metrics)
+            @foreach (DashboardMetric metric in _dashboard.Metrics)
             {
                 <MetricTile Metric="metric" />
             }
         </div>
 
         <div class="dashboard-grid">
-            <HealthHeatmap Rows="_dashboard.HealthRows" />
+            <HealthHeatmap
+                Title="Orchestration Health"
+                Description="Repository health over the latest orchestration windows."
+                Buckets="_dashboard.HealthBuckets" />
             <WorkloadDonut Workload="_dashboard.Workload" />
             <NeedsAttentionPanel Items="_dashboard.NeedsAttention" />
             <RepositoryTable Repositories="_dashboard.Repositories" />

@@ -1,3 +1,5 @@
+using Conductor.Host.Components.Dashboard;
+
 namespace Conductor.Host.Dashboard;
 
 public sealed record DashboardProjection
@@ -12,7 +14,7 @@ public sealed record DashboardProjection
 
     public List<DashboardMetric> Metrics { get; init; } = [];
 
-    public List<HealthHeatmapRow> HealthRows { get; init; } = [];
+    public List<HealthHeatmapBucket> HealthBuckets { get; init; } = [];
 
     public WorkloadProjection Workload { get; init; } = new();
 
@@ -38,13 +40,6 @@ public sealed record DashboardMetric
     public string Tone { get; init; } = "neutral";
 
     public string Icon { get; init; } = string.Empty;
-}
-
-public sealed record HealthHeatmapRow
-{
-    public string Repository { get; init; } = string.Empty;
-
-    public List<string> Buckets { get; init; } = [];
 }
 
 public sealed record WorkloadProjection
