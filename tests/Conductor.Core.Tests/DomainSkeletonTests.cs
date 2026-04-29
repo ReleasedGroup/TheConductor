@@ -23,12 +23,22 @@ public sealed class DomainSkeletonTests
     {
         var createdAt = DateTimeOffset.Parse("2026-04-29T00:00:00Z");
         var archivedAt = createdAt.AddHours(1);
-        var project = new Project(ProjectId.New(), "  Conductor  ", "  Platform  ", ProjectStatus.Active, createdAt, createdAt);
+        var project = new Project(
+            ProjectId.New(),
+            "  Conductor  ",
+            "  Platform  ",
+            "  Fleet operations  ",
+            "  protected-main  ",
+            ProjectStatus.Active,
+            createdAt,
+            createdAt);
 
         project.Archive(archivedAt);
 
         Assert.Equal("Conductor", project.Name);
         Assert.Equal("Platform", project.OwnerName);
+        Assert.Equal("Fleet operations", project.Description);
+        Assert.Equal("protected-main", project.DefaultBranchPolicy);
         Assert.Equal(ProjectStatus.Archived, project.Status);
         Assert.Equal(archivedAt, project.UpdatedAtUtc);
     }
@@ -44,11 +54,16 @@ public sealed class DomainSkeletonTests
             "main",
             new Uri("https://github.com/ReleasedGroup/TheConductor.git"),
             new Uri("https://github.com/ReleasedGroup/TheConductor"),
+            RepositoryVisibility.Public,
             isArchived: false,
-            projectId: ProjectId.New());
+            projectId: ProjectId.New(),
+            lastSyncedAtUtc: DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
+            RepositoryOrchestrationStatus.Eligible,
+            orchestrationStatusReason: null);
 
         Assert.Equal("ReleasedGroup/TheConductor", repository.FullName.Value);
         Assert.False(repository.IsArchived);
+        Assert.True(repository.IsOrchestrationEligible);
     }
 
     [Fact]
@@ -59,7 +74,8 @@ public sealed class DomainSkeletonTests
             RepositoryId.New(),
             "Conductor main",
             ExecutionMode.Docker,
-            new Uri("http://localhost:8080"));
+            new Uri("http://localhost:8080"),
+            DateTimeOffset.Parse("2026-04-29T00:00:00Z"));
 
         var healthyAt = DateTimeOffset.Parse("2026-04-29T00:00:00Z");
         var offlineAt = healthyAt.AddMinutes(5);
