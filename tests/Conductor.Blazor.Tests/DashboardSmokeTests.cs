@@ -11,7 +11,7 @@ namespace Conductor.Blazor.Tests;
 public sealed class DashboardSmokeTests
 {
     [Fact]
-    public void Home_Renders_Dashboard_Metrics_And_Active_Repository_Table()
+    public void Home_Renders_Dashboard_Metrics_Active_Repositories_And_Live_Activity()
     {
         using BunitContext context = new();
         RegisterHomeServices(
@@ -67,7 +67,8 @@ public sealed class DashboardSmokeTests
             Assert.Contains("Blocked Issues", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("PRs Open", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("AI Spend Today", dashboard.Markup, StringComparison.Ordinal);
-            Assert.Contains("SQLite persistence registration", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Live activity", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Tests failed and a continuation run started.", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("Repository orchestration health", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("Release Portal", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("Needs attention", dashboard.Markup, StringComparison.Ordinal);

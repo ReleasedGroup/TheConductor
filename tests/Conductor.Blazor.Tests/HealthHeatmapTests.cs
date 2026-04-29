@@ -70,10 +70,10 @@ public sealed class HealthHeatmapTests
 
         Assert.Collection(
             summaries,
-            summary => AssertStatusSummary(summary, "Healthy 2", "status-badge--success"),
-            summary => AssertStatusSummary(summary, "Warning 1", "status-badge--warning"),
-            summary => AssertStatusSummary(summary, "Critical 1", "status-badge--critical"),
-            summary => AssertStatusSummary(summary, "Offline 1", "status-badge--neutral"));
+            summary => AssertSummaryBadge(summary, "Healthy 2", "status-badge--success"),
+            summary => AssertSummaryBadge(summary, "Warning 1", "status-badge--warning"),
+            summary => AssertSummaryBadge(summary, "Critical 1", "status-badge--critical"),
+            summary => AssertSummaryBadge(summary, "Offline 1", "status-badge--neutral"));
     }
 
     [Fact]
@@ -164,10 +164,10 @@ public sealed class HealthHeatmapTests
         Assert.Equal("Mon", periods[0].TextContent);
     }
 
-    private static void AssertStatusSummary(IElement summary, string label, string expectedClass)
+    private static void AssertSummaryBadge(IElement summary, string label, string expectedClass)
     {
         Assert.Contains(label, summary.TextContent, StringComparison.Ordinal);
-        AssertClassContains(summary, expectedClass);
+        Assert.Contains(expectedClass, summary.GetAttribute("class") ?? string.Empty, StringComparison.Ordinal);
     }
 
     private static void AssertHeatmapCell(
