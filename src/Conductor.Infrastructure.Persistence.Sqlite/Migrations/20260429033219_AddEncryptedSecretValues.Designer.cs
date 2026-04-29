@@ -3,6 +3,7 @@ using System;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
 {
     [DbContext(typeof(ConductorDbContext))]
-    partial class ConductorDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260429033219_AddEncryptedSecretValues")]
+    partial class AddEncryptedSecretValues
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

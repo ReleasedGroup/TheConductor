@@ -329,6 +329,7 @@ Initial migration should create:
 - `Alerts`
 - `Reports`
 - `SecretDescriptors`
+- `EncryptedSecretValues`
 - `AuditEvents`
 - `BackgroundOperations`
 
@@ -590,7 +591,7 @@ public interface ISecretStore
 }
 ```
 
-Secret values must only be returned to runner/provisioning code paths that need to inject them. UI and ordinary API responses must receive descriptors only.
+Secret values must be protected with ASP.NET Core Data Protection before persistence. `SecretDescriptor` rows contain only metadata; encrypted payloads are stored separately and must only be returned to runner/provisioning code paths that need to inject them. UI and ordinary API responses must receive descriptors only.
 
 ### 9.4 Release Resolver
 
@@ -815,7 +816,7 @@ Resolution precedence:
 Secret storage:
 
 - Store encrypted values using ASP.NET Core Data Protection for MVP.
-- Store secret descriptors separately from encrypted payloads.
+- Store secret descriptors separately from encrypted payloads in `SecretDescriptors` and `EncryptedSecretValues`.
 - Never return secret values through ordinary APIs.
 - Never persist resolved secret values in operation logs.
 
