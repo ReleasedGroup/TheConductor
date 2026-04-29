@@ -37,3 +37,11 @@ Data Source=./data/conductor.db;Cache=Shared
 ```
 
 The SQLite registration creates the database directory when a file-backed connection string is used and applies the required startup PRAGMAs for foreign keys, WAL journaling, and a 5 second busy timeout when EF Core opens a connection.
+
+## Persistence Migrations
+
+Apply the current EF Core migration set with:
+
+```powershell
+dotnet ef database update --project src/Conductor.Infrastructure.Persistence.Sqlite --startup-project src/Conductor.Infrastructure.Persistence.Sqlite
+```
