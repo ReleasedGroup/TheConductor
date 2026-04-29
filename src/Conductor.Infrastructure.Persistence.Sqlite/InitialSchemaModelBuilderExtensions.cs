@@ -158,6 +158,14 @@ internal static class InitialSchemaModelBuilderExtensions
             builder.Property(snapshot => snapshot.HealthJson).HasColumnType("TEXT");
             builder.Property(snapshot => snapshot.RuntimeJson).HasColumnType("TEXT");
             builder.Property(snapshot => snapshot.StateJson).HasColumnType("TEXT");
+            builder.Property(snapshot => snapshot.ApplicationName).HasMaxLength(MediumTextLength);
+            builder.Property(snapshot => snapshot.ApplicationVersion).HasMaxLength(MediumTextLength);
+            builder.Property(snapshot => snapshot.RuntimeInstanceId).HasMaxLength(MediumTextLength);
+            builder.Property(snapshot => snapshot.WorkflowOwner).HasMaxLength(MediumTextLength);
+            builder.Property(snapshot => snapshot.WorkflowRepository).HasMaxLength(MediumTextLength);
+            builder.Property(snapshot => snapshot.WorkflowSourcePath).HasMaxLength(UrlLength);
+            builder.Property(snapshot => snapshot.PersistenceProvider).HasMaxLength(MediumTextLength);
+            builder.Property(snapshot => snapshot.RuntimeDefaultsJson).HasColumnType("TEXT");
 
             builder.HasOne<SymphonyInstanceRecord>()
                 .WithMany()

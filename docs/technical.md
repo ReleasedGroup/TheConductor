@@ -371,6 +371,37 @@ Raw JSON fields:
 
 Frequently queried values must be extracted into first-class columns.
 
+### 7.5 Snapshot Normalized Columns
+
+`InstanceSnapshots` stores raw Symphony health, runtime, and state payloads together with normalized fields used by dashboard and reporting queries.
+
+Health normalization:
+
+- `HealthStatus`
+- `HttpStatusCode`
+- `LatencyMilliseconds`
+- `ErrorMessage`
+
+Runtime normalization:
+
+- `ApplicationName`
+- `ApplicationVersion`
+- `RuntimeInstanceId`
+- `WorkflowOwner`
+- `WorkflowRepository`
+- `WorkflowSourcePath`
+- `PersistenceProvider`
+- `RuntimeDefaultsJson`
+
+State normalization:
+
+- `ActiveIssueCount`
+- `RunningSessionCount`
+- `RetryQueueCount`
+- `FailedRunCount`
+- `TokenInputTotal`
+- `TokenOutputTotal`
+
 ## 8. Application Services
 
 ### 8.1 Repository Import

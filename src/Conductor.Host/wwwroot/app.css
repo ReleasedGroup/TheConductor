@@ -388,6 +388,29 @@ h2 {
   gap: 10px;
 }
 
+.heatmap-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid #2b3138;
+  border-radius: 8px;
+  background: #151a1f;
+  color: #d6dee7;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.heatmap-legend-item strong {
+  color: #f4f7fb;
+}
+
+.heatmap-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
 .heatmap-table-wrap {
   overflow-x: auto;
 }

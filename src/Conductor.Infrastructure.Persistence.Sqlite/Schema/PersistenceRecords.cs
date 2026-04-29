@@ -142,6 +142,34 @@ internal sealed class InstanceSnapshotRecord
     public string? RuntimeJson { get; set; }
 
     public string? StateJson { get; set; }
+
+    public string? ApplicationName { get; set; }
+
+    public string? ApplicationVersion { get; set; }
+
+    public string? RuntimeInstanceId { get; set; }
+
+    public string? WorkflowOwner { get; set; }
+
+    public string? WorkflowRepository { get; set; }
+
+    public string? WorkflowSourcePath { get; set; }
+
+    public string? PersistenceProvider { get; set; }
+
+    public string? RuntimeDefaultsJson { get; set; }
+
+    public int ActiveIssueCount { get; set; }
+
+    public int RunningSessionCount { get; set; }
+
+    public int RetryQueueCount { get; set; }
+
+    public int FailedRunCount { get; set; }
+
+    public long TokenInputTotal { get; set; }
+
+    public long TokenOutputTotal { get; set; }
 }
 
 internal sealed class TrackedIssueRecord
