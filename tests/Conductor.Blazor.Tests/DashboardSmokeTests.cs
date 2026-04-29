@@ -41,6 +41,14 @@ public sealed class DashboardSmokeTests
                         "Symphony instance is offline",
                         "/instances/client-mobile",
                         "instance")
+                ],
+                InstanceRuntimes =
+                [
+                    InstanceRuntime(
+                        "billing-api-primary",
+                        "Billing API primary",
+                        InstanceHealthStatus.Healthy,
+                        InstanceLifecycleStatus.Running)
                 ]
             },
             new ActiveRepositoryDashboard(
@@ -71,6 +79,11 @@ public sealed class DashboardSmokeTests
             Assert.Contains("Tests failed and a continuation run started.", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("Repository orchestration health", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("Release Portal", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Symphony runtime", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Billing API primary", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("ReleasedGroup/billing-api", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("1.2.3", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("/config/billing-api/WORKFLOW.md", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("Needs attention", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("billing-api", dashboard.Markup, StringComparison.Ordinal);
             Assert.Contains("href=\"/repositories/billing-api\"", dashboard.Markup, StringComparison.Ordinal);
@@ -293,6 +306,35 @@ public sealed class DashboardSmokeTests
             TargetKind = targetKind,
             CreatedAtUtc = DateTimeOffset.Parse("2026-04-29T01:58:00Z"),
             AgeLabel = "2m ago"
+        };
+    }
+
+    private static DashboardInstanceRuntime InstanceRuntime(
+        string key,
+        string displayName,
+        InstanceHealthStatus healthStatus,
+        InstanceLifecycleStatus lifecycleStatus)
+    {
+        return new DashboardInstanceRuntime
+        {
+            Key = key,
+            DisplayName = displayName,
+            RepositoryFullName = "ReleasedGroup/billing-api",
+            BaseUrl = new Uri("http://localhost:5010/"),
+            HealthStatus = healthStatus,
+            LifecycleStatus = lifecycleStatus,
+            SymphonyVersion = "1.2.3",
+            WorkflowOwner = "ReleasedGroup",
+            WorkflowRepository = "billing-api",
+            WorkflowSourcePath = "/config/billing-api/WORKFLOW.md",
+            LastHealthCheckAtUtc = DateTimeOffset.Parse("2026-04-29T01:58:00Z"),
+            LastSnapshotCapturedAtUtc = DateTimeOffset.Parse("2026-04-29T01:57:30Z"),
+            LastSeenAtUtc = DateTimeOffset.Parse("2026-04-29T01:58:00Z"),
+            ActiveIssueCount = 4,
+            RunningSessionCount = 2,
+            RetryQueueCount = 0,
+            FailedRunCount = 0,
+            TokenTotal = 140
         };
     }
 

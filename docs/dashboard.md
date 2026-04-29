@@ -13,6 +13,13 @@ Current metric tile keys:
 - `open-pull-requests`
 - `ai-spend-today`
 
+The same dashboard projection can include `instanceRuntimes` entries for the
+Symphony runtime panel. Each entry carries the instance key and display name,
+repository and base URL, `healthStatus`, `lifecycleStatus`, Symphony version,
+workflow owner/repository/source path metadata, the last health/snapshot/seen
+timestamps, and last snapshot counters for active issues, running sessions,
+retry queue, failed runs, and token totals.
+
 Run the dashboard slice checks with:
 
 ```powershell

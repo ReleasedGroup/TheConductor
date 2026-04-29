@@ -1,0 +1,220 @@
+@using System.Globalization
+@using Conductor.Core.Domain
+
+<section class="instance-runtime-panel" aria-labelledby="@headingId">
+    <header class="instance-runtime-header">
+        <div>
+            <p class="eyebrow">Symphony runtime</p>
+            <h2 id="@headingId">Instance health</h2>
+            <p>Registered instances reporting from the latest polling cycle.</p>
+        </div>
+    </header>
+
+    @if (instances.Length == 0)
+    {
+        <EmptyState
+            Title="No Symphony runtime data is available yet."
+            Message="Registered instance health and runtime snapshots will appear after polling starts." />
+    }
+    else
+    {
+        <div class="instance-runtime-table-wrap">
+            <table class="instance-runtime-table">
+                <caption class="sr-only">Symphony instance runtime details</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Instance</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Symphony</th>
+                        <th scope="col">Workflow</th>
+                        <th scope="col">Last poll</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (DashboardInstanceRuntime instance in instances)
+                    {
+                        <tr class="@GetRowClass(instance.HealthStatus)" data-instance-runtime="@instance.Key">
+                            <th scope="row">
+                                <span class="instance-runtime-name">@instance.DisplayName</span>
+                                @if (!string.IsNullOrWhiteSpace(instance.RepositoryFullName))
+                                {
+                                    <span class="instance-runtime-muted">@instance.RepositoryFullName</span>
+                                }
+                                @if (instance.BaseUrl is not null)
+                                {
+                                    <a href="@instance.BaseUrl" class="instance-runtime-link">@instance.BaseUrl</a>
+                                }
+                            </th>
+                            <td>
+                                <div class="instance-runtime-status">
+                                    <StatusBadge Text="@GetHealthLabel(instance.HealthStatus)" Tone="@GetHealthTone(instance.HealthStatus)" />
+                                    <span>@GetLifecycleLabel(instance.LifecycleStatus)</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="instance-runtime-strong">@GetVersionText(instance)</span>
+                            </td>
+                            <td>
+                                <span class="instance-runtime-strong">@GetWorkflowLabel(instance)</span>
+                                <span class="instance-runtime-muted">@GetWorkflowPath(instance)</span>
+                            </td>
+                            <td>
+                                <dl class="instance-runtime-poll-grid" aria-label="@BuildPollLabel(instance)">
+                                    <div>
+                                        <dt>Health</dt>
+                                        <dd>@FormatInstant(instance.LastHealthCheckAtUtc)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Snapshot</dt>
+                                        <dd>@FormatInstant(instance.LastSnapshotCapturedAtUtc)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Last seen</dt>
+                                        <dd>@FormatInstant(instance.LastSeenAtUtc)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Active</dt>
+                                        <dd>@FormatCount(instance.ActiveIssueCount)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Running</dt>
+                                        <dd>@FormatCount(instance.RunningSessionCount)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Retry</dt>
+                                        <dd>@FormatCount(instance.RetryQueueCount)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Failed</dt>
+                                        <dd>@FormatCount(instance.FailedRunCount)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Tokens</dt>
+                                        <dd>@FormatLong(instance.TokenTotal)</dd>
+                                    </div>
+                                </dl>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private readonly string headingId = $"instance-runtime-{Guid.NewGuid():N}";
+    private DashboardInstanceRuntime[] instances = [];
+
+    [Parameter]
+    public IReadOnlyList<DashboardInstanceRuntime>? Items { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        instances = (Items ?? [])
+            .Where(instance => !string.IsNullOrWhiteSpace(instance.Key)
+                && !string.IsNullOrWhiteSpace(instance.DisplayName))
+            .OrderByDescending(instance => MapHealthSeverity(instance.HealthStatus))
+            .ThenBy(instance => instance.RepositoryFullName, StringComparer.Ordinal)
+            .ThenBy(instance => instance.DisplayName, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static string GetRowClass(InstanceHealthStatus status) =>
+        $"instance-runtime-row instance-runtime-row--{GetHealthCssName(status)}";
+
+    private static StatusBadgeTone GetHealthTone(InstanceHealthStatus status) =>
+        status switch
+        {
+            InstanceHealthStatus.Healthy => StatusBadgeTone.Success,
+            InstanceHealthStatus.Warning => StatusBadgeTone.Warning,
+            InstanceHealthStatus.Critical => StatusBadgeTone.Critical,
+            InstanceHealthStatus.Offline => StatusBadgeTone.Neutral,
+            _ => StatusBadgeTone.Info,
+        };
+
+    private static string GetHealthLabel(InstanceHealthStatus status) =>
+        status switch
+        {
+            InstanceHealthStatus.Healthy => "Healthy",
+            InstanceHealthStatus.Warning => "Warning",
+            InstanceHealthStatus.Critical => "Critical",
+            InstanceHealthStatus.Offline => "Offline",
+            InstanceHealthStatus.Unknown => "Unknown",
+            _ => "Unknown",
+        };
+
+    private static string GetLifecycleLabel(InstanceLifecycleStatus status) =>
+        status switch
+        {
+            InstanceLifecycleStatus.NotProvisioned => "Not provisioned",
+            InstanceLifecycleStatus.Provisioned => "Provisioned",
+            InstanceLifecycleStatus.Starting => "Starting",
+            InstanceLifecycleStatus.Running => "Running",
+            InstanceLifecycleStatus.Stopping => "Stopping",
+            InstanceLifecycleStatus.Stopped => "Stopped",
+            InstanceLifecycleStatus.Failed => "Failed",
+            InstanceLifecycleStatus.Destroyed => "Destroyed",
+            _ => "Unknown",
+        };
+
+    private static string GetVersionText(DashboardInstanceRuntime instance) =>
+        string.IsNullOrWhiteSpace(instance.SymphonyVersion)
+            ? "Version unknown"
+            : instance.SymphonyVersion;
+
+    private static string GetWorkflowLabel(DashboardInstanceRuntime instance)
+    {
+        if (!string.IsNullOrWhiteSpace(instance.WorkflowOwner)
+            && !string.IsNullOrWhiteSpace(instance.WorkflowRepository))
+        {
+            return $"{instance.WorkflowOwner}/{instance.WorkflowRepository}";
+        }
+
+        return string.IsNullOrWhiteSpace(instance.RepositoryFullName)
+            ? "Workflow unknown"
+            : instance.RepositoryFullName;
+    }
+
+    private static string GetWorkflowPath(DashboardInstanceRuntime instance) =>
+        string.IsNullOrWhiteSpace(instance.WorkflowSourcePath)
+            ? "Workflow path unknown"
+            : instance.WorkflowSourcePath;
+
+    private static string FormatInstant(DateTimeOffset? value) =>
+        value.HasValue
+            ? value.Value
+                .ToUniversalTime()
+                .ToString("MMM d, HH:mm 'UTC'", CultureInfo.InvariantCulture)
+            : "Not polled";
+
+    private static string FormatCount(int value) =>
+        Math.Max(0, value).ToString(CultureInfo.InvariantCulture);
+
+    private static string FormatLong(long value) =>
+        Math.Max(0, value).ToString("N0", CultureInfo.InvariantCulture);
+
+    private static string BuildPollLabel(DashboardInstanceRuntime instance) =>
+        $"{instance.DisplayName} last health poll {FormatInstant(instance.LastHealthCheckAtUtc)}, latest snapshot {FormatInstant(instance.LastSnapshotCapturedAtUtc)}, last seen {FormatInstant(instance.LastSeenAtUtc)}.";
+
+    private static string GetHealthCssName(InstanceHealthStatus status) =>
+        status switch
+        {
+            InstanceHealthStatus.Healthy => "healthy",
+            InstanceHealthStatus.Warning => "warning",
+            InstanceHealthStatus.Critical => "critical",
+            InstanceHealthStatus.Offline => "offline",
+            _ => "unknown",
+        };
+
+    private static int MapHealthSeverity(InstanceHealthStatus status) =>
+        status switch
+        {
+            InstanceHealthStatus.Offline => 4,
+            InstanceHealthStatus.Critical => 3,
+            InstanceHealthStatus.Warning => 2,
+            InstanceHealthStatus.Unknown => 1,
+            InstanceHealthStatus.Healthy => 0,
+            _ => 1,
+        };
+}

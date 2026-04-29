@@ -56,6 +56,7 @@
     <section class="dashboard-body">
         <div class="dashboard-stack">
             <HealthHeatmap Buckets="HealthBuckets" />
+            <InstanceRuntimePanel Items="InstanceRuntimes" />
 
             <section class="active-repositories-panel" aria-labelledby="active-repositories-heading">
                 <div class="panel-heading">
@@ -170,6 +171,9 @@
         ActiveRepositoryRows.Count == 1
             ? "1 repository"
             : $"{ActiveRepositoryRows.Count.ToString(CultureInfo.InvariantCulture)} repositories";
+
+    private IReadOnlyList<DashboardInstanceRuntime> InstanceRuntimes =>
+        projection?.InstanceRuntimes ?? Array.Empty<DashboardInstanceRuntime>();
 
     private static readonly HealthHeatmapBucket[] HealthBuckets =
     [

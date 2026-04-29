@@ -533,6 +533,11 @@ Initial alert rules:
 - Low GitHub rate limit.
 - Active issues with no running sessions.
 
+Offline instance evaluation records a health snapshot for each pollable registered
+Symphony instance. When an instance transitions to `Offline`, Conductor emits an
+`InstanceOffline` event and creates one unresolved critical in-app alert for that
+instance so repeated failed polls do not duplicate the same active alert.
+
 MVP alert delivery is in-app only. External delivery adapters are later sprints.
 
 ### 8.8 Reporting

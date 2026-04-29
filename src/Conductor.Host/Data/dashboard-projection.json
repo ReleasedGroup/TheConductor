@@ -80,5 +80,67 @@
       "createdAtUtc": "2026-04-29T01:45:00Z",
       "ageLabel": "15m ago"
     }
+  ],
+  "instanceRuntimes": [
+    {
+      "key": "billing-api-primary",
+      "displayName": "Billing API primary",
+      "repositoryFullName": "ReleasedGroup/billing-api",
+      "baseUrl": "http://localhost:5010/",
+      "healthStatus": "Healthy",
+      "lifecycleStatus": "Running",
+      "symphonyVersion": "1.2.3",
+      "workflowOwner": "ReleasedGroup",
+      "workflowRepository": "billing-api",
+      "workflowSourcePath": "/config/billing/WORKFLOW.md",
+      "lastHealthCheckAtUtc": "2026-04-29T01:58:00Z",
+      "lastSnapshotCapturedAtUtc": "2026-04-29T01:57:30Z",
+      "lastSeenAtUtc": "2026-04-29T01:58:00Z",
+      "activeIssueCount": 4,
+      "runningSessionCount": 2,
+      "retryQueueCount": 0,
+      "failedRunCount": 0,
+      "tokenTotal": 148200
+    },
+    {
+      "key": "client-mobile",
+      "displayName": "Client Mobile",
+      "repositoryFullName": "ReleasedGroup/client-mobile",
+      "baseUrl": "http://localhost:5020/",
+      "healthStatus": "Offline",
+      "lifecycleStatus": "Failed",
+      "symphonyVersion": "1.2.1",
+      "workflowOwner": "ReleasedGroup",
+      "workflowRepository": "client-mobile",
+      "workflowSourcePath": "/config/mobile/WORKFLOW.md",
+      "lastHealthCheckAtUtc": "2026-04-29T01:52:00Z",
+      "lastSnapshotCapturedAtUtc": "2026-04-29T01:41:30Z",
+      "lastSeenAtUtc": "2026-04-29T01:40:00Z",
+      "activeIssueCount": 1,
+      "runningSessionCount": 0,
+      "retryQueueCount": 3,
+      "failedRunCount": 1,
+      "tokenTotal": 38900
+    },
+    {
+      "key": "acme-portal",
+      "displayName": "Acme Portal",
+      "repositoryFullName": "ReleasedGroup/acme-portal",
+      "baseUrl": "http://localhost:5030/",
+      "healthStatus": "Warning",
+      "lifecycleStatus": "Running",
+      "symphonyVersion": "1.2.3",
+      "workflowOwner": "ReleasedGroup",
+      "workflowRepository": "acme-portal",
+      "workflowSourcePath": "/config/acme/WORKFLOW.md",
+      "lastHealthCheckAtUtc": "2026-04-29T01:55:00Z",
+      "lastSnapshotCapturedAtUtc": "2026-04-29T01:54:45Z",
+      "lastSeenAtUtc": "2026-04-29T01:55:00Z",
+      "activeIssueCount": 7,
+      "runningSessionCount": 1,
+      "retryQueueCount": 1,
+      "failedRunCount": 0,
+      "tokenTotal": 88200
+    }
   ]
 }
