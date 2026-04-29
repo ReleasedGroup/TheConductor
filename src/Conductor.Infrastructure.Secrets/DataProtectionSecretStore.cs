@@ -72,6 +72,33 @@ public sealed class DataProtectionSecretStore(
             secretProtector.Unprotect(encryptedValue.ProtectedValue));
     }
 
+    public async Task<ResolvedSecret?> ResolveAsync(
+        SecretResolutionRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        SecretDescriptor[] descriptors = await dbContext.SecretDescriptors
+            .AsNoTracking()
+            .Where(secret => secret.SecretType == request.SecretType)
+            .ToArrayAsync(cancellationToken);
+        SecretDescriptor? descriptor = SecretResolutionPolicy.Resolve(request, descriptors);
+
+        if (descriptor is null)
+        {
+            return null;
+        }
+
+        EncryptedSecretValue encryptedValue = await dbContext.EncryptedSecretValues
+            .AsNoTracking()
+            .SingleOrDefaultAsync(secret => secret.SecretId == descriptor.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Encrypted value for secret '{descriptor.Id}' was not found.");
+
+        return new ResolvedSecret(
+            descriptor.Id,
+            secretProtector.Unprotect(encryptedValue.ProtectedValue));
+    }
+
     public async Task<IReadOnlyList<SecretDescriptor>> ListAsync(
         SecretQuery query,
         CancellationToken cancellationToken)

@@ -1,5 +1,6 @@
 using Conductor.Core.Abstractions.Secrets;
 using Conductor.Core.Domain;
+using Conductor.Core.Domain.Ids;
 using Conductor.Core.Domain.Secrets;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Conductor.Infrastructure.Secrets;
@@ -125,6 +126,46 @@ public sealed class SqliteSecretStoreTests
 
         Assert.Single(descriptors);
         Assert.Equal(SecretType.GitHubToken, descriptors[0].SecretType);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Uses_Secret_Resolution_Request()
+    {
+        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        DataProtectionSecretStore store = CreateStore(dbContext);
+        SymphonyInstanceId instanceId = SymphonyInstanceId.New();
+        RepositoryId repositoryId = RepositoryId.New();
+        ProjectId projectId = ProjectId.New();
+        await store.CreateAsync(
+            new CreateSecretRequest(
+                "Repository GitHub token",
+                SecretType.GitHubToken,
+                SecretScopeType.Repository,
+                repositoryId.ToString(),
+                "repository-secret"),
+            CancellationToken.None);
+        SecretDescriptor instanceDescriptor = await store.CreateAsync(
+            new CreateSecretRequest(
+                "Instance GitHub token",
+                SecretType.GitHubToken,
+                SecretScopeType.SymphonyInstance,
+                instanceId.ToString(),
+                "instance-secret"),
+            CancellationToken.None);
+
+        ResolvedSecret? resolved = await store.ResolveAsync(
+            new SecretResolutionRequest(
+                SecretType.GitHubToken,
+                instanceId,
+                repositoryId,
+                projectId,
+                CredentialInheritanceMode.InheritDefault),
+            CancellationToken.None);
+
+        Assert.NotNull(resolved);
+        Assert.Equal(instanceDescriptor.Id, resolved.SecretId);
+        Assert.Equal("instance-secret", resolved.Value);
+        Assert.DoesNotContain("instance-secret", resolved.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
