@@ -1,4 +1,5 @@
 using Conductor.Core.Abstractions.GitHub;
+using Conductor.Core.Abstractions.Releases;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Conductor.Infrastructure.GitHub;
@@ -15,6 +16,14 @@ public static class GitHubServiceCollectionExtensions
             {
                 client.BaseAddress = new Uri("https://api.github.com/");
                 client.Timeout = TimeSpan.FromSeconds(30);
+            });
+
+        services.AddHttpClient<ISymphonyReleaseResolver, GitHubSymphonyReleaseResolver>(
+            GitHubSymphonyReleaseResolver.HttpClientName,
+            client =>
+            {
+                client.BaseAddress = new Uri("https://api.github.com/");
+                client.Timeout = TimeSpan.FromSeconds(10);
             });
 
         return services;
