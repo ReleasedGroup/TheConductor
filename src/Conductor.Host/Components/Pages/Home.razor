@@ -54,6 +54,7 @@
     <section class="dashboard-body">
         <div class="dashboard-stack">
             <HealthHeatmap Buckets="HealthBuckets" />
+            <InstanceRuntimePanel Items="InstanceRuntimes" />
 
             <section class="startup-panel" aria-label="Startup verification">
                 <SuccessState
@@ -87,6 +88,9 @@
 
     private IReadOnlyList<DashboardAttentionItem> AttentionItems =>
         projection?.AttentionItems ?? Array.Empty<DashboardAttentionItem>();
+
+    private IReadOnlyList<DashboardInstanceRuntime> InstanceRuntimes =>
+        projection?.InstanceRuntimes ?? Array.Empty<DashboardInstanceRuntime>();
 
     private static readonly HealthHeatmapBucket[] HealthBuckets =
     [
