@@ -6,7 +6,7 @@
 @inject IDashboardProjectionStore DashboardProjectionStore
 @inject IActiveRepositoryDashboardQuery ActiveRepositoryDashboardQuery
 
-<PageTitle>Conductor Dashboard</PageTitle>
+<PageTitle>Dashboard | Conductor</PageTitle>
 
 <section class="dashboard">
     <header class="dashboard-header">
@@ -27,6 +27,7 @@
     @if (loadError is not null)
     {
         <ErrorState
+            Class="dashboard-state"
             Title="Dashboard metrics could not be loaded."
             Message="Check the dashboard projection source and try again."
             Detail="@loadError" />
@@ -34,12 +35,14 @@
     else if (projection is null)
     {
         <LoadingState
+            Class="dashboard-state"
             Title="Loading dashboard metrics"
             Message="Fetching persisted dashboard projection data." />
     }
     else if (projection.Metrics.Count == 0)
     {
         <EmptyState
+            Class="dashboard-state"
             Title="No dashboard metrics are available yet."
             Message="Metrics will appear after dashboard projection data is collected." />
     }
@@ -54,9 +57,14 @@
     }
 
     <section class="dashboard-body">
-        <div class="dashboard-stack">
-            <HealthHeatmap Buckets="HealthBuckets" />
+        <div class="dashboard-grid">
+            <HealthHeatmap
+                Title="Repository orchestration health"
+                Description="Repository health over the latest orchestration windows."
+                Buckets="HealthBuckets" />
+            <WorkloadDonut Workload="Workload" />
             <InstanceRuntimePanel Items="InstanceRuntimes" />
+            <NeedsAttentionPanel Items="AttentionItems" />
 
             <section class="active-repositories-panel" aria-labelledby="active-repositories-heading">
                 <div class="panel-heading">
@@ -129,7 +137,11 @@
                 }
             </section>
 
-            <section class="startup-panel" aria-label="Startup verification">
+            <RepositoryTable Repositories="Repositories" />
+            <QuickActions Actions="QuickActions" />
+            <LiveActivityStream Events="ActivityEvents" ReferenceTimeUtc="ReferenceTimeUtc" />
+
+            <section class="startup-panel panel" aria-label="Startup verification">
                 <SuccessState
                     Title="Startup verification"
                     Message="The local host can be checked from the dashboard route and the built-in health probes." />
@@ -147,15 +159,12 @@
                 </dl>
             </section>
         </div>
-
-        <aside class="dashboard-rail" aria-label="Dashboard attention">
-            <NeedsAttentionPanel Items="AttentionItems" />
-            <LiveActivityStream Events="ActivityEvents" ReferenceTimeUtc="ReferenceTimeUtc" />
-        </aside>
     </section>
 </section>
 
 @code {
+    private static readonly DateTimeOffset ReferenceTimeUtc = new(2026, 4, 29, 18, 20, 0, TimeSpan.Zero);
+
     private DashboardProjection? projection;
     private string? loadError;
     private ActiveRepositoryDashboard activeRepositoryDashboard = new([]);
@@ -175,38 +184,75 @@
     private IReadOnlyList<DashboardInstanceRuntime> InstanceRuntimes =>
         projection?.InstanceRuntimes ?? Array.Empty<DashboardInstanceRuntime>();
 
-    private static readonly HealthHeatmapBucket[] HealthBuckets =
+    private static readonly (string Label, string Route, string State)[] StartupChecks =
     [
-        new("Conductor", "08:00", HealthHeatmapStatus.Healthy, 99, "All orchestration checks completed."),
-        new("Conductor", "10:00", HealthHeatmapStatus.Healthy, 98, "Workers and health probes are responsive."),
-        new("Conductor", "12:00", HealthHeatmapStatus.Warning, 82, "One repository sync ran behind schedule."),
-        new("Conductor", "14:00", HealthHeatmapStatus.Healthy, 97, "Backlog recovered after retry."),
-        new("Conductor", "16:00", HealthHeatmapStatus.Healthy, 99, "No active orchestration alerts."),
-        new("Conductor", "18:00", HealthHeatmapStatus.Healthy, 100, "All repositories are within policy."),
-        new("Symphony", "08:00", HealthHeatmapStatus.Healthy, 95, "Runtime checks passed."),
-        new("Symphony", "10:00", HealthHeatmapStatus.Warning, 76, "Release polling reported elevated latency."),
-        new("Symphony", "12:00", HealthHeatmapStatus.Warning, 73, "Two issue sync jobs are queued."),
-        new("Symphony", "14:00", HealthHeatmapStatus.Critical, 41, "Workflow dispatch failed repeatedly."),
-        new("Symphony", "16:00", HealthHeatmapStatus.Warning, 78, "Dispatch recovered with retry backlog."),
-        new("Symphony", "18:00", HealthHeatmapStatus.Healthy, 93, "Queue returned to normal."),
-        new("Release Portal", "08:00", HealthHeatmapStatus.Offline, 0, "No agent heartbeat received."),
-        new("Release Portal", "10:00", HealthHeatmapStatus.Critical, 38, "Repository credentials need rotation."),
-        new("Release Portal", "12:00", HealthHeatmapStatus.Warning, 69, "Credential rotation started."),
-        new("Release Portal", "14:00", HealthHeatmapStatus.Warning, 72, "Pending PR checks are draining."),
-        new("Release Portal", "16:00", HealthHeatmapStatus.Healthy, 91, "Credential rotation completed."),
-        new("Release Portal", "18:00", HealthHeatmapStatus.Healthy, 94, "Orchestration checks are current."),
-        new("Operations Docs", "08:00", HealthHeatmapStatus.Healthy, 96, "Documentation validation passed."),
-        new("Operations Docs", "10:00", HealthHeatmapStatus.Healthy, 96, "No blocked documentation runs."),
-        new("Operations Docs", "12:00", HealthHeatmapStatus.Healthy, 97, "Review queue is clear."),
-        new("Operations Docs", "14:00", HealthHeatmapStatus.Healthy, 96, "Scheduled checks completed."),
-        new("Operations Docs", "16:00", HealthHeatmapStatus.Warning, 80, "One stale branch requires attention."),
-        new("Operations Docs", "18:00", HealthHeatmapStatus.Healthy, 95, "Stale branch warning cleared."),
+        ("Dashboard route", "/", "Metric tiles served"),
+        ("Live health", "/health/live", "Probe available"),
+        ("Ready health", "/health/ready", "Probe available"),
     ];
 
-    private static readonly DateTimeOffset ReferenceTimeUtc = new(2026, 4, 29, 18, 20, 0, TimeSpan.Zero);
+    private static readonly HealthHeatmapBucket[] HealthBuckets =
+    [
+        new("acme-portal", "24h", HealthHeatmapStatus.Healthy, 99, "All orchestration checks completed."),
+        new("acme-portal", "18h", HealthHeatmapStatus.Healthy, 98, "Workers and health probes are responsive."),
+        new("acme-portal", "12h", HealthHeatmapStatus.Healthy, 97, "Backlog recovered after retry."),
+        new("acme-portal", "6h", HealthHeatmapStatus.Healthy, 99, "No active orchestration alerts."),
+        new("acme-portal", "Now", HealthHeatmapStatus.Healthy, 99, "All repositories are within policy."),
+        new("billing-api", "24h", HealthHeatmapStatus.Healthy, 94, "Runtime checks passed."),
+        new("billing-api", "18h", HealthHeatmapStatus.Warning, 78, "Release polling reported elevated latency."),
+        new("billing-api", "12h", HealthHeatmapStatus.Warning, 72, "Two failed runs are queued for retry."),
+        new("billing-api", "6h", HealthHeatmapStatus.Critical, 42, "Workflow dispatch failed repeatedly."),
+        new("billing-api", "Now", HealthHeatmapStatus.Warning, 76, "Dispatch recovered with retry backlog."),
+        new("Release Portal", "24h", HealthHeatmapStatus.Offline, 0, "No agent heartbeat received."),
+        new("Release Portal", "18h", HealthHeatmapStatus.Critical, 38, "Repository credentials need rotation."),
+        new("Release Portal", "12h", HealthHeatmapStatus.Warning, 69, "Credential rotation started."),
+        new("Release Portal", "6h", HealthHeatmapStatus.Warning, 72, "Pending PR checks are draining."),
+        new("Release Portal", "Now", HealthHeatmapStatus.Offline, 0, "Symphony instance is offline."),
+        new("crm-sync", "24h", HealthHeatmapStatus.Healthy, 96, "Documentation validation passed."),
+        new("crm-sync", "18h", HealthHeatmapStatus.Healthy, 96, "No blocked documentation runs."),
+        new("crm-sync", "12h", HealthHeatmapStatus.Healthy, 97, "Review queue is clear."),
+        new("crm-sync", "6h", HealthHeatmapStatus.Warning, 80, "One stale branch requires attention."),
+        new("crm-sync", "Now", HealthHeatmapStatus.Healthy, 95, "Stale branch warning cleared."),
+        new("data-pipeline", "24h", HealthHeatmapStatus.Healthy, 92, "Collectors completed normally."),
+        new("data-pipeline", "18h", HealthHeatmapStatus.Warning, 71, "Queue depth increased."),
+        new("data-pipeline", "12h", HealthHeatmapStatus.Healthy, 91, "Queue depth recovered."),
+        new("data-pipeline", "6h", HealthHeatmapStatus.Critical, 35, "High failure rate detected."),
+        new("data-pipeline", "Now", HealthHeatmapStatus.Critical, 40, "Failure rate remains elevated.")
+    ];
+
+    private static readonly WorkloadProjection Workload = new()
+    {
+        TotalActiveIssues = 138,
+        Slices =
+        [
+            new() { Label = "In Progress", Count = 78, Percentage = "57%", Color = "#3b82f6" },
+            new() { Label = "Queued", Count = 22, Percentage = "16%", Color = "#2563eb" },
+            new() { Label = "Retrying", Count = 11, Percentage = "8%", Color = "#facc15" },
+            new() { Label = "Blocked", Count = 7, Percentage = "5%", Color = "#ef4444" },
+            new() { Label = "Done", Count = 20, Percentage = "14%", Color = "#22c55e" }
+        ]
+    };
+
+    private static readonly RepositoryRow[] Repositories =
+    [
+        new() { Project = "ACME Portal", Repository = "acme-portal", Health = "Healthy", ActiveIssues = 9, RunningAgents = 3, FailedRuns = 0, OpenPullRequests = 2, LastActivity = "4m ago", Sparkline = "___/\\_/\\_" },
+        new() { Project = "Billing Engine", Repository = "billing-api", Health = "Warning", ActiveIssues = 14, RunningAgents = 5, FailedRuns = 2, OpenPullRequests = 1, LastActivity = "1m ago", Sparkline = "_/\\/\\_/_" },
+        new() { Project = "Mobile App", Repository = "client-mobile", Health = "Offline", ActiveIssues = 0, RunningAgents = 0, FailedRuns = 0, OpenPullRequests = 0, LastActivity = "2h ago", Sparkline = "________" },
+        new() { Project = "CRM Sync", Repository = "crm-sync", Health = "Healthy", ActiveIssues = 7, RunningAgents = 2, FailedRuns = 0, OpenPullRequests = 1, LastActivity = "6m ago", Sparkline = "__/\\_/\\_" },
+        new() { Project = "Data Pipeline", Repository = "data-pipeline", Health = "Warning", ActiveIssues = 11, RunningAgents = 3, FailedRuns = 3, OpenPullRequests = 2, LastActivity = "3m ago", Sparkline = "_/\\/\\_/\\/" },
+        new() { Project = "Internal Tools", Repository = "internal-tools", Health = "Healthy", ActiveIssues = 4, RunningAgents = 1, FailedRuns = 0, OpenPullRequests = 0, LastActivity = "10m ago", Sparkline = "__/\\____" },
+        new() { Project = "Marketing Site", Repository = "marketing-site", Health = "Healthy", ActiveIssues = 3, RunningAgents = 1, FailedRuns = 0, OpenPullRequests = 1, LastActivity = "12m ago", Sparkline = "_/\\__/\\_" }
+    ];
 
     private static readonly LiveActivityEvent[] ActivityEvents =
     [
+        new(
+            ReferenceTimeUtc.AddMinutes(-2),
+            EventSeverity.Information,
+            "Pull request opened",
+            "crm-sync",
+            44,
+            "Pull request opened."),
         new(
             ReferenceTimeUtc.AddMinutes(-4),
             EventSeverity.Information,
@@ -234,14 +280,15 @@
             "Run completed",
             "data-pipeline",
             102,
-            "Run completed successfully."),
+            "Run completed successfully.")
     ];
 
-    private static readonly (string Label, string Route, string State)[] StartupChecks =
+    private static readonly QuickAction[] QuickActions =
     [
-        ("Dashboard route", "/", "Metric tiles served"),
-        ("Live health", "/health/live", "Probe available"),
-        ("Ready health", "/health/ready", "Probe available"),
+        new() { Title = "Import Repository", Description = "Add a GitHub repository to orchestration", Href = "/repositories", Icon = "IR" },
+        new() { Title = "New Workflow Profile", Description = "Create a workflow profile from a template", Href = "/policies", Icon = "WF" },
+        new() { Title = "Generate Report", Description = "Create a delivery or executive report", Href = "/reports", Icon = "GR" },
+        new() { Title = "Global Policies", Description = "View and manage orchestration policies", Href = "/policies", Icon = "GP" }
     ];
 
     protected override async Task OnInitializedAsync()
@@ -256,7 +303,7 @@
         {
             projection = await DashboardProjectionStore.GetCurrentAsync();
         }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
         {
             loadError = ex.Message;
         }

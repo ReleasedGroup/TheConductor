@@ -79,6 +79,24 @@
       "targetKind": "repository",
       "createdAtUtc": "2026-04-29T01:45:00Z",
       "ageLabel": "15m ago"
+    },
+    {
+      "severity": "Warning",
+      "sourceName": "crm-sync",
+      "summary": "Issue #44 blocked by TODO items",
+      "targetHref": "/repositories/crm-sync",
+      "targetKind": "repository",
+      "createdAtUtc": "2026-04-29T01:28:00Z",
+      "ageLabel": "32m ago"
+    },
+    {
+      "severity": "Critical",
+      "sourceName": "data-pipeline",
+      "summary": "High failure rate across recent runs",
+      "targetHref": "/repositories/data-pipeline",
+      "targetKind": "repository",
+      "createdAtUtc": "2026-04-29T01:00:00Z",
+      "ageLabel": "1h ago"
     }
   ],
   "instanceRuntimes": [

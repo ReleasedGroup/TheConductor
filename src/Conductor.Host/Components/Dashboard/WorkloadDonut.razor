@@ -1,0 +1,57 @@
+@using System.Globalization
+
+<section class="panel workload-panel" aria-labelledby="workload-title">
+    <div class="panel-heading">
+        <h2 id="workload-title">Workload Overview</h2>
+    </div>
+
+    <div class="workload-layout">
+        <div class="donut" style="@DonutStyle" role="img" aria-label="@($"{Workload.TotalActiveIssues} total active issues")">
+            <div>
+                <strong>@Workload.TotalActiveIssues</strong>
+                <span>Total Active Issues</span>
+            </div>
+        </div>
+
+        <ul class="workload-list">
+            @foreach (var slice in Workload.Slices)
+            {
+                <li>
+                    <span class="slice-dot" style="@($"background-color: {slice.Color}")" aria-hidden="true"></span>
+                    <span>@slice.Label</span>
+                    <strong>@slice.Count (@slice.Percentage)</strong>
+                </li>
+            }
+        </ul>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public WorkloadProjection Workload { get; set; } = new();
+
+    private string DonutStyle => $"background: conic-gradient({BuildGradient()});";
+
+    private string BuildGradient()
+    {
+        var total = Workload.Slices.Sum(slice => slice.Count);
+        if (total <= 0)
+        {
+            return "#334155 0% 100%";
+        }
+
+        var start = 0d;
+        var segments = new List<string>();
+
+        foreach (var slice in Workload.Slices)
+        {
+            var end = start + (slice.Count * 100d / total);
+            segments.Add(string.Create(
+                CultureInfo.InvariantCulture,
+                $"{slice.Color} {start:0.##}% {end:0.##}%"));
+            start = end;
+        }
+
+        return string.Join(", ", segments);
+    }
+}
