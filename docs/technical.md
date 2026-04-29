@@ -1186,11 +1186,11 @@ Blazor:
 Use deterministic fixture JSON for Symphony responses:
 
 ```text
-tests/Fixtures/Symphony/health-ok.json
-tests/Fixtures/Symphony/runtime-basic.json
-tests/Fixtures/Symphony/state-running.json
-tests/Fixtures/Symphony/state-retrying.json
-tests/Fixtures/Symphony/issue-detail.json
+tests/Conductor.Integration.Tests/Fixtures/Symphony/health-ok.json
+tests/Conductor.Integration.Tests/Fixtures/Symphony/runtime-basic.json
+tests/Conductor.Integration.Tests/Fixtures/Symphony/state-running.json
+tests/Conductor.Integration.Tests/Fixtures/Symphony/state-retrying.json
+tests/Conductor.Integration.Tests/Fixtures/Symphony/issue-detail.json
 ```
 
 ### 18.4 External Integration Tests

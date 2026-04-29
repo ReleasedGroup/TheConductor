@@ -1,13 +1,85 @@
 {
-  "applicationName": "Symphony",
-  "version": "1.2.3",
-  "instanceId": "symphony-local-1",
-  "workflow": {
-    "owner": "ReleasedGroup",
-    "repository": "TheConductor",
-    "sourcePath": "/config/WORKFLOW.md"
+  "application": {
+    "name": "Symphony",
+    "version": "1.4.0+20260429"
+  },
+  "runtimeDefaults": {
+    "polling": {
+      "intervalMs": 600000
+    },
+    "agent": {
+      "maxConcurrentAgents": 5
+    }
+  },
+  "orchestration": {
+    "instanceId": "conductor-api-main",
+    "leaseName": "poll-dispatch",
+    "leaseTtlSeconds": 120
   },
   "persistence": {
-    "provider": "sqlite"
-  }
+    "provider": "sqlite",
+    "isConfigured": true
+  },
+  "workflow": {
+    "sourcePath": "/config/WORKFLOW.md",
+    "loadedAtUtc": "2026-04-29T00:05:00Z",
+    "tracker": {
+      "kind": "github",
+      "owner": "ReleasedGroup",
+      "repo": "TheConductor",
+      "milestone": "Sprint 3: Symphony API Client and Manual Registration",
+      "includePullRequests": true,
+      "labels": [
+        "symphony",
+        "integration"
+      ],
+      "activeStates": [
+        "Open",
+        "In Progress"
+      ],
+      "terminalStates": [
+        "Closed"
+      ]
+    },
+    "polling": {
+      "intervalMs": 600000
+    },
+    "agent": {
+      "maxConcurrentAgents": 5,
+      "maxTurns": 20,
+      "maxRetryBackoffMs": 300000,
+      "maxConcurrentAgentsByState": {
+        "Open": 2,
+        "In Progress": 3
+      }
+    },
+    "codex": {
+      "command": "codex app-server",
+      "turnTimeoutMs": 3600000,
+      "approvalPolicy": "never",
+      "threadSandbox": "danger-full-access",
+      "turnSandboxPolicy": "danger-full-access",
+      "readTimeoutMs": 5000,
+      "stallTimeoutMs": 300000
+    },
+    "server": {
+      "port": 8080
+    },
+    "workspace": {
+      "root": "/var/lib/symphony/workspaces",
+      "sharedClonePath": "/var/lib/symphony/workspaces/repo",
+      "worktreesRoot": "/var/lib/symphony/workspaces/worktrees",
+      "baseBranch": "main",
+      "remoteUrl": "https://github.com/ReleasedGroup/TheConductor.git"
+    },
+    "hooks": {
+      "hasAfterCreate": false,
+      "hasBeforeRun": true,
+      "hasAfterRun": true,
+      "hasBeforeRemove": false,
+      "beforeRemoveSupported": true,
+      "timeoutMs": 60000
+    }
+  },
+  "workflowError": null
 }

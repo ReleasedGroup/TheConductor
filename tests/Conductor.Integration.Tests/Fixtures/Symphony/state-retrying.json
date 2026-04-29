@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-04-29T01:45:00Z",
+  "counts": {
+    "running": 0,
+    "retrying": 1,
+    "tracked": 2
+  },
+  "running": [],
+  "retrying": [
+    {
+      "issue_id": "I_kwDOSPYGA85RETRY",
+      "issue_identifier": "#29",
+      "title": "Implement Symphony API client contracts",
+      "url": "https://github.com/ReleasedGroup/TheConductor/issues/29",
+      "milestone": "Sprint 3: Symphony API Client and Manual Registration",
+      "labels": [
+        "symphony",
+        "client"
+      ],
+      "attempt": 2,
+      "due_at": "2026-04-29T01:50:00Z",
+      "error": "Previous run exited before producing a result."
+    }
+  ],
+  "tracked": {
+    "total": 2,
+    "by_state": [
+      {
+        "state": "Open",
+        "count": 2
+      }
+    ],
+    "recently_updated": [
+      {
+        "issue_id": "I_kwDOSPYGA85RETRY",
+        "issue_identifier": "#29",
+        "title": "Implement Symphony API client contracts",
+        "state": "Open",
+        "status": "retrying",
+        "milestone": "Sprint 3: Symphony API Client and Manual Registration",
+        "updated_at": "2026-04-29T01:42:00Z",
+        "url": "https://github.com/ReleasedGroup/TheConductor/issues/29",
+        "labels": [
+          "symphony",
+          "client"
+        ]
+      }
+    ]
+  },
+  "activity": [
+    {
+      "at": "2026-04-29T01:42:00Z",
+      "issue_id": "I_kwDOSPYGA85RETRY",
+      "issue_identifier": "#29",
+      "session_id": null,
+      "level": "Warning",
+      "event": "retry_queued",
+      "message": "Previous run exited before producing a result."
+    }
+  ],
+  "coordination": {
+    "leases": [
+      {
+        "lease_name": "poll-dispatch",
+        "owner_instance_id": "conductor-api-main",
+        "acquired_at": "2026-04-29T01:40:00Z",
+        "updated_at": "2026-04-29T01:44:30Z",
+        "expires_at": "2026-04-29T01:46:30Z",
+        "is_expired": false
+      }
+    ]
+  },
+  "codex_totals": {
+    "input_tokens": 900,
+    "output_tokens": 120,
+    "total_tokens": 1020,
+    "seconds_running": 245.25
+  },
+  "rate_limits": null
+}

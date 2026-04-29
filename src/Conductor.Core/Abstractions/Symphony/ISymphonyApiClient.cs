@@ -1,5 +1,3 @@
-using Conductor.Core.Domain;
-
 namespace Conductor.Core.Abstractions.Symphony;
 
 public interface ISymphonyApiClient
@@ -24,19 +22,3 @@ public interface ISymphonyApiClient
 
     Task<SymphonyRefreshResponse> RequestRefreshAsync(Uri baseUri, CancellationToken cancellationToken);
 }
-
-public sealed record SymphonyHealthResponse(
-    InstanceHealthStatus Status,
-    int? HttpStatusCode,
-    TimeSpan Latency,
-    string RawJson);
-
-public sealed record SymphonyRuntimeResponse(string RawJson);
-
-public sealed record SymphonyWorkflowDocument(string Source, string? ETag);
-
-public sealed record SymphonyStateResponse(string RawJson);
-
-public sealed record SymphonyIssueResponse(string IssueIdentifier, string RawJson);
-
-public sealed record SymphonyRefreshResponse(bool Accepted, string RawJson);
