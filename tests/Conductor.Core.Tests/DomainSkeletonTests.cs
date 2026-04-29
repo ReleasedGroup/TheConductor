@@ -1,8 +1,8 @@
-using Conductor.Core.Abstractions.Releases;
 using Conductor.Core.Application;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
 using Conductor.Core.Domain.Projects;
+using Conductor.Core.Domain.Releases;
 using Conductor.Core.Domain.Repositories;
 using Conductor.Core.Domain.Symphony;
 using Conductor.Infrastructure.GitHub;
@@ -47,7 +47,7 @@ public sealed class DomainSkeletonTests
             isArchived: false,
             projectId: ProjectId.New());
 
-        Assert.Equal("ReleasedGroup/TheConductor", repository.FullName);
+        Assert.Equal("ReleasedGroup/TheConductor", repository.FullName.Value);
         Assert.False(repository.IsArchived);
     }
 
