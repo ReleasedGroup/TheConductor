@@ -1,4 +1,6 @@
+using Conductor.Core.Application.Dashboard;
 using Conductor.Host.Components;
+using Conductor.Host.Dashboard;
 using Conductor.Host.Endpoints;
 using Conductor.Host.Workers;
 using Conductor.Infrastructure.Persistence.Sqlite;
@@ -9,6 +11,9 @@ builder.Services
     .AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.Configure<DashboardProjectionOptions>(
+    builder.Configuration.GetSection(DashboardProjectionOptions.SectionName));
+builder.Services.AddSingleton<IDashboardProjectionStore, JsonFileDashboardProjectionStore>();
 builder.Services.AddHealthChecks();
 builder.Services.AddConductorPersistence(builder.Configuration);
 builder.Services.AddConductorWorkers();

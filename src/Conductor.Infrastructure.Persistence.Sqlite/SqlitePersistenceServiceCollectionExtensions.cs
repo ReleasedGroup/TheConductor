@@ -26,7 +26,14 @@ public static class SqlitePersistenceServiceCollectionExtensions
 
         services.AddDbContextFactory<ConductorDbContext>(Configure);
         services.AddScoped(provider => provider.GetRequiredService<IDbContextFactory<ConductorDbContext>>().CreateDbContext());
-        services.AddScoped<IConductorReadModelQueries, EfConductorReadModelQueries>();
+
+        services.AddScoped<SqliteProjectionQueryService>();
+        services.AddScoped<IDashboardQueryService>(provider =>
+            provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<IRepositoryListQueryService>(provider =>
+            provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<IInstanceSummaryQueryService>(provider =>
+            provider.GetRequiredService<SqliteProjectionQueryService>());
 
         return services;
     }

@@ -5,7 +5,7 @@ Conductor is the fleet control layer above Symphony. It is being built as a .NET
 ## Solution Layout
 
 - `Conductor.slnx` is the .NET solution entry point.
-- `src/Conductor.Host` contains the Blazor Web App host, health endpoints, worker registration, and the dashboard/repository screens.
+- `src/Conductor.Host` contains the Blazor Web App host, health endpoints, worker registration, the dashboard, repository screens, and reusable dashboard components.
 - `src/Conductor.Core` contains domain types, value objects, and infrastructure-facing contracts, including the workflow profile, release artifact, and secret descriptor entities.
 - `src/Conductor.Infrastructure.Persistence.Sqlite` contains EF Core SQLite mappings, DbContext registration, read-model queries, migrations, and development seed data.
 - `src/Conductor.Infrastructure.*` projects contain adapter boundaries for GitHub, Symphony HTTP, runners, secrets, reporting, and notifications.
@@ -26,9 +26,9 @@ dotnet format Conductor.slnx --no-restore --verify-no-changes
 dotnet run --project src/Conductor.Host/Conductor.Host.csproj
 ```
 
-The root route (`/`) serves the seeded dashboard for local startup checks. The same startup baseline also exposes `/health/live` and `/health/ready`.
+The root route (`/`) serves the dashboard baseline for local startup checks, including a reusable repository orchestration health heatmap populated with starter projection data. The same startup baseline also exposes `/health/live` and `/health/ready`.
 
-In `Development`, startup applies the current EF Core migration set and inserts deterministic seed data for the dashboard and repository screens. The seed set includes projects, GitHub repositories, Symphony instances, and latest snapshot payloads, and it is safe to run repeatedly.
+In `Development`, startup applies the current EF Core migration set and inserts deterministic seed data for the SQLite dashboard and repository query services. The seed set includes projects, GitHub repositories, Symphony instances, and latest snapshot payloads, and it is safe to run repeatedly.
 
 Set `Conductor:BootstrapDevelopmentDatabase` to `false` to skip the development database bootstrap in test hosts or other controlled startup scenarios.
 

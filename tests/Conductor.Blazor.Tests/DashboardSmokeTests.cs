@@ -1,7 +1,7 @@
 using Bunit;
-using Conductor.Core.Application.Queries;
+using Conductor.Core.Application.Dashboard;
 using Conductor.Core.Domain;
-using Conductor.Core.Domain.Ids;
+using Conductor.Host.Components.Dashboard;
 using Conductor.Host.Components.Pages;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,92 +13,161 @@ public sealed class DashboardSmokeTests
     public void Home_Renders_Initial_Dashboard()
     {
         using BunitContext context = new();
-        context.Services.AddSingleton<IConductorReadModelQueries>(new StubConductorReadModelQueries());
+        context.Services.AddSingleton<IDashboardProjectionStore>(new StaticDashboardProjectionStore(new DashboardProjection
+        {
+            CapturedAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
+            Metrics =
+            [
+                Metric("healthy-repositories", "Healthy Repos", "36 / 42"),
+                Metric("active-agents", "Active Agents", "18"),
+                Metric("blocked-issues", "Blocked Issues", "7"),
+                Metric("open-pull-requests", "PRs Open", "23"),
+                Metric("ai-spend-today", "AI Spend Today", "$128.40")
+            ],
+            AttentionItems =
+            [
+                Attention(
+                    AlertSeverity.Critical,
+                    "billing-api",
+                    "2 failed runs in the last 30 minutes",
+                    "/repositories/billing-api",
+                    "repository"),
+                Attention(
+                    AlertSeverity.Warning,
+                    "client-mobile",
+                    "Symphony instance is offline",
+                    "/instances/client-mobile",
+                    "instance")
+            ]
+        }));
 
         IRenderedComponent<Home> dashboard = context.Render<Home>();
 
-        dashboard.WaitForAssertion(() =>
-        {
-            Assert.Contains("ReleasedGroup/TheConductor", dashboard.Markup, StringComparison.Ordinal);
-        });
-
         Assert.Contains("Conductor Dashboard", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Development fleet", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Warning", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Equal(5, dashboard.FindAll("[data-dashboard-metric]").Count);
+        Assert.Contains("Healthy Repos", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Active Agents", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Blocked Issues", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("PRs Open", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("AI Spend Today", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("SQLite persistence registration", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Repository orchestration health", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Release Portal", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Needs attention", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("billing-api", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Critical", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/repositories/billing-api\"", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/instances/client-mobile\"", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Startup verification", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("/health/live", dashboard.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Repositories_Renders_Seeded_Repository_List()
+    public void Home_Renders_Empty_State_When_No_Metrics_Exist()
     {
         using BunitContext context = new();
-        context.Services.AddSingleton<IConductorReadModelQueries>(new StubConductorReadModelQueries());
+        context.Services.AddSingleton<IDashboardProjectionStore>(
+            new StaticDashboardProjectionStore(DashboardProjection.Empty));
 
-        IRenderedComponent<Repositories> repositories = context.Render<Repositories>();
+        IRenderedComponent<Home> dashboard = context.Render<Home>();
 
-        repositories.WaitForAssertion(() =>
-        {
-            Assert.Contains("ReleasedGroup/Symphony", repositories.Markup, StringComparison.Ordinal);
-        });
-
-        Assert.Contains("Repository registry", repositories.Markup, StringComparison.Ordinal);
-        Assert.Contains("LocalProcess", repositories.Markup, StringComparison.Ordinal);
+        Assert.Contains("No dashboard metrics are available yet.", dashboard.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void RepositoryDetail_Renders_Selected_Repository()
+    public void NeedsAttentionPanel_Renders_Critical_And_Warning_Source_Links()
     {
         using BunitContext context = new();
-        context.Services.AddSingleton<IConductorReadModelQueries>(new StubConductorReadModelQueries());
-
-        IRenderedComponent<RepositoryDetail> repository = context.Render<RepositoryDetail>(parameters => parameters
-            .Add(component => component.RepositoryId, new Guid("15357d28-1f50-4a93-8f1b-aa728cc9015d")));
-
-        repository.WaitForAssertion(() =>
-        {
-            Assert.Contains("Repository command centre", repository.Markup, StringComparison.Ordinal);
-        });
-
-        Assert.Contains("ReleasedGroup/TheConductor", repository.Markup, StringComparison.Ordinal);
-        Assert.Contains("http://localhost:8010", repository.Markup, StringComparison.Ordinal);
-    }
-
-    private sealed class StubConductorReadModelQueries : IConductorReadModelQueries
-    {
-        private static readonly RepositoryOverview[] Repositories =
+        DashboardAttentionItem[] items =
         [
-            new(
-                new RepositoryId(new Guid("15357d28-1f50-4a93-8f1b-aa728cc9015d")),
-                "ReleasedGroup/TheConductor",
-                "Conductor Platform",
-                "main",
-                "https://github.com/ReleasedGroup/TheConductor",
-                ExecutionMode.Docker,
-                InstanceLifecycleStatus.Running,
-                InstanceHealthStatus.Healthy,
-                "http://localhost:8010",
-                DateTimeOffset.Parse("2026-04-29T00:18:00Z")),
-            new(
-                new RepositoryId(new Guid("35592f7f-e79e-41c8-b468-e997ba3680ef")),
-                "ReleasedGroup/Symphony",
-                "Conductor Platform",
-                "main",
-                "https://github.com/ReleasedGroup/Symphony",
-                ExecutionMode.LocalProcess,
-                InstanceLifecycleStatus.Running,
-                InstanceHealthStatus.Warning,
-                "http://localhost:8020",
-                DateTimeOffset.Parse("2026-04-29T00:12:00Z")),
+            Attention(
+                AlertSeverity.Info,
+                "release-notes",
+                "Daily digest is available",
+                "/reports/daily",
+                "report"),
+            Attention(
+                AlertSeverity.Warning,
+                "client-mobile",
+                "Symphony instance is offline",
+                "/instances/client-mobile",
+                "instance"),
+            Attention(
+                AlertSeverity.Critical,
+                "billing-api",
+                "2 failed runs in the last 30 minutes",
+                "/repositories/billing-api",
+                "repository"),
         ];
 
-        public Task<ConductorDashboardSummary> GetDashboardSummaryAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ConductorDashboardSummary(1, 2, 2, 1, Repositories, Repositories[1..]));
+        IRenderedComponent<NeedsAttentionPanel> panel = context.Render<NeedsAttentionPanel>(
+            parameters => parameters.Add(component => component.Items, items));
 
-        public Task<IReadOnlyList<RepositoryOverview>> ListRepositoriesAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RepositoryOverview>>(Repositories);
+        Assert.Contains("Needs attention", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("billing-api", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("client-mobile", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/repositories/billing-api\"", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/instances/client-mobile\"", panel.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("release-notes", panel.Markup, StringComparison.Ordinal);
+    }
 
-        public Task<RepositoryOverview?> GetRepositoryAsync(RepositoryId repositoryId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<RepositoryOverview?>(Repositories.SingleOrDefault(repository => repository.RepositoryId == repositoryId));
+    [Fact]
+    public void NeedsAttentionPanel_Renders_Empty_State_When_No_Blocking_Items_Exist()
+    {
+        using BunitContext context = new();
+
+        IRenderedComponent<NeedsAttentionPanel> panel = context.Render<NeedsAttentionPanel>(
+            parameters => parameters.Add(
+                component => component.Items,
+                [Attention(
+                    AlertSeverity.Info,
+                    "release-notes",
+                    "Daily digest is available",
+                    "/reports/daily",
+                    "report")]));
+
+        Assert.Contains("All clear", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("No critical or warning items are active.", panel.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("release-notes", panel.Markup, StringComparison.Ordinal);
+    }
+
+    private static DashboardMetric Metric(string key, string label, string value)
+    {
+        return new DashboardMetric
+        {
+            Key = key,
+            Label = label,
+            Value = value,
+            Detail = "Sample detail",
+            TrendText = "Within target",
+            Icon = "pulse"
+        };
+    }
+
+    private static DashboardAttentionItem Attention(
+        AlertSeverity severity,
+        string sourceName,
+        string summary,
+        string targetHref,
+        string targetKind)
+    {
+        return new DashboardAttentionItem
+        {
+            Severity = severity,
+            SourceName = sourceName,
+            Summary = summary,
+            TargetHref = targetHref,
+            TargetKind = targetKind,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-04-29T01:58:00Z"),
+            AgeLabel = "2m ago"
+        };
+    }
+
+    private sealed class StaticDashboardProjectionStore(DashboardProjection projection) : IDashboardProjectionStore
+    {
+        public Task<DashboardProjection> GetCurrentAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(projection);
+        }
     }
 }

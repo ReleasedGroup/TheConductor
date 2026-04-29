@@ -1,6 +1,4 @@
-using Conductor.Core.Application.Queries;
-using Conductor.Core.Domain;
-using Conductor.Core.Domain.Ids;
+using Conductor.Core.Application.Dashboard;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -28,8 +26,9 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
             });
             builder.ConfigureServices(services =>
             {
-                services.RemoveAll<IConductorReadModelQueries>();
-                services.AddSingleton<IConductorReadModelQueries>(new StubConductorReadModelQueries());
+                services.RemoveAll<IDashboardProjectionStore>();
+                services.AddSingleton<IDashboardProjectionStore>(
+                    new StaticDashboardProjectionStore(DashboardProjection.Empty));
             });
         });
     }
@@ -46,15 +45,14 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
     }
 
     [Fact]
-    public async Task HomePageServesSeededDashboard()
+    public async Task HomePageServesDashboard()
     {
         using HttpClient client = CreateClient();
 
         string content = await client.GetStringAsync("/");
 
         Assert.Contains("Conductor Dashboard", content);
-        Assert.Contains("ReleasedGroup/TheConductor", content);
-        Assert.Contains("Development fleet", content);
+        Assert.Contains("No dashboard metrics are available yet.", content);
         Assert.Contains("Startup verification", content);
         Assert.Contains("/health/ready", content);
     }
@@ -70,30 +68,9 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
         factory.Dispose();
     }
 
-    private sealed class StubConductorReadModelQueries : IConductorReadModelQueries
+    private sealed class StaticDashboardProjectionStore(DashboardProjection projection) : IDashboardProjectionStore
     {
-        private static readonly RepositoryOverview[] Repositories =
-        [
-            new(
-                new RepositoryId(new Guid("15357d28-1f50-4a93-8f1b-aa728cc9015d")),
-                "ReleasedGroup/TheConductor",
-                "Conductor Platform",
-                "main",
-                "https://github.com/ReleasedGroup/TheConductor",
-                ExecutionMode.Docker,
-                InstanceLifecycleStatus.Running,
-                InstanceHealthStatus.Healthy,
-                "http://localhost:8010",
-                DateTimeOffset.Parse("2026-04-29T00:18:00Z")),
-        ];
-
-        public Task<ConductorDashboardSummary> GetDashboardSummaryAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ConductorDashboardSummary(1, 1, 1, 0, Repositories, []));
-
-        public Task<IReadOnlyList<RepositoryOverview>> ListRepositoriesAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RepositoryOverview>>(Repositories);
-
-        public Task<RepositoryOverview?> GetRepositoryAsync(RepositoryId repositoryId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<RepositoryOverview?>(Repositories.SingleOrDefault(repository => repository.RepositoryId == repositoryId));
+        public Task<DashboardProjection> GetCurrentAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(projection);
     }
 }

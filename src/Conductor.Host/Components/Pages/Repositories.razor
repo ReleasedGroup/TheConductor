@@ -1,5 +1,7 @@
 @page "/repositories"
-@inject IConductorReadModelQueries Queries
+@using Conductor.Core.Application.Queries
+@using Conductor.Core.Domain
+@inject IRepositoryListQueryService RepositoryQueries
 
 <PageTitle>Repositories - Conductor</PageTitle>
 
@@ -8,6 +10,7 @@
         <div>
             <p class="eyebrow">Repository registry</p>
             <h1>Repositories</h1>
+            <p class="dashboard-summary">Development repositories loaded from the SQLite projection store.</p>
         </div>
         <span class="status-pill">Seeded data</span>
     </header>
@@ -30,7 +33,7 @@
             <div class="panel-header">
                 <div>
                     <h2>Imported repositories</h2>
-                    <p>Development seed records for dashboard and repository flows.</p>
+                    <p>Seeded records for repository list and command-centre flows.</p>
                 </div>
             </div>
 
@@ -41,23 +44,23 @@
                             <th>Repository</th>
                             <th>Project</th>
                             <th>Branch</th>
-                            <th>Instance</th>
+                            <th>Instances</th>
                             <th>Health</th>
-                            <th>Last seen</th>
+                            <th>Last check</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (RepositoryOverview repository in RepositoryRows)
+                        @foreach (RepositoryListItemProjection repository in RepositoryRows)
                         {
                             <tr>
                                 <td>
                                     <a href="@RepositoryHref(repository)">@repository.FullName</a>
                                 </td>
-                                <td>@repository.ProjectName</td>
+                                <td>@(repository.ProjectName ?? "Unassigned")</td>
                                 <td>@repository.DefaultBranch</td>
-                                <td>@DisplayMode(repository.ExecutionMode)</td>
-                                <td><span class="@HealthStatusClass(repository.HealthStatus)">@DisplayHealth(repository.HealthStatus)</span></td>
-                                <td>@FormatLastSeen(repository.LastSeenAtUtc)</td>
+                                <td>@repository.RunningInstanceCount / @repository.InstanceCount running</td>
+                                <td><span class="@HealthStatusClass(repository.WorstHealthStatus)">@repository.WorstHealthStatus</span></td>
+                                <td>@FormatLastSeen(repository.LastHealthCheckAtUtc)</td>
                             </tr>
                         }
                     </tbody>
@@ -68,26 +71,20 @@
 </section>
 
 @code {
-    private IReadOnlyList<RepositoryOverview>? RepositoryRows { get; set; }
+    private IReadOnlyList<RepositoryListItemProjection>? RepositoryRows { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        RepositoryRows = await Queries.ListRepositoriesAsync();
+        RepositoryRows = await RepositoryQueries.ListRepositoriesAsync(new RepositoryListQuery());
     }
 
-    private static string RepositoryHref(RepositoryOverview repository) =>
-        $"/repositories/{repository.RepositoryId.Value:D}";
-
-    private static string DisplayHealth(InstanceHealthStatus? status) =>
-        status?.ToString() ?? "No instance";
-
-    private static string DisplayMode(ExecutionMode? mode) =>
-        mode?.ToString() ?? "None";
+    private static string RepositoryHref(RepositoryListItemProjection repository) =>
+        $"/repositories/{repository.Id.Value:D}";
 
     private static string FormatLastSeen(DateTimeOffset? lastSeenAtUtc) =>
         lastSeenAtUtc?.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) ?? "Never";
 
-    private static string HealthStatusClass(InstanceHealthStatus? status) =>
+    private static string HealthStatusClass(InstanceHealthStatus status) =>
         status switch
         {
             InstanceHealthStatus.Healthy => "status-badge status-healthy",
