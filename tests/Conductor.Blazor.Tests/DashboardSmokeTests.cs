@@ -1,3 +1,4 @@
+using AngleSharp.Dom;
 using Bunit;
 using Conductor.Core.Application.Dashboard;
 using Conductor.Core.Domain;
@@ -60,6 +61,56 @@ public sealed class DashboardSmokeTests
         Assert.Contains("href=\"/instances/client-mobile\"", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Startup verification", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("/health/live", dashboard.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Home_Renders_Dashboard_Metric_Tiles_From_Projection()
+    {
+        using BunitContext context = new();
+        context.Services.AddSingleton<IDashboardProjectionStore>(new StaticDashboardProjectionStore(new DashboardProjection
+        {
+            CapturedAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
+            Metrics =
+            [
+                Metric("healthy-repositories", "Healthy Repos", "36 / 42"),
+                Metric("active-agents", "Active Agents", "18"),
+                Metric("blocked-issues", "Blocked Issues", "7"),
+                Metric("open-pull-requests", "PRs Open", "23"),
+                Metric("ai-spend-today", "AI Spend Today", "$128.40")
+            ]
+        }));
+
+        IRenderedComponent<Home> dashboard = context.Render<Home>();
+
+        IElement metricGrid = dashboard.Find("section[aria-label='Dashboard metrics']");
+        IReadOnlyList<IElement> tiles = dashboard.FindAll("[data-dashboard-metric]");
+
+        Assert.Equal("Dashboard metrics", metricGrid.GetAttribute("aria-label"));
+        Assert.Collection(
+            tiles,
+            tile => AssertMetricTile(tile, "healthy-repositories", "Healthy Repos", "36 / 42"),
+            tile => AssertMetricTile(tile, "active-agents", "Active Agents", "18"),
+            tile => AssertMetricTile(tile, "blocked-issues", "Blocked Issues", "7"),
+            tile => AssertMetricTile(tile, "open-pull-requests", "PRs Open", "23"),
+            tile => AssertMetricTile(tile, "ai-spend-today", "AI Spend Today", "$128.40"));
+    }
+
+    [Fact]
+    public void Home_Renders_Startup_Verification_Cards()
+    {
+        using BunitContext context = new();
+        context.Services.AddSingleton<IDashboardProjectionStore>(
+            new StaticDashboardProjectionStore(DashboardProjection.Empty));
+
+        IRenderedComponent<Home> dashboard = context.Render<Home>();
+
+        IReadOnlyList<IElement> checks = dashboard.FindAll(".startup-panel dl > div");
+
+        Assert.Collection(
+            checks,
+            check => AssertStartupCheck(check, "Dashboard route", "/", "Metric tiles served"),
+            check => AssertStartupCheck(check, "Live health", "/health/live", "Probe available"),
+            check => AssertStartupCheck(check, "Ready health", "/health/ready", "Probe available"));
     }
 
     [Fact]
@@ -142,6 +193,24 @@ public sealed class DashboardSmokeTests
             TrendText = "Within target",
             Icon = "pulse"
         };
+    }
+
+    private static void AssertMetricTile(IElement tile, string key, string label, string value)
+    {
+        Assert.Equal(key, tile.GetAttribute("data-dashboard-metric"));
+        Assert.Equal($"{label} metric", tile.GetAttribute("aria-label"));
+        Assert.Contains("metric-tile", tile.GetAttribute("class") ?? string.Empty, StringComparison.Ordinal);
+        Assert.Contains(label, tile.TextContent, StringComparison.Ordinal);
+        Assert.Contains(value, tile.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Sample detail", tile.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Within target", tile.TextContent, StringComparison.Ordinal);
+    }
+
+    private static void AssertStartupCheck(IElement check, string label, string route, string state)
+    {
+        Assert.Equal(label, check.QuerySelector("dt")?.TextContent);
+        Assert.Equal(route, check.QuerySelector("code")?.TextContent);
+        Assert.Equal(state, check.QuerySelector("span")?.TextContent);
     }
 
     private static DashboardAttentionItem Attention(
