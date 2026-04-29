@@ -7,5 +7,6 @@ public sealed class ConductorDbContext(DbContextOptions<ConductorDbContext> opti
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasAnnotation("Relational:MaxIdentifierLength", 64);
+        modelBuilder.ApplyInitialSchema();
     }
 }
