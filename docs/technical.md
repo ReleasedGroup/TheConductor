@@ -621,6 +621,7 @@ public interface ISecretStore
     Task<SecretDescriptor> CreateAsync(CreateSecretRequest request, CancellationToken ct);
     Task RotateAsync(SecretId secretId, RotateSecretRequest request, CancellationToken ct);
     Task<ResolvedSecret> ResolveAsync(SecretReference reference, CancellationToken ct);
+    Task<ResolvedSecret?> ResolveAsync(SecretResolutionRequest request, CancellationToken ct);
     Task<IReadOnlyList<SecretDescriptor>> ListAsync(SecretQuery query, CancellationToken ct);
     Task DeleteAsync(SecretId secretId, CancellationToken ct);
 }
@@ -847,6 +848,12 @@ Resolution precedence:
 2. Repository-scoped secret.
 3. Project-scoped secret.
 4. Global default.
+
+Credential modes:
+
+- `SpecificSecret` resolves the selected secret descriptor directly.
+- `InheritDefault` resolves scoped descriptors using the precedence order above.
+- `None` resolves no credential even when scoped defaults exist.
 
 Secret storage:
 
