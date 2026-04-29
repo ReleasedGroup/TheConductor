@@ -670,6 +670,9 @@ Shared components:
 
 Use query services that return projection DTOs rather than EF entities.
 
+The initial persistence query service contracts and SQLite implementation are documented in
+`docs/persistence-query-services.md`.
+
 Dashboard projection:
 
 - Fleet metrics.

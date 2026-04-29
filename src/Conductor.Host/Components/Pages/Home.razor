@@ -44,44 +44,55 @@
         </section>
     }
 
-    <HealthHeatmap Buckets="HealthBuckets" />
+    <section class="dashboard-body">
+        <div class="dashboard-stack">
+            <HealthHeatmap Buckets="HealthBuckets" />
 
-    <section class="activity-panel">
-        <div>
-            <h2>Operational baseline</h2>
-            <p>The host is running with the initial project, persistence, dashboard, and test structure in place.</p>
-        </div>
-        <ul>
-            @foreach (string indicator in Indicators)
-            {
-                <li>@indicator</li>
-            }
-        </ul>
-    </section>
-
-    <section class="startup-panel" aria-label="Startup verification">
-        <div>
-            <h2>Startup verification</h2>
-            <p>The local host can be checked from the dashboard route and the built-in health probes.</p>
-        </div>
-        <dl>
-            @foreach ((string Label, string Route, string State) check in StartupChecks)
-            {
+            <section class="activity-panel">
                 <div>
-                    <dt>@check.Label</dt>
-                    <dd>
-                        <code>@check.Route</code>
-                        <span>@check.State</span>
-                    </dd>
+                    <h2>Operational baseline</h2>
+                    <p>The host is running with the initial project, persistence, dashboard, and test structure in place.</p>
                 </div>
-            }
-        </dl>
+                <ul>
+                    @foreach (string indicator in Indicators)
+                    {
+                        <li>@indicator</li>
+                    }
+                </ul>
+            </section>
+
+            <section class="startup-panel" aria-label="Startup verification">
+                <div>
+                    <h2>Startup verification</h2>
+                    <p>The local host can be checked from the dashboard route and the built-in health probes.</p>
+                </div>
+                <dl>
+                    @foreach ((string Label, string Route, string State) check in StartupChecks)
+                    {
+                        <div>
+                            <dt>@check.Label</dt>
+                            <dd>
+                                <code>@check.Route</code>
+                                <span>@check.State</span>
+                            </dd>
+                        </div>
+                    }
+                </dl>
+            </section>
+        </div>
+
+        <aside class="dashboard-rail" aria-label="Dashboard attention">
+            <NeedsAttentionPanel Items="AttentionItems" />
+        </aside>
     </section>
 </section>
 
 @code {
     private DashboardProjection? projection;
     private string? loadError;
+
+    private IReadOnlyList<DashboardAttentionItem> AttentionItems =>
+        projection?.AttentionItems ?? Array.Empty<DashboardAttentionItem>();
 
     private static readonly HealthHeatmapBucket[] HealthBuckets =
     [

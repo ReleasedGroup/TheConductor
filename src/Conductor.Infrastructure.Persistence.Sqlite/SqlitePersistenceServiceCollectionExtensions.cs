@@ -1,3 +1,5 @@
+using Conductor.Core.Application.Queries;
+using Conductor.Infrastructure.Persistence.Sqlite.Queries;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +23,14 @@ public static class SqlitePersistenceServiceCollectionExtensions
                 .UseConductorSqlite(connectionString)
                 .AddInterceptors(serviceProvider.GetRequiredService<SqliteConnectionPragmaInterceptor>());
         });
+
+        services.AddScoped<SqliteProjectionQueryService>();
+        services.AddScoped<IDashboardQueryService>(provider =>
+            provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<IRepositoryListQueryService>(provider =>
+            provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<IInstanceSummaryQueryService>(provider =>
+            provider.GetRequiredService<SqliteProjectionQueryService>());
 
         return services;
     }
