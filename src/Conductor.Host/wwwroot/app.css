@@ -957,6 +957,64 @@ h2 {
   background: transparent;
 }
 
+.secrets-page {
+  display: grid;
+  gap: 24px;
+  max-width: 1180px;
+}
+
+.secrets-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.secrets-summary {
+  margin: 8px 0 0;
+  color: #aeb9c5;
+}
+
+.secret-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.secret-type-card {
+  display: grid;
+  gap: 10px;
+  min-height: 106px;
+  padding: 18px;
+  border: 1px solid #2b3138;
+  border-radius: 8px;
+  background: #191f25;
+}
+
+.secret-type-label {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.secret-type-card code,
+.secret-mask {
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #232a31;
+  color: #f2c14e;
+  overflow-wrap: anywhere;
+}
+
+.secret-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #2b3138;
+  border-radius: 8px;
+  background: #151a1f;
+}
+
 .instance-registration,
 .instances-panel {
   display: grid;
@@ -965,6 +1023,28 @@ h2 {
   border: 1px solid #2b3138;
   border-radius: 8px;
   background: #151a1f;
+}
+
+.secret-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+
+.secret-table th,
+.secret-table td {
+  padding: 16px 14px;
+  border-top: 1px solid #2b3138;
+  vertical-align: top;
+  text-align: left;
+}
+
+.secret-table thead th {
+  border-top: 0;
+  color: #aeb9c5;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .registration-form {
@@ -1061,6 +1141,48 @@ h2 {
   font-size: 0.78rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.secret-name,
+.secret-muted {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.secret-name {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.secret-muted {
+  margin-top: 5px;
+  color: #aeb9c5;
+  font-size: 0.84rem;
+}
+
+.secret-type-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid #53606d;
+  border-radius: 999px;
+  background: #272d34;
+  color: #c7d0d9;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.secret-type-pill--github {
+  border-color: #45666d;
+  background: #17373b;
+  color: #9ee7d7;
+}
+
+.secret-type-pill--openai {
+  border-color: #8a6823;
+  background: #3d3015;
+  color: #f2c14e;
 }
 
 .instances-table td {
@@ -1266,6 +1388,12 @@ h2 {
 
   .dashboard-header {
     display: grid;
+  }
+
+  .secrets-header,
+  .secret-type-grid {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .dashboard-meta {
