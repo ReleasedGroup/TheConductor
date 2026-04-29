@@ -25,3 +25,5 @@ If the health or runtime endpoint cannot be reached, Conductor shows the validat
 Use the Repositories page to import a GitHub repository by `owner/name`. The initial flow stores repository metadata, optional project assignment, visibility, default branch, and archived state.
 
 The page can also create a first Symphony instance shell in `NotProvisioned` state. The shell captures execution mode, instance URL, port, release selector, and credential inheritance choices so later provisioning work can start from a validated record.
+
+Imported repositories appear in the managed repository registry with project, visibility, default branch, archive state, orchestration eligibility, instance counts, last sync, and latest health metadata. Open a repository row to review its detail page, including clone and web URLs, sync metadata, orchestration status, and active Symphony instances attached to that repository.
