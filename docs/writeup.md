@@ -20,4 +20,4 @@ we can democratise professional software development; give vibe coders somewhere
 from real production ones. We're giving the world the ability to deliver commercial quality code at a fraction of the price and time of historical development.
 
 Small entrepreneurs now really have a chance to get out a working, reliable, secure and sclaable software solution without breaking the bank (and leaving money
-to spend on marketing)
+to spend on marketing).
