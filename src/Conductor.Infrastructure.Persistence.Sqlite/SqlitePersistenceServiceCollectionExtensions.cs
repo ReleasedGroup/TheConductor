@@ -1,7 +1,9 @@
+using Conductor.Core.Application.Dashboard;
 using Conductor.Core.Application.Instances;
 using Conductor.Core.Application.Queries;
 using Conductor.Core.Application.Secrets;
 using Conductor.Core.Application.Snapshots;
+using Conductor.Infrastructure.Persistence.Sqlite.Dashboard;
 using Conductor.Infrastructure.Persistence.Sqlite.Instances;
 using Conductor.Infrastructure.Persistence.Sqlite.Queries;
 using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
@@ -22,6 +24,7 @@ public static class SqlitePersistenceServiceCollectionExtensions
             ?? SqlitePersistenceOptions.DefaultConnectionString;
 
         services.AddSingleton<SqliteConnectionPragmaInterceptor>();
+        services.AddScoped<IActiveRepositoryDashboardQuery, SqliteActiveRepositoryDashboardQuery>();
 
         services.AddDbContext<ConductorDbContext>((serviceProvider, options) =>
         {
