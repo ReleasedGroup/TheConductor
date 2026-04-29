@@ -22,6 +22,8 @@ builder.Services.AddConductorWorkers(builder.Configuration);
 
 WebApplication app = builder.Build();
 
+await app.Services.ApplyConductorPersistenceMigrationsAsync();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -34,6 +36,7 @@ app.UseAntiforgery();
 
 app.MapGet("/favicon.ico", () => Results.NoContent()).ExcludeFromDescription();
 app.MapConductorHealth();
+app.MapConductorInstances();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
