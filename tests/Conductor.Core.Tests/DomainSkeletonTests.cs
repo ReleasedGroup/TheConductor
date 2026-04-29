@@ -7,6 +7,7 @@ using Conductor.Core.Domain.Repositories;
 using Conductor.Core.Domain.Symphony;
 using Conductor.Infrastructure.GitHub;
 using Conductor.Infrastructure.Notifications;
+using Conductor.Infrastructure.Persistence.Sqlite;
 using Conductor.Infrastructure.Reporting;
 using Conductor.Infrastructure.Runners.Docker;
 using Conductor.Infrastructure.Runners.Local;
@@ -92,6 +93,7 @@ public sealed class DomainSkeletonTests
             SecretsInfrastructureModule.Descriptor,
             ReportingInfrastructureModule.Descriptor,
             NotificationsInfrastructureModule.Descriptor,
+            SqlitePersistenceInfrastructureModule.Descriptor,
         ];
 
         Assert.All(modules, module =>

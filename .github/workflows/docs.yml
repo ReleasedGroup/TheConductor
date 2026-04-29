@@ -1,0 +1,47 @@
+name: Docs
+
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required docs
+        shell: pwsh
+        run: |
+          $required = @(
+            "docs/requirements.md",
+            "docs/technical.md"
+          )
+          $missing = $required | Where-Object { -not (Test-Path $_) }
+          if ($missing) {
+            Write-Error "Missing required documentation: $($missing -join ', ')"
+          }
+
+      - name: Check trailing whitespace
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem docs -Recurse -File -Include *.md
+          foreach ($file in $files) {
+            $matches = Select-String -Path $file.FullName -Pattern "\s+$"
+            if ($matches) {
+              $matches | ForEach-Object {
+                Write-Error "$($_.Path):$($_.LineNumber) has trailing whitespace"
+              }
+            }
+          }

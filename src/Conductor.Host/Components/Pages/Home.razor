@@ -1,0 +1,55 @@
+@page "/"
+
+<PageTitle>Conductor Dashboard</PageTitle>
+
+<section class="dashboard">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Fleet overview</p>
+            <h1>Conductor Dashboard</h1>
+        </div>
+        <span class="status-pill">Sprint 0 scaffold</span>
+    </header>
+
+    <section class="metric-grid" aria-label="Dashboard metrics">
+        @foreach ((string Label, string Value, string Hint) metric in Metrics)
+        {
+            <article class="metric-tile">
+                <span>@metric.Label</span>
+                <strong>@metric.Value</strong>
+                <small>@metric.Hint</small>
+            </article>
+        }
+    </section>
+
+    <section class="activity-panel">
+        <div>
+            <h2>Operational baseline</h2>
+            <p>The host is running with the initial project, persistence, and test structure in place.</p>
+        </div>
+        <ul>
+            @foreach (string indicator in Indicators)
+            {
+                <li>@indicator</li>
+            }
+        </ul>
+    </section>
+</section>
+
+@code {
+    private static readonly (string Label, string Value, string Hint)[] Metrics =
+    [
+        ("Projects", "0", "Ready for Sprint 1 seed data"),
+        ("Repositories", "0", "Import workflow pending"),
+        ("Instances", "0", "Provisioning starts in later sprints"),
+        ("Alerts", "0", "In-app rules not active yet"),
+    ];
+
+    private static readonly string[] Indicators =
+    [
+        "Blazor Web App host",
+        "SQLite persistence registration",
+        "Health endpoints",
+        "Layered test projects",
+    ];
+}
