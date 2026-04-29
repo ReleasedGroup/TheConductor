@@ -256,7 +256,8 @@ internal sealed class SqliteRepositoryImportService : IRepositoryImportService
             openAiCredentialSecretId: instancePlan.OpenAiCredential.SecretId,
             openAiCredentialInheritanceMode: instancePlan.OpenAiCredential.InheritanceMode,
             workflowPath: instancePlan.WorkflowPath,
-            dataPath: instancePlan.DataPath);
+            dataPath: instancePlan.DataPath,
+            workflowProfileId: instancePlan.WorkflowProfileId);
 
         dbContext.SymphonyInstances.Add(instance);
 

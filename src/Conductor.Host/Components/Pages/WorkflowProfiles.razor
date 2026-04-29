@@ -1,0 +1,365 @@
+@page "/settings/workflows"
+@rendermode InteractiveServer
+@using System.Data.Common
+@using Conductor.Core.Application.Workflows
+@using Conductor.Core.Domain.Ids
+@inject IWorkflowProfileService WorkflowProfileService
+
+<PageTitle>Workflow profiles - Conductor</PageTitle>
+
+<section class="workflow-profiles-page">
+    <header class="workflow-profiles-header">
+        <div>
+            <p class="eyebrow">Workflow registry</p>
+            <h1>Workflow profiles</h1>
+            <p class="workflow-profiles-summary">Reusable WORKFLOW.md templates for Symphony instance provisioning.</p>
+        </div>
+        <div class="dashboard-meta">
+            <StatusBadge Text="@($"{profiles.Count} profiles")" Tone="@StatusBadgeTone.Info" />
+            @if (profiles.Any(profile => profile.IsDefault))
+            {
+                <StatusBadge Text="Default selected" Tone="@StatusBadgeTone.Success" />
+            }
+        </div>
+    </header>
+
+    <section class="workflow-profile-editor" aria-label="Workflow profile editor">
+        <form class="workflow-profile-form" @onsubmit="SaveProfileAsync" @onsubmit:preventDefault>
+            <div class="workflow-profile-editor-heading">
+                <div>
+                    <p class="eyebrow">@EditorModeLabel</p>
+                    <h2>@EditorTitle</h2>
+                </div>
+                @if (editingProfileId is not null)
+                {
+                    <StatusBadge Text="@($"Revision {form.Revision}")" Tone="@StatusBadgeTone.Neutral" />
+                }
+            </div>
+
+            <div class="workflow-profile-form-grid">
+                <label>
+                    <span>Name</span>
+                    <input
+                        id="workflow-profile-name"
+                        type="text"
+                        required
+                        maxlength="200"
+                        autocomplete="off"
+                        @bind="form.Name"
+                        disabled="@isSaving" />
+                </label>
+                <label class="workflow-profile-default-row">
+                    <input
+                        id="workflow-profile-default"
+                        type="checkbox"
+                        @bind="form.IsDefault"
+                        disabled="@isSaving" />
+                    <span>Default profile</span>
+                </label>
+            </div>
+
+            <label>
+                <span>Description</span>
+                <textarea
+                    id="workflow-profile-description"
+                    maxlength="500"
+                    rows="3"
+                    @bind="form.Description"
+                    disabled="@isSaving"></textarea>
+            </label>
+
+            <label>
+                <span>WORKFLOW.md source</span>
+                <textarea
+                    id="workflow-profile-source"
+                    required
+                    rows="16"
+                    spellcheck="false"
+                    @bind="form.WorkflowSource"
+                    disabled="@isSaving"></textarea>
+            </label>
+
+            <div class="form-actions">
+                <button type="submit" disabled="@isSaving">
+                    @(isSaving ? "Saving" : SubmitLabel)
+                </button>
+                @if (editingProfileId is not null)
+                {
+                    <button type="button" class="secondary-action" @onclick="ResetEditor" disabled="@isSaving">
+                        Cancel
+                    </button>
+                }
+            </div>
+        </form>
+
+        <aside class="workflow-profile-preview" aria-label="Workflow profile preview">
+            <div class="workflow-profile-editor-heading">
+                <div>
+                    <p class="eyebrow">Preview</p>
+                    <h2>Rendered source</h2>
+                </div>
+            </div>
+            <pre>@PreviewSource</pre>
+        </aside>
+    </section>
+
+    @if (validationMessages.Count > 0)
+    {
+        <ErrorState
+            Title="Workflow profile was not saved."
+            Message="Review the validation result and retry."
+            Detail="@string.Join(" ", validationMessages)" />
+    }
+    else if (operationError is not null)
+    {
+        <ErrorState
+            Title="Workflow profile was not saved."
+            Message="The profile request did not complete."
+            Detail="@operationError" />
+    }
+    else if (successMessage is not null)
+    {
+        <SuccessState
+            Title="Workflow profile saved"
+            Message="@successMessage" />
+    }
+
+    <section class="workflow-profiles-panel" aria-label="Saved workflow profiles">
+        <div class="instances-panel-header">
+            <div>
+                <p class="eyebrow">Registry</p>
+                <h2>Saved profiles</h2>
+            </div>
+        </div>
+
+        @if (loadError is not null)
+        {
+            <ErrorState
+                Title="Workflow profiles could not be loaded."
+                Message="Check the persistence store and retry."
+                Detail="@loadError" />
+        }
+        else if (isLoading)
+        {
+            <LoadingState
+                Title="Loading workflow profiles"
+                Message="Reading persisted WORKFLOW.md templates." />
+        }
+        else if (profiles.Count == 0)
+        {
+            <EmptyState
+                Title="No workflow profiles yet."
+                Message="Create a reusable WORKFLOW.md profile before provisioning Symphony instances." />
+        }
+        else
+        {
+            <div class="workflow-profiles-table-wrap">
+                <table class="workflow-profiles-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Profile</th>
+                            <th scope="col">State</th>
+                            <th scope="col">Updated</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (WorkflowProfileSummary profile in profiles)
+                        {
+                            <tr data-workflow-profile-id="@profile.Id.ToString()">
+                                <th scope="row">
+                                    <span class="workflow-profile-name">@profile.Name</span>
+                                    @if (!string.IsNullOrWhiteSpace(profile.Description))
+                                    {
+                                        <span class="workflow-profile-muted">@profile.Description</span>
+                                    }
+                                </th>
+                                <td>
+                                    <StatusBadge
+                                        Text="@GetProfileStateText(profile)"
+                                        Tone="@GetProfileStateTone(profile)" />
+                                    <small>Revision @profile.Revision</small>
+                                </td>
+                                <td>
+                                    <time datetime="@profile.UpdatedAtUtc.ToString("O")">
+                                        @profile.UpdatedAtUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm")
+                                    </time>
+                                    <small>Created @profile.CreatedAtUtc.ToLocalTime().ToString("MMM d, yyyy")</small>
+                                </td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        class="table-action"
+                                        @onclick="() => EditProfileAsync(profile.Id)"
+                                        disabled="@isSaving">
+                                        Edit
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</section>
+
+@code {
+    private readonly WorkflowProfileForm form = new();
+    private IReadOnlyList<WorkflowProfileSummary> profiles = [];
+    private readonly List<string> validationMessages = [];
+    private WorkflowProfileId? editingProfileId;
+    private string? loadError;
+    private string? operationError;
+    private string? successMessage;
+    private bool isLoading = true;
+    private bool isSaving;
+
+    private string EditorModeLabel => editingProfileId is null ? "Create" : "Edit";
+
+    private string EditorTitle => editingProfileId is null ? "New workflow profile" : "Edit workflow profile";
+
+    private string SubmitLabel => editingProfileId is null ? "Create profile" : "Save profile";
+
+    private string PreviewSource => string.IsNullOrWhiteSpace(form.WorkflowSource)
+        ? "WORKFLOW.md source will appear here."
+        : form.WorkflowSource;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfilesAsync();
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        validationMessages.Clear();
+        operationError = null;
+        successMessage = null;
+        isSaving = true;
+
+        try
+        {
+            WorkflowProfileMutationRequest request = new(
+                form.Name,
+                form.Description,
+                form.WorkflowSource,
+                form.IsDefault,
+                RequestedByUserId: "ui");
+
+            WorkflowProfileMutationResult result = editingProfileId is { } profileId
+                ? await WorkflowProfileService.UpdateAsync(profileId, request)
+                : await WorkflowProfileService.CreateAsync(request);
+
+            successMessage = $"{result.Name} is revision {result.Revision}.";
+            await LoadProfilesAsync();
+
+            if (editingProfileId is null)
+            {
+                ResetEditor();
+            }
+            else
+            {
+                form.Revision = result.Revision;
+            }
+        }
+        catch (WorkflowProfileValidationException ex)
+        {
+            validationMessages.AddRange(ex.Errors.SelectMany(error => error.Value));
+        }
+        catch (WorkflowProfileNotFoundException ex)
+        {
+            operationError = ex.Message;
+            ResetEditor();
+            await LoadProfilesAsync();
+        }
+        catch (Exception ex) when (ex is DbException or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            operationError = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task EditProfileAsync(WorkflowProfileId profileId)
+    {
+        validationMessages.Clear();
+        operationError = null;
+        successMessage = null;
+
+        try
+        {
+            WorkflowProfileDetail? profile = await WorkflowProfileService.GetAsync(profileId);
+            if (profile is null)
+            {
+                throw new WorkflowProfileNotFoundException(profileId);
+            }
+
+            editingProfileId = profile.Id;
+            form.Name = profile.Name;
+            form.Description = profile.Description;
+            form.WorkflowSource = profile.WorkflowSource;
+            form.IsDefault = profile.IsDefault;
+            form.Revision = profile.Revision;
+        }
+        catch (WorkflowProfileNotFoundException ex)
+        {
+            operationError = ex.Message;
+            await LoadProfilesAsync();
+        }
+    }
+
+    private async Task LoadProfilesAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            profiles = await WorkflowProfileService.ListAsync(new WorkflowProfileQuery());
+        }
+        catch (Exception ex) when (ex is DbException or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            loadError = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ResetEditor()
+    {
+        editingProfileId = null;
+        form.Reset();
+    }
+
+    private static string GetProfileStateText(WorkflowProfileSummary profile) =>
+        profile.IsDefault ? "Default" : "Available";
+
+    private static StatusBadgeTone GetProfileStateTone(WorkflowProfileSummary profile) =>
+        profile.IsDefault ? StatusBadgeTone.Success : StatusBadgeTone.Neutral;
+
+    private sealed class WorkflowProfileForm
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        public string WorkflowSource { get; set; } = string.Empty;
+
+        public bool IsDefault { get; set; }
+
+        public int Revision { get; set; } = 1;
+
+        public void Reset()
+        {
+            Name = string.Empty;
+            Description = null;
+            WorkflowSource = string.Empty;
+            IsDefault = false;
+            Revision = 1;
+        }
+    }
+}

@@ -6,6 +6,18 @@ This document describes Conductor's public and internal HTTP APIs as endpoints b
 
 The current API direction is defined in [requirements.md](requirements.md) and [technical.md](technical.md).
 
+## GitHub Repository Discovery Client
+
+Conductor registers a typed HTTP client called `GitHubRepository` for GitHub repository discovery and credential checks. The client uses GitHub GraphQL so organization, repository, issue, pull request, label, milestone, branch protection, and default-branch status-check metadata can be fetched through the repository-facing `IGitHubRepositoryClient` abstraction.
+
+| Client method | Purpose | Notes |
+| --- | --- | --- |
+| `ListOrganizationsAsync` | Lists organizations visible to the configured GitHub identity. | Returns login, display name, description, avatar URL, and GitHub web URL. |
+| `ListRepositoriesAsync` | Lists repositories accessible to the configured GitHub identity. | Uses owner, collaborator, and organization-member affiliations. |
+| `SearchRepositoriesAsync` | Searches repositories visible to the configured GitHub identity. | Accepts GitHub repository search syntax and returns the same metadata shape as list results. |
+
+Repository summaries include owner/name, derived HTTPS clone URL, GitHub web URL, default branch when present, visibility, archived status, open issue count, open pull request count, labels, open milestones, branch protection summary, and default-branch status-check state. Authentication is supplied by the caller through the configured HTTP client or future secret-resolution workflow; PAT values must not be stored in `appsettings.json`.
+
 ## Symphony Runtime Client
 
 Conductor registers a named HTTP client called `SymphonyApi` for calls to existing Symphony runtimes. The typed client uses the Symphony instance base URL and appends these runtime endpoints:
@@ -47,11 +59,9 @@ Responses:
 - `400 Bad Request` with validation errors when the URL, health probe, or runtime probe fails.
 - `409 Conflict` when the normalized base URL is already registered.
 
-## GitHub Repository Client
+## GitHub Repository Credential Checks
 
-Conductor registers a typed HTTP client called `GitHubRepository` for GitHub repository discovery and credential checks.
-
-PAT validation uses `GET /repos/{owner}/{repo}` with the selected token as a bearer token. A `200` response confirms the token can reach the target repository metadata; when GitHub returns a repository `permissions` object, Conductor also checks that at least one read-capable repository permission is present. `401`, `403`, `404`, and rate-limit responses are mapped to actionable validation statuses without storing or returning the PAT value.
+PAT validation uses `GET /repos/{owner}/{repo}` with the selected token as a bearer token on the same repository-facing client. A `200` response confirms the token can reach the target repository metadata; when GitHub returns a repository `permissions` object, Conductor also checks that at least one read-capable repository permission is present. `401`, `403`, `404`, and rate-limit responses are mapped to actionable validation statuses without storing or returning the PAT value.
 
 ## Instance Credential Assignment
 

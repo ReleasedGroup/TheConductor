@@ -1,4 +1,5 @@
 using Conductor.Core.Abstractions.GitHub;
+using Conductor.Core.Domain;
 using Conductor.Core.Domain.Repositories;
 using Conductor.Infrastructure.GitHub;
 
@@ -6,6 +7,43 @@ namespace Conductor.Core.Tests;
 
 public sealed class FakeGitHubRepositoryClientTests
 {
+    [Fact]
+    public async Task ListOrganizationsAsync_Returns_Seeded_Organizations()
+    {
+        var client = new FakeGitHubRepositoryClient();
+        client.AddOrganization(new GitHubOrganizationSummary(
+            "ReleasedGroup",
+            "Released Group",
+            new Uri("https://github.com/ReleasedGroup"),
+            AvatarUrl: null,
+            Description: "Delivery tooling"));
+
+        IReadOnlyList<GitHubOrganizationSummary> organizations =
+            await client.ListOrganizationsAsync(CancellationToken.None);
+
+        GitHubOrganizationSummary organization = Assert.Single(organizations);
+        Assert.Equal("ReleasedGroup", organization.Login);
+        Assert.Equal("Released Group", organization.DisplayName);
+        Assert.Equal("Delivery tooling", organization.Description);
+    }
+
+    [Fact]
+    public async Task ListRepositoriesAsync_Returns_Seeded_Repositories()
+    {
+        var client = new FakeGitHubRepositoryClient(
+            [
+                Repository("ReleasedGroup", "TheConductor"),
+                Repository("ReleasedGroup", "api-service"),
+            ]);
+
+        IReadOnlyList<GitHubRepositorySummary> repositories =
+            await client.ListRepositoriesAsync(CancellationToken.None);
+
+        Assert.Equal(
+            ["ReleasedGroup/TheConductor", "ReleasedGroup/api-service"],
+            repositories.Select(repository => repository.FullName));
+    }
+
     [Fact]
     public async Task SearchRepositoriesAsync_Filters_Seeded_Repositories_Deterministically()
     {
@@ -109,5 +147,6 @@ public sealed class FakeGitHubRepositoryClientTests
             "main",
             new Uri($"https://github.com/{owner}/{name}.git"),
             new Uri($"https://github.com/{owner}/{name}"),
+            RepositoryVisibility.Public,
             IsArchived: false);
 }

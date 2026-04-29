@@ -19,6 +19,8 @@ All test projects target `net10.0`, use xUnit, and are included in `Conductor.sl
 
 Symphony API response fixtures live under `tests/Conductor.Integration.Tests/Fixtures/Symphony` and are copied into the integration test output for deterministic client and mapping tests.
 
+GitHub repository discovery tests use fake HTTP handlers with queued GraphQL responses. The default suite verifies organization discovery, repository metadata mapping, repository search payloads, PAT access validation mapping, and DI registration without requiring live GitHub credentials.
+
 ## Local Validation
 
 Run the same baseline checks used by CI:
@@ -39,8 +41,9 @@ Tests that require real external services must be opt-in so the default suite re
 
 GitHub repository discovery tests should use `FakeGitHubRepositoryClient` from
 `Conductor.Infrastructure.GitHub` unless they are explicitly validating live
-GitHub behavior. Seed the fake with `GitHubRepositorySummary` values and use
-`QueueSearchFailure` to exercise retry and error-handling paths without live
+GitHub behavior. Seed the fake with `GitHubOrganizationSummary` and
+`GitHubRepositorySummary` values, then use `QueueSearchFailure` or repository
+access validation requests to exercise error-handling paths without live
 credentials.
 
 Use these flags when those suites are added:

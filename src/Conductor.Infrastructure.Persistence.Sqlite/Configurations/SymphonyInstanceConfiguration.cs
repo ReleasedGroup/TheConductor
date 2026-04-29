@@ -1,6 +1,7 @@
 using Conductor.Core.Domain.Repositories;
 using Conductor.Core.Domain.Secrets;
 using Conductor.Core.Domain.Symphony;
+using Conductor.Core.Domain.Workflows;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -90,6 +91,9 @@ internal sealed class SymphonyInstanceConfiguration : IEntityTypeConfiguration<S
         builder.Property(instance => instance.DataPath)
             .HasMaxLength(1024);
 
+        builder.Property(instance => instance.WorkflowProfileId)
+            .HasConversion(StronglyTypedIdValueConverters.NullableWorkflowProfileId);
+
         builder.Property(instance => instance.CreatedAtUtc)
             .IsRequired();
 
@@ -102,6 +106,7 @@ internal sealed class SymphonyInstanceConfiguration : IEntityTypeConfiguration<S
         builder.HasIndex(instance => instance.RepositoryId);
         builder.HasIndex(instance => new { instance.LifecycleStatus, instance.HealthStatus });
         builder.HasIndex(instance => instance.ExecutionMode);
+        builder.HasIndex(instance => instance.WorkflowProfileId);
 
         builder.HasOne<Repository>()
             .WithMany()
@@ -116,6 +121,11 @@ internal sealed class SymphonyInstanceConfiguration : IEntityTypeConfiguration<S
         builder.HasOne<SecretDescriptor>()
             .WithMany()
             .HasForeignKey(instance => instance.OpenAiCredentialSecretId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne<WorkflowProfile>()
+            .WithMany()
+            .HasForeignKey(instance => instance.WorkflowProfileId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }
