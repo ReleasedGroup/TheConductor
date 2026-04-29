@@ -1,0 +1,184 @@
+@using System.Globalization
+
+<section class="health-heatmap" aria-labelledby="@headingId">
+    <header class="health-heatmap-header">
+        <div>
+            <p class="eyebrow">Orchestration health</p>
+            <h2 id="@headingId">@Title</h2>
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <p>@Description</p>
+            }
+        </div>
+    </header>
+
+    @if (!HasBuckets)
+    {
+        <p class="empty-state">No repository health buckets are available yet.</p>
+    }
+    else
+    {
+        <div class="heatmap-summary" aria-label="Health status summary">
+            @foreach (StatusSummary summary in statusSummaries)
+            {
+                <span class="heatmap-legend-item">
+                    <span class="@GetLegendSwatchClass(summary.Status)" aria-hidden="true"></span>
+                    <span>@GetStatusLabel(summary.Status)</span>
+                    <strong>@summary.Count.ToString(CultureInfo.InvariantCulture)</strong>
+                </span>
+            }
+        </div>
+
+        <div class="heatmap-table-wrap">
+            <table class="heatmap-grid">
+                <caption class="sr-only">@Title</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Repository</th>
+                        @foreach (string period in periods)
+                        {
+                            <th scope="col">@period</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (HeatmapRow row in rows)
+                    {
+                        <tr>
+                            <th scope="row">@row.RepositoryName</th>
+                            @foreach (string period in periods)
+                            {
+                                bool hasBucket = row.Buckets.TryGetValue(period, out HealthHeatmapBucket? bucket);
+
+                                <td>
+                                    @if (hasBucket && bucket is not null)
+                                    {
+                                        <span class="@GetCellClass(bucket.Status)" aria-label="@GetCellLabel(bucket)">
+                                            <span class="heatmap-cell-status">@GetShortStatusLabel(bucket.Status)</span>
+                                            <span class="heatmap-cell-score">@GetScoreText(bucket.Score)</span>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="heatmap-cell heatmap-cell-empty" aria-label="@($"{row.RepositoryName} {period}: No data")">
+                                            <span class="heatmap-cell-status">None</span>
+                                            <span class="heatmap-cell-score">-</span>
+                                        </span>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private static readonly HealthHeatmapStatus[] StatusOrder =
+    [
+        HealthHeatmapStatus.Healthy,
+        HealthHeatmapStatus.Warning,
+        HealthHeatmapStatus.Critical,
+        HealthHeatmapStatus.Offline,
+    ];
+
+    private readonly string headingId = $"health-heatmap-{Guid.NewGuid():N}";
+    private string[] periods = [];
+    private HeatmapRow[] rows = [];
+    private StatusSummary[] statusSummaries = [];
+
+    [Parameter]
+    public string Title { get; set; } = "Repository orchestration health";
+
+    [Parameter]
+    public string? Description { get; set; } = "Repository health over the latest orchestration windows.";
+
+    [Parameter]
+    public IReadOnlyList<HealthHeatmapBucket>? Buckets { get; set; }
+
+    private bool HasBuckets => periods.Length > 0 && rows.Length > 0;
+
+    protected override void OnParametersSet()
+    {
+        HealthHeatmapBucket[] validBuckets = (Buckets ?? [])
+            .Where(bucket => !string.IsNullOrWhiteSpace(bucket.RepositoryName)
+                && !string.IsNullOrWhiteSpace(bucket.PeriodLabel))
+            .ToArray();
+
+        periods = validBuckets
+            .Select(bucket => bucket.PeriodLabel)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        rows = validBuckets
+            .GroupBy(bucket => bucket.RepositoryName, StringComparer.Ordinal)
+            .Select(group => new HeatmapRow(
+                group.Key,
+                group.GroupBy(bucket => bucket.PeriodLabel, StringComparer.Ordinal)
+                    .ToDictionary(
+                        periodGroup => periodGroup.Key,
+                        periodGroup => periodGroup.Last(),
+                        StringComparer.Ordinal)))
+            .ToArray();
+
+        statusSummaries = StatusOrder
+            .Select(status => new StatusSummary(
+                status,
+                validBuckets.Count(bucket => bucket.Status == status)))
+            .ToArray();
+    }
+
+    private static string GetCellClass(HealthHeatmapStatus status) =>
+        $"heatmap-cell heatmap-cell--{GetStatusCssName(status)}";
+
+    private static string GetLegendSwatchClass(HealthHeatmapStatus status) =>
+        $"heatmap-legend-swatch heatmap-cell--{GetStatusCssName(status)}";
+
+    private static string GetCellLabel(HealthHeatmapBucket bucket)
+    {
+        string detail = string.IsNullOrWhiteSpace(bucket.Detail) ? "No detail recorded." : bucket.Detail;
+
+        return $"{bucket.RepositoryName} {bucket.PeriodLabel}: {GetStatusLabel(bucket.Status)} with health score {GetScoreText(bucket.Score)}. {detail}";
+    }
+
+    private static string GetStatusLabel(HealthHeatmapStatus status) =>
+        status switch
+        {
+            HealthHeatmapStatus.Healthy => "Healthy",
+            HealthHeatmapStatus.Warning => "Warning",
+            HealthHeatmapStatus.Critical => "Critical",
+            HealthHeatmapStatus.Offline => "Offline",
+            _ => "Unknown",
+        };
+
+    private static string GetShortStatusLabel(HealthHeatmapStatus status) =>
+        status switch
+        {
+            HealthHeatmapStatus.Healthy => "OK",
+            HealthHeatmapStatus.Warning => "Warn",
+            HealthHeatmapStatus.Critical => "Crit",
+            HealthHeatmapStatus.Offline => "Off",
+            _ => "Unknown",
+        };
+
+    private static string GetStatusCssName(HealthHeatmapStatus status) =>
+        status switch
+        {
+            HealthHeatmapStatus.Healthy => "healthy",
+            HealthHeatmapStatus.Warning => "warning",
+            HealthHeatmapStatus.Critical => "critical",
+            HealthHeatmapStatus.Offline => "offline",
+            _ => "unknown",
+        };
+
+    private static string GetScoreText(int score) =>
+        Math.Clamp(score, 0, 100).ToString(CultureInfo.InvariantCulture);
+
+    private sealed record HeatmapRow(
+        string RepositoryName,
+        IReadOnlyDictionary<string, HealthHeatmapBucket> Buckets);
+
+    private readonly record struct StatusSummary(HealthHeatmapStatus Status, int Count);
+}

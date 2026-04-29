@@ -8,7 +8,7 @@
             <p class="eyebrow">Fleet overview</p>
             <h1>Conductor Dashboard</h1>
         </div>
-        <span class="status-pill">Sprint 0 scaffold</span>
+        <span class="status-pill">Sprint 2 dashboard</span>
     </header>
 
     <section class="metric-grid" aria-label="Dashboard metrics">
@@ -22,10 +22,12 @@
         }
     </section>
 
+    <HealthHeatmap Buckets="HealthBuckets" />
+
     <section class="activity-panel">
         <div>
             <h2>Operational baseline</h2>
-            <p>The host is running with the initial project, persistence, and test structure in place.</p>
+            <p>The host is running with the initial project, persistence, dashboard, and test structure in place.</p>
         </div>
         <ul>
             @foreach (string indicator in Indicators)
@@ -64,6 +66,34 @@
         ("Alerts", "0", "In-app rules not active yet"),
     ];
 
+    private static readonly HealthHeatmapBucket[] HealthBuckets =
+    [
+        new("Conductor", "08:00", HealthHeatmapStatus.Healthy, 99, "All orchestration checks completed."),
+        new("Conductor", "10:00", HealthHeatmapStatus.Healthy, 98, "Workers and health probes are responsive."),
+        new("Conductor", "12:00", HealthHeatmapStatus.Warning, 82, "One repository sync ran behind schedule."),
+        new("Conductor", "14:00", HealthHeatmapStatus.Healthy, 97, "Backlog recovered after retry."),
+        new("Conductor", "16:00", HealthHeatmapStatus.Healthy, 99, "No active orchestration alerts."),
+        new("Conductor", "18:00", HealthHeatmapStatus.Healthy, 100, "All repositories are within policy."),
+        new("Symphony", "08:00", HealthHeatmapStatus.Healthy, 95, "Runtime checks passed."),
+        new("Symphony", "10:00", HealthHeatmapStatus.Warning, 76, "Release polling reported elevated latency."),
+        new("Symphony", "12:00", HealthHeatmapStatus.Warning, 73, "Two issue sync jobs are queued."),
+        new("Symphony", "14:00", HealthHeatmapStatus.Critical, 41, "Workflow dispatch failed repeatedly."),
+        new("Symphony", "16:00", HealthHeatmapStatus.Warning, 78, "Dispatch recovered with retry backlog."),
+        new("Symphony", "18:00", HealthHeatmapStatus.Healthy, 93, "Queue returned to normal."),
+        new("Release Portal", "08:00", HealthHeatmapStatus.Offline, 0, "No agent heartbeat received."),
+        new("Release Portal", "10:00", HealthHeatmapStatus.Critical, 38, "Repository credentials need rotation."),
+        new("Release Portal", "12:00", HealthHeatmapStatus.Warning, 69, "Credential rotation started."),
+        new("Release Portal", "14:00", HealthHeatmapStatus.Warning, 72, "Pending PR checks are draining."),
+        new("Release Portal", "16:00", HealthHeatmapStatus.Healthy, 91, "Credential rotation completed."),
+        new("Release Portal", "18:00", HealthHeatmapStatus.Healthy, 94, "Orchestration checks are current."),
+        new("Operations Docs", "08:00", HealthHeatmapStatus.Healthy, 96, "Documentation validation passed."),
+        new("Operations Docs", "10:00", HealthHeatmapStatus.Healthy, 96, "No blocked documentation runs."),
+        new("Operations Docs", "12:00", HealthHeatmapStatus.Healthy, 97, "Review queue is clear."),
+        new("Operations Docs", "14:00", HealthHeatmapStatus.Healthy, 96, "Scheduled checks completed."),
+        new("Operations Docs", "16:00", HealthHeatmapStatus.Warning, 80, "One stale branch requires attention."),
+        new("Operations Docs", "18:00", HealthHeatmapStatus.Healthy, 95, "Stale branch warning cleared."),
+    ];
+
     private static readonly string[] Indicators =
     [
         "Blazor Web App host",
@@ -74,7 +104,7 @@
 
     private static readonly (string Label, string Route, string State)[] StartupChecks =
     [
-        ("Dashboard route", "/", "Placeholder served"),
+        ("Dashboard route", "/", "Dashboard served"),
         ("Live health", "/health/live", "Probe available"),
         ("Ready health", "/health/ready", "Probe available"),
     ];
