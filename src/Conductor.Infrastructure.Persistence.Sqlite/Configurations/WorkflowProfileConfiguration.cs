@@ -20,11 +20,25 @@ internal sealed class WorkflowProfileConfiguration : IEntityTypeConfiguration<Wo
             .HasMaxLength(200)
             .IsRequired();
 
+        builder.Property(profile => profile.Description)
+            .HasMaxLength(500);
+
         builder.Property(profile => profile.WorkflowSource)
             .HasColumnType("TEXT")
             .IsRequired();
 
+        builder.Property(profile => profile.IsDefault)
+            .IsRequired();
+
+        builder.Property(profile => profile.Revision)
+            .IsRequired();
+
         builder.Property(profile => profile.CreatedAtUtc)
             .IsRequired();
+
+        builder.Property(profile => profile.UpdatedAtUtc)
+            .IsRequired();
+
+        builder.HasIndex(profile => profile.IsDefault);
     }
 }

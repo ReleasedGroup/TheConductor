@@ -20,6 +20,39 @@ public sealed class Issue13DomainEntityTests
         Assert.Equal("Default Docker", profile.Name);
         Assert.Equal("# WORKFLOW\nrun: symphony", profile.WorkflowSource);
         Assert.Equal(createdAt, profile.CreatedAtUtc);
+        Assert.Equal(createdAt, profile.UpdatedAtUtc);
+        Assert.Equal(1, profile.Revision);
+        Assert.False(profile.IsDefault);
+        Assert.Null(profile.Description);
+    }
+
+    [Fact]
+    public void WorkflowProfile_Update_Records_Revision_Metadata()
+    {
+        var createdAt = DateTimeOffset.Parse("2026-04-29T00:00:00Z");
+        var updatedAt = DateTimeOffset.Parse("2026-04-29T00:15:00Z");
+        var profile = new WorkflowProfile(
+            WorkflowProfileId.New(),
+            "Default Docker",
+            "Docker profile",
+            "# WORKFLOW",
+            isDefault: false,
+            createdAt,
+            createdAt);
+
+        profile.Update(
+            "  Local Runner  ",
+            "  Local process profile  ",
+            "  # WORKFLOW\nmode: local  ",
+            isDefault: true,
+            updatedAt);
+
+        Assert.Equal("Local Runner", profile.Name);
+        Assert.Equal("Local process profile", profile.Description);
+        Assert.Equal("# WORKFLOW\nmode: local", profile.WorkflowSource);
+        Assert.True(profile.IsDefault);
+        Assert.Equal(2, profile.Revision);
+        Assert.Equal(updatedAt, profile.UpdatedAtUtc);
     }
 
     [Fact]

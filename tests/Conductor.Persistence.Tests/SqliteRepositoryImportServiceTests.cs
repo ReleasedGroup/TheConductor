@@ -8,6 +8,7 @@ using Conductor.Core.Domain.Ids;
 using Conductor.Core.Domain.Projects;
 using Conductor.Core.Domain.Repositories;
 using Conductor.Core.Domain.Symphony;
+using Conductor.Core.Domain.Workflows;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +26,16 @@ public sealed class SqliteRepositoryImportServiceTests
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
         ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
         await dbContext.Database.MigrateAsync();
+        WorkflowProfileId workflowProfileId = WorkflowProfileId.New();
+        dbContext.WorkflowProfiles.Add(new WorkflowProfile(
+            workflowProfileId,
+            "Default Docker",
+            "Default orchestration profile",
+            "# WORKFLOW",
+            isDefault: true,
+            importedAtUtc,
+            importedAtUtc));
+        await dbContext.SaveChangesAsync();
         IRepositoryImportService importService = scope.ServiceProvider.GetRequiredService<IRepositoryImportService>();
 
         RepositoryImportResult result = await importService.ImportAsync(new RepositoryImportRequest(
@@ -36,6 +47,7 @@ public sealed class SqliteRepositoryImportServiceTests
             ExecutionMode: ExecutionMode.LocalProcess,
             InstanceBaseUrl: "http://localhost:8080/",
             ReleaseTag: "latest",
+            WorkflowProfileId: workflowProfileId,
             GitHubCredentialInheritanceMode: CredentialInheritanceMode.None,
             OpenAiCredentialInheritanceMode: CredentialInheritanceMode.InheritDefault,
             RequestedByUserId: "nick"));
@@ -55,6 +67,7 @@ public sealed class SqliteRepositoryImportServiceTests
         Assert.Equal(InstanceLifecycleStatus.NotProvisioned, instance.LifecycleStatus);
         Assert.Equal(InstanceHealthStatus.Unknown, instance.HealthStatus);
         Assert.Equal("latest", instance.SymphonyReleaseTag);
+        Assert.Equal(workflowProfileId, instance.WorkflowProfileId);
         Assert.Equal(CredentialInheritanceMode.None, instance.GitHubCredentialInheritanceMode);
         Assert.Equal("ImportRepository", auditEvent.Action);
         Assert.Equal("nick", auditEvent.ActorUserId);
@@ -72,6 +85,7 @@ public sealed class SqliteRepositoryImportServiceTests
         Assert.True(metadata.GetProperty("createSymphonyInstance").GetBoolean());
         Assert.True(metadata.GetProperty("createdSymphonyInstance").GetBoolean());
         Assert.Equal(instance.Id.ToString(), metadata.GetProperty("symphonyInstanceId").GetString());
+        Assert.Equal(workflowProfileId.ToString(), metadata.GetProperty("workflowProfileId").GetString());
     }
 
     [Fact]

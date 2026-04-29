@@ -28,7 +28,8 @@ public sealed class SymphonyInstance
         string? workflowPath = null,
         string? dataPath = null,
         DateTimeOffset? lastStartedAtUtc = null,
-        DateTimeOffset? lastSeenAtUtc = null)
+        DateTimeOffset? lastSeenAtUtc = null,
+        WorkflowProfileId? workflowProfileId = null)
     {
         Id = new SymphonyInstanceId(Guard.NotEmpty(id.Value, nameof(id)));
         RepositoryId = new RepositoryId(Guard.NotEmpty(repositoryId.Value, nameof(repositoryId)));
@@ -57,6 +58,9 @@ public sealed class SymphonyInstance
         OpenAiCredentialInheritanceMode = openAiCredentialInheritanceMode;
         WorkflowPath = Guard.OptionalTrimmed(workflowPath);
         DataPath = Guard.OptionalTrimmed(dataPath);
+        WorkflowProfileId = workflowProfileId is null
+            ? null
+            : new WorkflowProfileId(Guard.NotEmpty(workflowProfileId.Value.Value, nameof(workflowProfileId)));
         LastStartedAtUtc = ValidateObservedAt(lastStartedAtUtc, nameof(lastStartedAtUtc));
         LastSeenAtUtc = ValidateObservedAt(lastSeenAtUtc, nameof(lastSeenAtUtc));
     }
@@ -100,6 +104,8 @@ public sealed class SymphonyInstance
     public string? WorkflowPath { get; private set; }
 
     public string? DataPath { get; private set; }
+
+    public WorkflowProfileId? WorkflowProfileId { get; private set; }
 
     public DateTimeOffset CreatedAtUtc { get; }
 
@@ -173,6 +179,13 @@ public sealed class SymphonyInstance
     {
         WorkflowPath = Guard.OptionalTrimmed(workflowPath);
         DataPath = Guard.OptionalTrimmed(dataPath);
+    }
+
+    public void AssignWorkflowProfile(WorkflowProfileId? workflowProfileId)
+    {
+        WorkflowProfileId = workflowProfileId is null
+            ? null
+            : new WorkflowProfileId(Guard.NotEmpty(workflowProfileId.Value.Value, nameof(workflowProfileId)));
     }
 
     public void MarkLifecycle(InstanceLifecycleStatus lifecycleStatus)

@@ -33,3 +33,11 @@ When no repository projection data exists, the dashboard renders an empty state.
 The secret descriptor list supports GitHub PAT and OpenAI API key credentials as separate types. Descriptor rows show the credential name, scope, target environment variable, and a masked value only. OpenAI API key descriptors map to `OPENAI_API_KEY`; GitHub PAT descriptors map to `GITHUB_TOKEN`.
 
 Descriptors may include validation status, validation timestamp, a short validation message, and validation metadata JSON such as accepted token prefixes and the runtime environment variable used for injection. Plaintext token values are only accepted during create or rotate workflows and must not be returned in descriptor responses.
+
+## Workflow Profile Management
+
+Workflow profiles are managed from `/settings/workflows`. Operators can create a profile, edit an existing profile, mark one profile as the default, and preview the raw `WORKFLOW.md` source before saving.
+
+Each save increments the profile revision when profile content or default state changes. When a profile becomes the default, Conductor clears the default flag from any previous default profile in the same transaction.
+
+The Repositories page uses the saved profile list when creating a Symphony instance shell. Selecting a profile persists the `WorkflowProfileId` on the instance record for later workflow generation and validation.

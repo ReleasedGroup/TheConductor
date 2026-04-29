@@ -82,6 +82,10 @@ internal static class StronglyTypedIdValueConverters
         id => id.Value,
         value => new WorkflowProfileId(value));
 
+    public static readonly ValueConverter<WorkflowProfileId?, Guid?> NullableWorkflowProfileId = new(
+        id => id.HasValue ? id.Value.Value : null,
+        value => value.HasValue ? new WorkflowProfileId(value.Value) : null);
+
     public static readonly ValueConverter<Uri, string> AbsoluteUri = new(
         uri => uri.ToString(),
         value => new Uri(value, UriKind.Absolute));

@@ -1,6 +1,7 @@
 using Bunit;
 using Conductor.Core.Application.Queries;
 using Conductor.Core.Application.Repositories;
+using Conductor.Core.Application.Workflows;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
 using Conductor.Host.Components.Pages;
@@ -18,12 +19,14 @@ public sealed class RepositoriesPageTests
         context.Services.AddSingleton<IRepositoryImportService>(importService);
         context.Services.AddSingleton<IRepositoryListQueryService>(new StaticRepositoryListQueryService());
         context.Services.AddSingleton<IProjectListQueryService>(new StaticProjectListQueryService());
+        context.Services.AddSingleton<IWorkflowProfileService>(new StaticWorkflowProfileService());
 
         IRenderedComponent<Repositories> page = context.Render<Repositories>();
         page.Find("#repository-full-name").Change("ReleasedGroup/TheConductor");
         page.Find("#project-id").Change(StaticProjectListQueryService.PlatformProjectId.ToString());
         page.Find("#create-instance-shell").Change(true);
         page.Find("#instance-base-url").Change("http://localhost:8080/");
+        page.Find("#workflow-profile-id").Change(StaticWorkflowProfileService.DefaultWorkflowProfileId.ToString());
 
         await page.Find("form").SubmitAsync();
 
@@ -32,6 +35,7 @@ public sealed class RepositoriesPageTests
         Assert.Equal(StaticProjectListQueryService.PlatformProjectId, importService.LastRequest.ProjectId);
         Assert.True(importService.LastRequest.CreateSymphonyInstance);
         Assert.Equal("http://localhost:8080/", importService.LastRequest.InstanceBaseUrl);
+        Assert.Equal(StaticWorkflowProfileService.DefaultWorkflowProfileId, importService.LastRequest.WorkflowProfileId);
         Assert.Equal(CredentialInheritanceMode.InheritDefault, importService.LastRequest.GitHubCredentialInheritanceMode);
         Assert.Contains("ReleasedGroup/TheConductor imported", page.Markup, StringComparison.Ordinal);
         Assert.Contains("Linked to Platform.", page.Markup, StringComparison.Ordinal);
@@ -202,5 +206,46 @@ public sealed class RepositoriesPageTests
 
             return Task.FromResult(projects);
         }
+    }
+
+    private sealed class StaticWorkflowProfileService : IWorkflowProfileService
+    {
+        public static readonly WorkflowProfileId DefaultWorkflowProfileId =
+            WorkflowProfileId.Parse("33333333-3333-3333-3333-333333333333");
+
+        public Task<IReadOnlyList<WorkflowProfileSummary>> ListAsync(
+            WorkflowProfileQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<WorkflowProfileSummary> profiles =
+            [
+                new WorkflowProfileSummary(
+                    DefaultWorkflowProfileId,
+                    "Default Docker",
+                    "Docker profile",
+                    IsDefault: true,
+                    Revision: 1,
+                    CreatedAtUtc: DateTimeOffset.Parse("2026-04-29T02:00:00Z"),
+                    UpdatedAtUtc: DateTimeOffset.Parse("2026-04-29T02:00:00Z")),
+            ];
+
+            return Task.FromResult(profiles);
+        }
+
+        public Task<WorkflowProfileDetail?> GetAsync(
+            WorkflowProfileId profileId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<WorkflowProfileMutationResult> CreateAsync(
+            WorkflowProfileMutationRequest request,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<WorkflowProfileMutationResult> UpdateAsync(
+            WorkflowProfileId profileId,
+            WorkflowProfileMutationRequest request,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

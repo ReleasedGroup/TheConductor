@@ -2,11 +2,13 @@
 @rendermode InteractiveServer
 @using Conductor.Core.Application.Queries
 @using Conductor.Core.Application.Repositories
+@using Conductor.Core.Application.Workflows
 @using Conductor.Core.Domain
 @using Conductor.Core.Domain.Ids
 @inject IRepositoryImportService RepositoryImportService
 @inject IRepositoryListQueryService RepositoryListQueryService
 @inject IProjectListQueryService ProjectListQueryService
+@inject IWorkflowProfileService WorkflowProfileService
 
 <PageTitle>Repositories - Conductor</PageTitle>
 
@@ -114,6 +116,16 @@
                                 @foreach (ExecutionMode executionMode in Enum.GetValues<ExecutionMode>())
                                 {
                                     <option value="@executionMode.ToString()">@executionMode</option>
+                                }
+                            </select>
+                        </label>
+                        <label>
+                            <span>Workflow profile</span>
+                            <select id="workflow-profile-id" @bind="importForm.WorkflowProfileId" disabled="@isSubmitting">
+                                <option value="">Unassigned</option>
+                                @foreach (WorkflowProfileSummary profile in workflowProfiles)
+                                {
+                                    <option value="@profile.Id.ToString()">@FormatWorkflowProfileOption(profile)</option>
                                 }
                             </select>
                         </label>
@@ -269,6 +281,7 @@
     private readonly RepositoryImportForm importForm = new();
     private IReadOnlyList<RepositoryListItemProjection> repositories = [];
     private IReadOnlyList<ProjectListItemProjection> projects = [];
+    private IReadOnlyList<WorkflowProfileSummary> workflowProfiles = [];
     private readonly List<string> validationMessages = [];
     private RepositoryImportResult? importResult;
     private string? importError;
@@ -316,6 +329,12 @@
             projectId = parsedProjectId;
         }
 
+        WorkflowProfileId? workflowProfileId = null;
+        if (WorkflowProfileId.TryParse(importForm.WorkflowProfileId, out WorkflowProfileId parsedWorkflowProfileId))
+        {
+            workflowProfileId = parsedWorkflowProfileId;
+        }
+
         return new RepositoryImportRequest(
             importForm.RepositoryFullName,
             importForm.DefaultBranch,
@@ -328,6 +347,7 @@
             InstanceBaseUrl: importForm.InstanceBaseUrl,
             Port: importForm.Port,
             ReleaseTag: importForm.ReleaseTag,
+            WorkflowProfileId: workflowProfileId,
             GitHubCredentialInheritanceMode: ParseEnum<CredentialInheritanceMode>(importForm.GitHubCredentialMode),
             OpenAiCredentialInheritanceMode: ParseEnum<CredentialInheritanceMode>(importForm.OpenAiCredentialMode),
             RequestedByUserId: "ui");
@@ -341,6 +361,7 @@
         try
         {
             projects = await ProjectListQueryService.ListProjectsAsync(new ProjectListQuery());
+            workflowProfiles = await WorkflowProfileService.ListAsync(new WorkflowProfileQuery());
             repositories = await RepositoryListQueryService.ListRepositoriesAsync(new RepositoryListQuery());
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException)
@@ -355,6 +376,11 @@
 
     private static string RepositoryHref(RepositoryListItemProjection repository) =>
         $"/repositories/{repository.Id.Value:D}";
+
+    private static string FormatWorkflowProfileOption(WorkflowProfileSummary profile) =>
+        profile.IsDefault
+            ? $"{profile.Name} (default)"
+            : profile.Name;
 
     private static TEnum ParseEnum<TEnum>(string value)
         where TEnum : struct, Enum
@@ -411,6 +437,8 @@
 
         public string ReleaseTag { get; set; } = "latest";
 
+        public string WorkflowProfileId { get; set; } = string.Empty;
+
         public string GitHubCredentialMode { get; set; } = CredentialInheritanceMode.InheritDefault.ToString();
 
         public string OpenAiCredentialMode { get; set; } = CredentialInheritanceMode.InheritDefault.ToString();
@@ -428,6 +456,7 @@
             InstanceBaseUrl = "http://localhost:8080/";
             Port = 8080;
             ReleaseTag = "latest";
+            WorkflowProfileId = string.Empty;
             GitHubCredentialMode = CredentialInheritanceMode.InheritDefault.ToString();
             OpenAiCredentialMode = CredentialInheritanceMode.InheritDefault.ToString();
         }
