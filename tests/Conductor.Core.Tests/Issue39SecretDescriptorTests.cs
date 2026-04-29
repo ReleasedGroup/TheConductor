@@ -18,7 +18,7 @@ public sealed class Issue39SecretDescriptorTests
 
         Assert.Equal("GitHub PAT", descriptor.TypeDisplayName);
         Assert.Equal("GITHUB_TOKEN", descriptor.RuntimeEnvironmentVariable);
-        Assert.Equal("github_pat_********", descriptor.MaskedDisplay);
+        Assert.Equal(SecretTypeMetadata.MaskedDisplayValue, descriptor.MaskedDisplay);
         Assert.DoesNotContain("Default GitHub PAT", descriptor.MaskedDisplay, StringComparison.Ordinal);
     }
 
@@ -27,7 +27,7 @@ public sealed class Issue39SecretDescriptorTests
     {
         const string token = "github_pat_abcdefghijklmnopqrstuvwxyz";
 
-        SecretValueValidationResult result = SecretTypeCatalog.ValidateValue(
+        SecretValueValidationResult result = SecretTypeMetadata.ValidateValue(
             SecretType.GitHubPersonalAccessToken,
             token);
 
@@ -44,7 +44,7 @@ public sealed class Issue39SecretDescriptorTests
     [InlineData("ghp_abcdefghijklmnopqrstuvwxyz")]
     public void GitHub_Pat_Value_Validation_Accepts_Pat_Prefixes(string token)
     {
-        SecretValueValidationResult result = SecretTypeCatalog.ValidateValue(
+        SecretValueValidationResult result = SecretTypeMetadata.ValidateValue(
             SecretType.GitHubPersonalAccessToken,
             token);
 
@@ -54,7 +54,7 @@ public sealed class Issue39SecretDescriptorTests
     [Fact]
     public void GitHub_Pat_Value_Validation_Rejects_Non_GitHub_Token()
     {
-        SecretValueValidationResult result = SecretTypeCatalog.ValidateValue(
+        SecretValueValidationResult result = SecretTypeMetadata.ValidateValue(
             SecretType.GitHubPersonalAccessToken,
             "sk-abcdefghijklmnopqrstuvwxyz");
 
@@ -72,7 +72,7 @@ public sealed class Issue39SecretDescriptorTests
             RepositoryId.New().ToString(),
             new DateTimeOffset(2026, 4, 29, 0, 0, 0, TimeSpan.Zero));
         DateTimeOffset validatedAt = new(2026, 4, 29, 1, 0, 0, TimeSpan.Zero);
-        SecretValueValidationResult result = SecretTypeCatalog.ValidateValue(
+        SecretValueValidationResult result = SecretTypeMetadata.ValidateValue(
             SecretType.GitHubPersonalAccessToken,
             "ghp_abcdefghijklmnopqrstuvwxyz");
 

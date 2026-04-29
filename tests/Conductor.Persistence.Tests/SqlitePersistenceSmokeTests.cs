@@ -1,5 +1,7 @@
 using System.Data.Common;
 using System.Globalization;
+using Conductor.Core.Abstractions.Secrets;
+using Conductor.Core.Application.Secrets;
 using Conductor.Core.Application.Snapshots;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Alerts;
@@ -43,6 +45,7 @@ public sealed class SqlitePersistenceSmokeTests
         "Alerts",
         "Reports",
         "SecretDescriptors",
+        "EncryptedSecretValues",
         "AuditEvents",
         "BackgroundOperations",
     ];
@@ -572,12 +575,61 @@ public sealed class SqlitePersistenceSmokeTests
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
         ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
         IInstanceSnapshotStore snapshotStore = scope.ServiceProvider.GetRequiredService<IInstanceSnapshotStore>();
+        ISecretDescriptorQueryService secretDescriptorQueryService =
+            scope.ServiceProvider.GetRequiredService<ISecretDescriptorQueryService>();
 
         await dbContext.Database.OpenConnectionAsync();
 
         Assert.True(await dbContext.Database.CanConnectAsync());
         Assert.IsType<SqliteInstanceSnapshotStore>(snapshotStore);
+        Assert.NotNull(secretDescriptorQueryService);
         Assert.True(Directory.Exists(Path.GetDirectoryName(databasePath)));
+    }
+
+    [Fact]
+    public async Task Secret_Descriptor_Query_Returns_OpenAi_Descriptors_With_Masked_Display()
+    {
+        string databasePath = CreateTemporaryDatabasePath();
+        IConfiguration configuration = BuildConfiguration(databasePath);
+        ServiceCollection services = new();
+
+        services.AddConductorPersistence(configuration);
+
+        await using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
+        await using AsyncServiceScope scope = provider.CreateAsyncScope();
+        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        ISecretDescriptorQueryService queryService =
+            scope.ServiceProvider.GetRequiredService<ISecretDescriptorQueryService>();
+        DateTimeOffset createdAtUtc = DateTimeOffset.Parse("2026-04-29T00:10:00Z");
+
+        await dbContext.Database.EnsureCreatedAsync();
+        dbContext.SecretDescriptors.AddRange(
+            new SecretDescriptor(
+                SecretId.New(),
+                "Default GitHub PAT",
+                SecretType.GitHubToken,
+                SecretScopeType.Global,
+                scopeId: null,
+                createdAtUtc),
+            new SecretDescriptor(
+                SecretId.New(),
+                "Production OpenAI key",
+                SecretType.OpenAiApiKey,
+                SecretScopeType.Global,
+                scopeId: null,
+                createdAtUtc));
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+
+        IReadOnlyList<SecretDescriptorView> openAiDescriptors =
+            await queryService.ListAsync(new SecretQuery(SecretType.OpenAiApiKey));
+        SecretDescriptorView openAiDescriptor = Assert.Single(openAiDescriptors);
+
+        Assert.Equal("Production OpenAI key", openAiDescriptor.Name);
+        Assert.Equal(SecretType.OpenAiApiKey, openAiDescriptor.SecretType);
+        Assert.Equal("OpenAI API key", openAiDescriptor.SecretTypeLabel);
+        Assert.Equal("OPENAI_API_KEY", openAiDescriptor.EnvironmentVariableName);
+        Assert.Equal(SecretTypeMetadata.MaskedDisplayValue, openAiDescriptor.MaskedValue);
     }
 
     [Fact]

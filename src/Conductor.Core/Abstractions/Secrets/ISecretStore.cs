@@ -17,6 +17,10 @@ public interface ISecretStore
         SecretReference reference,
         CancellationToken cancellationToken);
 
+    Task<ResolvedSecret?> ResolveAsync(
+        SecretResolutionRequest request,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<SecretDescriptor>> ListAsync(
         SecretQuery query,
         CancellationToken cancellationToken);
@@ -29,14 +33,24 @@ public sealed record CreateSecretRequest(
     SecretType SecretType,
     SecretScopeType ScopeType,
     string? ScopeId,
-    string Value);
+    string Value)
+{
+    public override string ToString() =>
+        $"{nameof(CreateSecretRequest)} {{ {nameof(Name)} = {Name}, {nameof(SecretType)} = {SecretType}, {nameof(ScopeType)} = {ScopeType}, {nameof(ScopeId)} = {ScopeId}, {nameof(Value)} = ******** }}";
+}
 
-public sealed record RotateSecretRequest(string Value);
+public sealed record RotateSecretRequest(string Value)
+{
+    public override string ToString() => $"{nameof(RotateSecretRequest)} {{ {nameof(Value)} = ******** }}";
+}
 
 public sealed record SecretReference(
     SecretId SecretId,
     CredentialInheritanceMode InheritanceMode);
 
-public sealed record ResolvedSecret(SecretId SecretId, string Value);
+public sealed record ResolvedSecret(SecretId SecretId, string Value)
+{
+    public override string ToString() => $"{nameof(ResolvedSecret)} {{ {nameof(SecretId)} = {SecretId}, {nameof(Value)} = ******** }}";
+}
 
 public sealed record SecretQuery(SecretType? SecretType = null, SecretScopeType? ScopeType = null);

@@ -13,10 +13,8 @@ public enum SecretScopeType
 
 public enum SecretType
 {
-    GitHubPersonalAccessToken,
-
-    [Obsolete("Use GitHubPersonalAccessToken.")]
-    GitHubToken = GitHubPersonalAccessToken,
+    GitHubToken,
+    GitHubPersonalAccessToken = GitHubToken,
 
     OpenAiApiKey,
     CodexHome,
@@ -68,11 +66,11 @@ public sealed class SecretDescriptor
 
     public string? ScopeId { get; }
 
-    public string TypeDisplayName => SecretTypeCatalog.GetMetadata(SecretType).DisplayName;
+    public string TypeDisplayName => SecretTypeMetadata.Get(SecretType).Label;
 
-    public string? RuntimeEnvironmentVariable => SecretTypeCatalog.GetMetadata(SecretType).RuntimeEnvironmentVariable;
+    public string RuntimeEnvironmentVariable => SecretTypeMetadata.Get(SecretType).EnvironmentVariableName;
 
-    public string MaskedDisplay => SecretTypeCatalog.GetMetadata(SecretType).MaskedDisplay;
+    public string MaskedDisplay => SecretTypeMetadata.Get(SecretType).MaskedDisplayValue;
 
     public DateTimeOffset CreatedAtUtc { get; }
 

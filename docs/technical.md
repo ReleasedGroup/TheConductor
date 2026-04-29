@@ -329,6 +329,7 @@ Initial migration should create:
 - `Alerts`
 - `Reports`
 - `SecretDescriptors`
+- `EncryptedSecretValues`
 - `AuditEvents`
 - `BackgroundOperations`
 
@@ -621,12 +622,13 @@ public interface ISecretStore
     Task<SecretDescriptor> CreateAsync(CreateSecretRequest request, CancellationToken ct);
     Task RotateAsync(SecretId secretId, RotateSecretRequest request, CancellationToken ct);
     Task<ResolvedSecret> ResolveAsync(SecretReference reference, CancellationToken ct);
+    Task<ResolvedSecret?> ResolveAsync(SecretResolutionRequest request, CancellationToken ct);
     Task<IReadOnlyList<SecretDescriptor>> ListAsync(SecretQuery query, CancellationToken ct);
     Task DeleteAsync(SecretId secretId, CancellationToken ct);
 }
 ```
 
-Secret values must only be returned to runner/provisioning code paths that need to inject them. UI and ordinary API responses must receive descriptors only.
+Secret values must be protected with ASP.NET Core Data Protection before persistence. `SecretDescriptor` rows contain only metadata; encrypted payloads are stored separately and must only be returned to runner/provisioning code paths that need to inject them. UI and ordinary API responses must receive descriptors only.
 
 ### 9.4 Release Resolver
 
@@ -848,10 +850,16 @@ Resolution precedence:
 3. Project-scoped secret.
 4. Global default.
 
+Credential modes:
+
+- `SpecificSecret` resolves the selected secret descriptor directly.
+- `InheritDefault` resolves scoped descriptors using the precedence order above.
+- `None` resolves no credential even when scoped defaults exist.
+
 Secret storage:
 
 - Store encrypted values using ASP.NET Core Data Protection for MVP.
-- Store secret descriptors separately from encrypted payloads.
+- Store secret descriptors separately from encrypted payloads in `SecretDescriptors` and `EncryptedSecretValues`.
 - Never return secret values through ordinary APIs.
 - Never persist resolved secret values in operation logs.
 

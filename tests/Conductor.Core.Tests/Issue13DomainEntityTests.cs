@@ -99,4 +99,19 @@ public sealed class Issue13DomainEntityTests
 
         Assert.Equal("scopeId", error.ParamName);
     }
+
+    [Fact]
+    public void SecretTypeMetadata_Labels_OpenAi_Api_Key_For_Masked_Display()
+    {
+        SecretTypeDisplay metadata = SecretTypeMetadata.Get(SecretType.OpenAiApiKey);
+
+        Assert.Equal(SecretType.OpenAiApiKey, metadata.SecretType);
+        Assert.Equal("OpenAI API key", metadata.Label);
+        Assert.Equal("OPENAI_API_KEY", metadata.EnvironmentVariableName);
+        Assert.Equal(SecretTypeMetadata.MaskedDisplayValue, metadata.MaskedDisplayValue);
+        Assert.DoesNotContain("sk-", metadata.MaskedDisplayValue, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            SecretTypeMetadata.CredentialTypes,
+            secretType => secretType.SecretType == SecretType.OpenAiApiKey);
+    }
 }
