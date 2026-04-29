@@ -15,6 +15,7 @@
     <Project Path="tests/Conductor.Api.Tests/Conductor.Api.Tests.csproj" />
     <Project Path="tests/Conductor.Blazor.Tests/Conductor.Blazor.Tests.csproj" />
     <Project Path="tests/Conductor.Core.Tests/Conductor.Core.Tests.csproj" />
+    <Project Path="tests/Conductor.Host.Tests/Conductor.Host.Tests.csproj" />
     <Project Path="tests/Conductor.Integration.Tests/Conductor.Integration.Tests.csproj" />
     <Project Path="tests/Conductor.Persistence.Tests/Conductor.Persistence.Tests.csproj" />
   </Folder>

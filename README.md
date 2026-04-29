@@ -9,7 +9,7 @@ Conductor is the fleet control layer above Symphony. It is being built as a .NET
 - `src/Conductor.Core` contains domain types, value objects, and infrastructure-facing contracts.
 - `src/Conductor.Infrastructure.Persistence.Sqlite` contains the EF Core SQLite persistence shell.
 - `src/Conductor.Infrastructure.*` projects contain adapter boundaries for GitHub, Symphony HTTP, runners, secrets, reporting, and notifications.
-- `tests/Conductor.*.Tests` projects contain the initial unit, persistence, API, Blazor, and integration test suites.
+- `tests/Conductor.*.Tests` projects contain the initial unit, persistence, API, Blazor, host, and integration test suites.
 
 ## Build And Test
 
