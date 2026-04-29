@@ -34,6 +34,25 @@
             }
         </ul>
     </section>
+
+    <section class="startup-panel" aria-label="Startup verification">
+        <div>
+            <h2>Startup verification</h2>
+            <p>The local host can be checked from the dashboard route and the built-in health probes.</p>
+        </div>
+        <dl>
+            @foreach ((string Label, string Route, string State) check in StartupChecks)
+            {
+                <div>
+                    <dt>@check.Label</dt>
+                    <dd>
+                        <code>@check.Route</code>
+                        <span>@check.State</span>
+                    </dd>
+                </div>
+            }
+        </dl>
+    </section>
 </section>
 
 @code {
@@ -51,5 +70,12 @@
         "SQLite persistence registration",
         "Health endpoints",
         "Layered test projects",
+    ];
+
+    private static readonly (string Label, string Route, string State)[] StartupChecks =
+    [
+        ("Dashboard route", "/", "Placeholder served"),
+        ("Live health", "/health/live", "Probe available"),
+        ("Ready health", "/health/ready", "Probe available"),
     ];
 }
