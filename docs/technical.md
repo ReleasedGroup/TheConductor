@@ -470,6 +470,8 @@ Rules:
 - Use `tracker.api_key: $GITHUB_TOKEN`.
 - Use container Linux paths for Docker mode.
 - Use host paths for local process mode.
+- Validate generated workflow source, provisioning paths, port, and required GitHub/OpenAI secret references before provisioning starts.
+- Block provisioning when a required credential is disabled, unresolved, or inlined in the generated workflow source.
 
 ### 8.5 Instance Lifecycle
 
