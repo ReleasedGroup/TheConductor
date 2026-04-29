@@ -1,0 +1,14 @@
+{
+  "runningSessions": [
+    {
+      "issueIdentifier": "31",
+      "sessionId": "session-31"
+    }
+  ],
+  "retryQueue": [],
+  "trackedIssueCount": 4,
+  "tokenTotals": {
+    "input": 1200,
+    "output": 640
+  }
+}
