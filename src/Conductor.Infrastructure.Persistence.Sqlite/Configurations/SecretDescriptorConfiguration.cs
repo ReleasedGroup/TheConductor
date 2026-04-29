@@ -1,4 +1,4 @@
-using Conductor.Core.Abstractions.Secrets;
+using Conductor.Core.Domain.Secrets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -35,6 +35,8 @@ internal sealed class SecretDescriptorConfiguration : IEntityTypeConfiguration<S
 
         builder.Property(secret => secret.CreatedAtUtc)
             .IsRequired();
+
+        builder.Property(secret => secret.RotatedAtUtc);
 
         builder.HasIndex(secret => new
         {

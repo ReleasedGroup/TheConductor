@@ -32,6 +32,8 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
         Assert.Contains("Conductor Dashboard", content);
         Assert.Contains("Operational baseline", content);
         Assert.Contains("Health endpoints", content);
+        Assert.Contains("Startup verification", content);
+        Assert.Contains("/health/ready", content);
     }
 
     private HttpClient CreateClient() =>

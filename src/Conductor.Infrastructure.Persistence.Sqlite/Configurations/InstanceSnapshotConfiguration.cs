@@ -11,7 +11,11 @@ internal sealed class InstanceSnapshotConfiguration : IEntityTypeConfiguration<I
     {
         builder.ToTable("InstanceSnapshots");
 
-        builder.HasKey(snapshot => new { snapshot.SymphonyInstanceId, snapshot.CapturedAtUtc });
+        builder.HasKey(snapshot => snapshot.Id);
+
+        builder.Property(snapshot => snapshot.Id)
+            .HasConversion(StronglyTypedIdValueConverters.InstanceSnapshotId)
+            .ValueGeneratedNever();
 
         builder.Property(snapshot => snapshot.SymphonyInstanceId)
             .HasConversion(StronglyTypedIdValueConverters.SymphonyInstanceId)
@@ -30,6 +34,26 @@ internal sealed class InstanceSnapshotConfiguration : IEntityTypeConfiguration<I
 
         builder.Property(snapshot => snapshot.StateJson)
             .HasColumnType("TEXT");
+
+        builder.Property(snapshot => snapshot.ActiveIssueCount)
+            .IsRequired();
+
+        builder.Property(snapshot => snapshot.RunningSessionCount)
+            .IsRequired();
+
+        builder.Property(snapshot => snapshot.RetryQueueCount)
+            .IsRequired();
+
+        builder.Property(snapshot => snapshot.FailedRunCount)
+            .IsRequired();
+
+        builder.Property(snapshot => snapshot.TokenInputTotal)
+            .IsRequired();
+
+        builder.Property(snapshot => snapshot.TokenOutputTotal)
+            .IsRequired();
+
+        builder.Ignore(snapshot => snapshot.TokenTotal);
 
         builder.HasIndex(snapshot => new { snapshot.SymphonyInstanceId, snapshot.CapturedAtUtc });
 
