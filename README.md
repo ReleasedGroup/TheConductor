@@ -32,6 +32,8 @@ In `Development`, startup applies the current EF Core migration set and inserts 
 
 Set `Conductor:BootstrapDevelopmentDatabase` to `false` to skip the development database bootstrap in test hosts or other controlled startup scenarios.
 
+Secret descriptors are managed at `/settings/secrets`. The page supports creating, listing, rotating, and deleting GitHub PAT and OpenAI API key descriptors while masking saved values after entry.
+
 ## Persistence Configuration
 
 The host registers `ConductorDbContext` from `src/Conductor.Infrastructure.Persistence.Sqlite` using the `ConnectionStrings:Conductor` value. The default is:
