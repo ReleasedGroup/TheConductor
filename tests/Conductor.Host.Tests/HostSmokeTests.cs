@@ -39,7 +39,6 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
     }
 
     [Fact]
-    public async Task HomePageServesProjectionDashboardWithLiveActivity()
     public async Task HomePageServesDashboardWithActiveRepositoriesAndLiveActivity()
     {
         using HttpClient client = CreateClient();

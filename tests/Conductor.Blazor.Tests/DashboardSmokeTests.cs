@@ -352,6 +352,13 @@ public sealed class DashboardSmokeTests
         Assert.Contains(value, tile.TextContent, StringComparison.Ordinal);
     }
 
+    private static void AssertStartupCheck(IElement check, string label, string route, string state)
+    {
+        Assert.Equal(label, check.QuerySelector("dt")?.TextContent);
+        Assert.Equal(route, check.QuerySelector("code")?.TextContent);
+        Assert.Equal(state, check.QuerySelector("span")?.TextContent);
+    }
+
     private sealed class StaticDashboardProjectionStore(DashboardProjection projection) : IDashboardProjectionStore
     {
         public Task<DashboardProjection> GetCurrentAsync(CancellationToken cancellationToken = default)

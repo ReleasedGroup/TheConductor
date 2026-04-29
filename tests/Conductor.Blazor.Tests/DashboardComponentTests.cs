@@ -16,6 +16,8 @@ public sealed class DashboardComponentTests : BunitContext
     {
         Services.AddSingleton<IDashboardProjectionStore>(
             new StaticDashboardProjectionStore(CreateProjection()));
+        Services.AddSingleton<IActiveRepositoryDashboardQuery>(
+            new StaticActiveRepositoryDashboardQuery(new ActiveRepositoryDashboard([])));
 
         IRenderedComponent<Home> dashboard = Render<Home>();
 
@@ -118,5 +120,12 @@ public sealed class DashboardComponentTests : BunitContext
         {
             return Task.FromResult(projection);
         }
+    }
+
+    private sealed class StaticActiveRepositoryDashboardQuery(ActiveRepositoryDashboard dashboard)
+        : IActiveRepositoryDashboardQuery
+    {
+        public Task<ActiveRepositoryDashboard> LoadAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(dashboard);
     }
 }

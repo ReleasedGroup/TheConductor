@@ -22,25 +22,49 @@
                 <span class="projection-stamp">Projection @projection.CapturedAtUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm", CultureInfo.InvariantCulture)</span>
             }
         </div>
+    </header>
 
-        @if (projection.Metrics.Count == 0)
-        {
-            <EmptyState
-                Class="dashboard-state"
-                Title="No dashboard metrics are available yet."
-                Message="Metrics will appear after dashboard projection data is collected." />
-        }
-        else
-        {
-            <section class="metric-grid" aria-label="Dashboard metrics">
-                @foreach (DashboardMetric metric in projection.Metrics)
-                {
-                    <MetricTile Metric="metric" />
-                }
+    @if (loadError is not null)
+    {
+        <ErrorState
+            Class="dashboard-state"
+            Title="Dashboard metrics could not be loaded."
+            Message="Check the dashboard projection source and try again."
+            Detail="@loadError" />
+    }
+    else if (projection is null)
+    {
+        <LoadingState
+            Class="dashboard-state"
+            Title="Loading dashboard metrics"
+            Message="Fetching persisted dashboard projection data." />
+    }
+    else if (projection.Metrics.Count == 0)
+    {
+        <EmptyState
+            Class="dashboard-state"
+            Title="No dashboard metrics are available yet."
+            Message="Metrics will appear after dashboard projection data is collected." />
+    }
+    else
+    {
+        <section class="metric-grid" aria-label="Dashboard metrics">
+            @foreach (DashboardMetric metric in projection.Metrics)
+            {
+                <MetricTile Metric="metric" />
+            }
+        </section>
+    }
+
     <section class="dashboard-body">
-        <div class="dashboard-stack">
-            <HealthHeatmap Buckets="HealthBuckets" />
+        <div class="dashboard-grid">
+            <HealthHeatmap
+                Title="Repository orchestration health"
+                Description="Repository health over the latest orchestration windows."
+                Buckets="HealthBuckets" />
+            <WorkloadDonut Workload="Workload" />
             <InstanceRuntimePanel Items="InstanceRuntimes" />
+            <NeedsAttentionPanel Items="AttentionItems" />
 
             <section class="active-repositories-panel" aria-labelledby="active-repositories-heading">
                 <div class="panel-heading">
@@ -113,7 +137,11 @@
                 }
             </section>
 
-            <section class="startup-panel" aria-label="Startup verification">
+            <RepositoryTable Repositories="Repositories" />
+            <QuickActions Actions="QuickActions" />
+            <LiveActivityStream Events="ActivityEvents" ReferenceTimeUtc="ReferenceTimeUtc" />
+
+            <section class="startup-panel panel" aria-label="Startup verification">
                 <SuccessState
                     Title="Startup verification"
                     Message="The local host can be checked from the dashboard route and the built-in health probes." />
@@ -130,22 +158,9 @@
                     }
                 </dl>
             </section>
-        }
-
-        <div class="dashboard-grid">
-            <HealthHeatmap
-                Title="Repository orchestration health"
-                Description="Repository health over the latest orchestration windows."
-                Buckets="HealthBuckets" />
-            <WorkloadDonut Workload="Workload" />
-            <InstanceRuntimePanel Items="InstanceRuntimes" />
-            <NeedsAttentionPanel Items="AttentionItems" />
-            <RepositoryTable Repositories="Repositories" />
-            <QuickActions Actions="QuickActions" />
-            <LiveActivityStream Events="ActivityEvents" ReferenceTimeUtc="ReferenceTimeUtc" />
         </div>
     </section>
-}
+</section>
 
 @code {
     private static readonly DateTimeOffset ReferenceTimeUtc = new(2026, 4, 29, 18, 20, 0, TimeSpan.Zero);
@@ -169,6 +184,13 @@
     private IReadOnlyList<DashboardInstanceRuntime> InstanceRuntimes =>
         projection?.InstanceRuntimes ?? Array.Empty<DashboardInstanceRuntime>();
 
+    private static readonly (string Label, string Route, string State)[] StartupChecks =
+    [
+        ("Dashboard route", "/", "Metric tiles served"),
+        ("Live health", "/health/live", "Probe available"),
+        ("Ready health", "/health/ready", "Probe available"),
+    ];
+
     private static readonly HealthHeatmapBucket[] HealthBuckets =
     [
         new("acme-portal", "24h", HealthHeatmapStatus.Healthy, 99, "All orchestration checks completed."),
@@ -181,11 +203,11 @@
         new("billing-api", "12h", HealthHeatmapStatus.Warning, 72, "Two failed runs are queued for retry."),
         new("billing-api", "6h", HealthHeatmapStatus.Critical, 42, "Workflow dispatch failed repeatedly."),
         new("billing-api", "Now", HealthHeatmapStatus.Warning, 76, "Dispatch recovered with retry backlog."),
-        new("client-mobile", "24h", HealthHeatmapStatus.Offline, 0, "No agent heartbeat received."),
-        new("client-mobile", "18h", HealthHeatmapStatus.Critical, 38, "Repository credentials need rotation."),
-        new("client-mobile", "12h", HealthHeatmapStatus.Warning, 69, "Credential rotation started."),
-        new("client-mobile", "6h", HealthHeatmapStatus.Warning, 72, "Pending PR checks are draining."),
-        new("client-mobile", "Now", HealthHeatmapStatus.Offline, 0, "Symphony instance is offline."),
+        new("Release Portal", "24h", HealthHeatmapStatus.Offline, 0, "No agent heartbeat received."),
+        new("Release Portal", "18h", HealthHeatmapStatus.Critical, 38, "Repository credentials need rotation."),
+        new("Release Portal", "12h", HealthHeatmapStatus.Warning, 69, "Credential rotation started."),
+        new("Release Portal", "6h", HealthHeatmapStatus.Warning, 72, "Pending PR checks are draining."),
+        new("Release Portal", "Now", HealthHeatmapStatus.Offline, 0, "Symphony instance is offline."),
         new("crm-sync", "24h", HealthHeatmapStatus.Healthy, 96, "Documentation validation passed."),
         new("crm-sync", "18h", HealthHeatmapStatus.Healthy, 96, "No blocked documentation runs."),
         new("crm-sync", "12h", HealthHeatmapStatus.Healthy, 97, "Review queue is clear."),
