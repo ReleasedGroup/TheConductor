@@ -18,3 +18,4 @@ dotnet restore Conductor.slnx
 dotnet build Conductor.slnx --no-restore --warnaserror
 dotnet test Conductor.slnx --no-build
 ```
+
