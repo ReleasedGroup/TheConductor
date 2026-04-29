@@ -139,19 +139,63 @@ h2 {
   font-size: 1.25rem;
 }
 
-.status-pill,
+.status-badge,
 .projection-stamp {
   flex: 0 0 auto;
-  padding: 8px 12px;
+  padding: 7px 11px;
   font-size: 0.85rem;
   font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
-.status-pill {
-  border: 1px solid #45666d;
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid #3b4652;
   border-radius: 999px;
+}
+
+.status-badge-indicator {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.status-badge--neutral {
+  border-color: #53606d;
+  background: #272d34;
+  color: #c7d0d9;
+}
+
+.status-badge--info {
+  border-color: #45666d;
   background: #17373b;
   color: #9ee7d7;
+}
+
+.status-badge--success {
+  border-color: #2d6f5e;
+  background: #12382d;
+  color: #9ee7d7;
+}
+
+.status-badge--warning {
+  border-color: #8a6823;
+  background: #3d3015;
+  color: #f2c14e;
+}
+
+.status-badge--critical {
+  border-color: #904247;
+  background: #452022;
+  color: #ffb4ab;
 }
 
 .projection-stamp {
@@ -273,19 +317,6 @@ h2 {
 .metric-tile--cost .metric-tile__icon {
   background: rgba(20, 184, 166, 0.25);
   color: #2dd4bf;
-}
-
-.dashboard-state {
-  padding: 24px;
-  border: 1px solid #2b3138;
-  border-radius: 8px;
-  background: #191f25;
-  color: #aeb9c5;
-}
-
-.dashboard-state--error {
-  border-color: #7f1d1d;
-  color: #fecdd3;
 }
 
 .dashboard-body {
@@ -455,32 +486,6 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-.heatmap-legend-item {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 1px solid #2b3138;
-  border-radius: 6px;
-  background: #1b2228;
-  color: #dbe6ee;
-  font-size: 0.85rem;
-}
-
-.heatmap-legend-item strong {
-  color: #ffffff;
-  font-size: 0.9rem;
-}
-
-.heatmap-legend-swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  border-width: 1px;
-  border-style: solid;
 }
 
 .heatmap-table-wrap {
@@ -788,11 +793,143 @@ h2 {
   color: #dbe6ee;
 }
 
-.empty-state {
-  padding: 24px;
+.startup-panel > .ui-state {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.ui-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px;
   border: 1px solid #2b3138;
   border-radius: 8px;
   background: #191f25;
+}
+
+.ui-state-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ui-state-copy h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.ui-state-copy p,
+.ui-state-copy small {
+  margin: 0;
+  color: #aeb9c5;
+  line-height: 1.5;
+}
+
+.ui-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.ui-state-icon,
+.ui-state-spinner {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #3b4652;
+  border-radius: 8px;
+  background: #151a1f;
+}
+
+.ui-state-icon {
+  position: relative;
+}
+
+.ui-state-icon::before,
+.ui-state-icon::after {
+  position: absolute;
+  content: "";
+}
+
+.ui-state-icon--empty::before {
+  inset: 10px 8px;
+  border-top: 2px solid #aeb9c5;
+  border-bottom: 2px solid #53606d;
+}
+
+.ui-state-icon--error {
+  border-color: #904247;
+  background: #452022;
+}
+
+.ui-state-icon--error::before,
+.ui-state-icon--error::after {
+  top: 15px;
+  left: 8px;
+  width: 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: #ffb4ab;
+}
+
+.ui-state-icon--error::before {
+  transform: rotate(45deg);
+}
+
+.ui-state-icon--error::after {
+  transform: rotate(-45deg);
+}
+
+.ui-state-icon--success {
+  border-color: #2d6f5e;
+  background: #12382d;
+}
+
+.ui-state-icon--success::before {
+  top: 10px;
+  left: 9px;
+  width: 13px;
+  height: 7px;
+  border-bottom: 2px solid #9ee7d7;
+  border-left: 2px solid #9ee7d7;
+  transform: rotate(-45deg);
+}
+
+.ui-state-spinner {
+  border-color: #2b3138;
+  border-top-color: #9ee7d7;
+  border-radius: 999px;
+  animation: ui-state-spin 900ms linear infinite;
+}
+
+.ui-state--loading {
+  background: #151a1f;
+}
+
+.ui-state--error {
+  border-color: #904247;
+  background: #241b1f;
+}
+
+.ui-state--success {
+  border-color: #2d6f5e;
+  background: #14261f;
+}
+
+@keyframes ui-state-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-state-spinner {
+    animation: none;
+  }
 }
 
 @media (max-width: 1180px) {

@@ -14,7 +14,7 @@
             <p class="dashboard-summary">Good morning, Nick. Here's what's happening across your software orchestra.</p>
         </div>
         <div class="dashboard-meta">
-            <span class="status-pill">Sprint 2 metrics</span>
+            <StatusBadge Text="Sprint 2 metrics" Tone="@StatusBadgeTone.Info" />
             @if (projection is not null)
             {
                 <span class="projection-stamp">Projection @projection.CapturedAtUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm")</span>
@@ -24,17 +24,22 @@
 
     @if (loadError is not null)
     {
-        <div class="dashboard-state dashboard-state--error" role="alert">
-            Dashboard metrics could not be loaded.
-        </div>
+        <ErrorState
+            Title="Dashboard metrics could not be loaded."
+            Message="Check the dashboard projection source and try again."
+            Detail="@loadError" />
     }
     else if (projection is null)
     {
-        <div class="dashboard-state">Loading dashboard metrics...</div>
+        <LoadingState
+            Title="Loading dashboard metrics"
+            Message="Fetching persisted dashboard projection data." />
     }
     else if (projection.Metrics.Count == 0)
     {
-        <div class="dashboard-state">No dashboard metrics are available yet.</div>
+        <EmptyState
+            Title="No dashboard metrics are available yet."
+            Message="Metrics will appear after dashboard projection data is collected." />
     }
     else
     {
@@ -51,10 +56,9 @@
             <HealthHeatmap Buckets="HealthBuckets" />
 
             <section class="startup-panel" aria-label="Startup verification">
-                <div>
-                    <h2>Startup verification</h2>
-                    <p>The local host can be checked from the dashboard route and the built-in health probes.</p>
-                </div>
+                <SuccessState
+                    Title="Startup verification"
+                    Message="The local host can be checked from the dashboard route and the built-in health probes." />
                 <dl>
                     @foreach ((string Label, string Route, string State) check in StartupChecks)
                     {
