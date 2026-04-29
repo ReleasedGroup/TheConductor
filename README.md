@@ -6,8 +6,8 @@ Conductor is the fleet control layer above Symphony. It is being built as a .NET
 
 - `Conductor.slnx` is the .NET solution entry point.
 - `src/Conductor.Host` contains the Blazor Web App host, health endpoints, worker registration, and the dashboard/repository screens.
-- `src/Conductor.Core` contains domain types, value objects, and infrastructure-facing contracts.
-- `src/Conductor.Infrastructure.Persistence.Sqlite` contains EF Core SQLite mappings, read-model queries, and development seed data.
+- `src/Conductor.Core` contains domain types, value objects, and infrastructure-facing contracts, including the workflow profile, release artifact, and secret descriptor entities.
+- `src/Conductor.Infrastructure.Persistence.Sqlite` contains EF Core SQLite mappings, DbContext registration, read-model queries, migrations, and development seed data.
 - `src/Conductor.Infrastructure.*` projects contain adapter boundaries for GitHub, Symphony HTTP, runners, secrets, reporting, and notifications.
 - `tests/Conductor.*.Tests` projects contain the initial unit, persistence, API, Blazor, host, and integration test suites.
 
@@ -17,6 +17,7 @@ Conductor is the fleet control layer above Symphony. It is being built as a .NET
 dotnet restore Conductor.slnx
 dotnet build Conductor.slnx --no-restore --warnaserror
 dotnet test Conductor.slnx --no-build
+dotnet format Conductor.slnx --no-restore --verify-no-changes
 ```
 
 ## Run Locally
@@ -25,4 +26,26 @@ dotnet test Conductor.slnx --no-build
 dotnet run --project src/Conductor.Host/Conductor.Host.csproj
 ```
 
-In `Development`, startup creates `./data/conductor.db` when needed, applies the SQLite connection PRAGMAs, and inserts deterministic seed data for the dashboard and repository screens. The seed set includes projects, GitHub repositories, Symphony instances, and latest snapshot payloads, and it is safe to run repeatedly.
+The root route (`/`) serves the seeded dashboard for local startup checks. The same startup baseline also exposes `/health/live` and `/health/ready`.
+
+In `Development`, startup applies the current EF Core migration set and inserts deterministic seed data for the dashboard and repository screens. The seed set includes projects, GitHub repositories, Symphony instances, and latest snapshot payloads, and it is safe to run repeatedly.
+
+Set `Conductor:BootstrapDevelopmentDatabase` to `false` to skip the development database bootstrap in test hosts or other controlled startup scenarios.
+
+## Persistence Configuration
+
+The host registers `ConductorDbContext` from `src/Conductor.Infrastructure.Persistence.Sqlite` using the `ConnectionStrings:Conductor` value. The default is:
+
+```text
+Data Source=./data/conductor.db;Cache=Shared
+```
+
+The SQLite registration creates the database directory when a file-backed connection string is used and applies the required startup PRAGMAs for foreign keys, WAL journaling, and a 5 second busy timeout when EF Core opens a connection.
+
+## Persistence Migrations
+
+Apply the current EF Core migration set with:
+
+```powershell
+dotnet ef database update --project src/Conductor.Infrastructure.Persistence.Sqlite --startup-project src/Conductor.Infrastructure.Persistence.Sqlite
+```

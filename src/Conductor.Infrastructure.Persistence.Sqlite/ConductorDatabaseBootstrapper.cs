@@ -1,10 +1,6 @@
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
-using Conductor.Core.Domain.Projects;
-using Conductor.Core.Domain.Repositories;
-using Conductor.Core.Domain.Snapshots;
-using Conductor.Core.Domain.Symphony;
-using Microsoft.Data.Sqlite;
+using Conductor.Infrastructure.Persistence.Sqlite.Schema;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -13,67 +9,28 @@ namespace Conductor.Infrastructure.Persistence.Sqlite;
 
 public static class ConductorDatabaseBootstrapper
 {
+    private static readonly SemaphoreSlim BootstrapLock = new(1, 1);
+
     public static async Task BootstrapDevelopmentDatabaseAsync(
         this IServiceProvider services,
         ILogger logger,
         CancellationToken cancellationToken = default)
     {
-        using IServiceScope scope = services.CreateScope();
-        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
-
-        EnsureDatabaseDirectory(dbContext);
-
-        await dbContext.Database.OpenConnectionAsync(cancellationToken);
+        await BootstrapLock.WaitAsync(cancellationToken);
 
         try
         {
-            await dbContext.Database.ExecuteSqlRawAsync("PRAGMA foreign_keys=ON;", cancellationToken);
-            await dbContext.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout=5000;", cancellationToken);
-            await dbContext.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", cancellationToken);
+            using IServiceScope scope = services.CreateScope();
+            ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
 
-            string[] migrations = [.. dbContext.Database.GetMigrations()];
-            if (migrations.Length > 0)
-            {
-                await dbContext.Database.MigrateAsync(cancellationToken);
-            }
-            else
-            {
-                await dbContext.Database.EnsureCreatedAsync(cancellationToken);
-            }
-
+            await dbContext.Database.MigrateAsync(cancellationToken);
             await DevelopmentSeedData.SeedAsync(dbContext, cancellationToken);
+
+            logger.LogInformation("Conductor development database is ready.");
         }
         finally
         {
-            await dbContext.Database.CloseConnectionAsync();
-        }
-
-        logger.LogInformation("Conductor development database is ready.");
-    }
-
-    private static void EnsureDatabaseDirectory(ConductorDbContext dbContext)
-    {
-        string? connectionString = dbContext.Database.GetConnectionString();
-
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            return;
-        }
-
-        var builder = new SqliteConnectionStringBuilder(connectionString);
-
-        if (string.IsNullOrWhiteSpace(builder.DataSource) ||
-            string.Equals(builder.DataSource, ":memory:", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        string fullPath = Path.GetFullPath(builder.DataSource);
-        string? directory = Path.GetDirectoryName(fullPath);
-
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
+            BootstrapLock.Release();
         }
     }
 }
@@ -88,6 +45,9 @@ public static class DevelopmentSeedData
     public static readonly SymphonyInstanceId ConductorInstanceId = new(new Guid("72111524-8fd3-4624-b54f-ee39039cbf33"));
     public static readonly SymphonyInstanceId SymphonyInstanceId = new(new Guid("ad43f9fe-ce9f-46ea-91d4-e2ce1a2ccded"));
     public static readonly SymphonyInstanceId DeliveryInstanceId = new(new Guid("aa30b68d-f7b9-46e9-8655-725b2f448eec"));
+    public static readonly InstanceSnapshotId ConductorSnapshotId = new(new Guid("4964d22a-7692-4f7b-abd7-629b3567a2b1"));
+    public static readonly InstanceSnapshotId SymphonySnapshotId = new(new Guid("051bbf4f-8132-4607-a54f-e021c9075ea0"));
+    public static readonly InstanceSnapshotId DeliverySnapshotId = new(new Guid("8bc61322-a7fa-41d4-b15d-b5c229bdde99"));
 
     private static readonly DateTimeOffset SeededAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z");
 
@@ -105,155 +65,222 @@ public static class DevelopmentSeedData
 
     private static async Task SeedProjectsAsync(ConductorDbContext dbContext, CancellationToken cancellationToken)
     {
-        if (!await dbContext.Projects.AnyAsync(project => project.Id == PlatformProjectId, cancellationToken))
+        DbSet<ProjectRecord> projects = dbContext.Set<ProjectRecord>();
+
+        if (!await projects.AnyAsync(project => project.Id == Id(PlatformProjectId), cancellationToken))
         {
-            dbContext.Projects.Add(new Project(
-                PlatformProjectId,
-                "Conductor Platform",
-                "ReleasedGroup",
-                ProjectStatus.Active,
-                SeededAtUtc,
-                SeededAtUtc));
+            projects.Add(new ProjectRecord
+            {
+                Id = Id(PlatformProjectId),
+                Name = "Conductor Platform",
+                OwnerName = "ReleasedGroup",
+                Status = ProjectStatus.Active.ToString(),
+                CreatedAtUtc = SeededAtUtc,
+                UpdatedAtUtc = SeededAtUtc,
+            });
         }
 
-        if (!await dbContext.Projects.AnyAsync(project => project.Id == OperationsProjectId, cancellationToken))
+        if (!await projects.AnyAsync(project => project.Id == Id(OperationsProjectId), cancellationToken))
         {
-            dbContext.Projects.Add(new Project(
-                OperationsProjectId,
-                "Operations Automation",
-                "FactoryOps",
-                ProjectStatus.Active,
-                SeededAtUtc,
-                SeededAtUtc));
+            projects.Add(new ProjectRecord
+            {
+                Id = Id(OperationsProjectId),
+                Name = "Operations Automation",
+                OwnerName = "FactoryOps",
+                Status = ProjectStatus.Active.ToString(),
+                CreatedAtUtc = SeededAtUtc,
+                UpdatedAtUtc = SeededAtUtc,
+            });
         }
     }
 
     private static async Task SeedRepositoriesAsync(ConductorDbContext dbContext, CancellationToken cancellationToken)
     {
-        if (!await dbContext.Repositories.AnyAsync(repository => repository.Id == ConductorRepositoryId, cancellationToken))
+        DbSet<RepositoryRecord> repositories = dbContext.Set<RepositoryRecord>();
+
+        if (!await repositories.AnyAsync(repository => repository.Id == Id(ConductorRepositoryId), cancellationToken))
         {
-            dbContext.Repositories.Add(new Repository(
-                ConductorRepositoryId,
-                RepositoryProvider.GitHub,
-                "ReleasedGroup",
-                "TheConductor",
-                "main",
-                new Uri("https://github.com/ReleasedGroup/TheConductor.git"),
-                new Uri("https://github.com/ReleasedGroup/TheConductor"),
-                isArchived: false,
-                PlatformProjectId));
+            repositories.Add(new RepositoryRecord
+            {
+                Id = Id(ConductorRepositoryId),
+                ProjectId = Id(PlatformProjectId),
+                Provider = RepositoryProvider.GitHub.ToString(),
+                Owner = "ReleasedGroup",
+                Name = "TheConductor",
+                DefaultBranch = "main",
+                CloneUrl = "https://github.com/ReleasedGroup/TheConductor.git",
+                WebUrl = "https://github.com/ReleasedGroup/TheConductor",
+                IsArchived = false,
+                OpenIssueCount = 7,
+                PullRequestCount = 2,
+                ImportedAtUtc = SeededAtUtc,
+                UpdatedAtUtc = SeededAtUtc.AddMinutes(18),
+            });
         }
 
-        if (!await dbContext.Repositories.AnyAsync(repository => repository.Id == SymphonyRepositoryId, cancellationToken))
+        if (!await repositories.AnyAsync(repository => repository.Id == Id(SymphonyRepositoryId), cancellationToken))
         {
-            dbContext.Repositories.Add(new Repository(
-                SymphonyRepositoryId,
-                RepositoryProvider.GitHub,
-                "ReleasedGroup",
-                "Symphony",
-                "main",
-                new Uri("https://github.com/ReleasedGroup/Symphony.git"),
-                new Uri("https://github.com/ReleasedGroup/Symphony"),
-                isArchived: false,
-                PlatformProjectId));
+            repositories.Add(new RepositoryRecord
+            {
+                Id = Id(SymphonyRepositoryId),
+                ProjectId = Id(PlatformProjectId),
+                Provider = RepositoryProvider.GitHub.ToString(),
+                Owner = "ReleasedGroup",
+                Name = "Symphony",
+                DefaultBranch = "main",
+                CloneUrl = "https://github.com/ReleasedGroup/Symphony.git",
+                WebUrl = "https://github.com/ReleasedGroup/Symphony",
+                IsArchived = false,
+                OpenIssueCount = 12,
+                PullRequestCount = 4,
+                ImportedAtUtc = SeededAtUtc,
+                UpdatedAtUtc = SeededAtUtc.AddMinutes(12),
+            });
         }
 
-        if (!await dbContext.Repositories.AnyAsync(repository => repository.Id == DeliveryRepositoryId, cancellationToken))
+        if (!await repositories.AnyAsync(repository => repository.Id == Id(DeliveryRepositoryId), cancellationToken))
         {
-            dbContext.Repositories.Add(new Repository(
-                DeliveryRepositoryId,
-                RepositoryProvider.GitHub,
-                "FactoryOps",
-                "delivery-reports",
-                "main",
-                new Uri("https://github.com/FactoryOps/delivery-reports.git"),
-                new Uri("https://github.com/FactoryOps/delivery-reports"),
-                isArchived: false,
-                OperationsProjectId));
+            repositories.Add(new RepositoryRecord
+            {
+                Id = Id(DeliveryRepositoryId),
+                ProjectId = Id(OperationsProjectId),
+                Provider = RepositoryProvider.GitHub.ToString(),
+                Owner = "FactoryOps",
+                Name = "delivery-reports",
+                DefaultBranch = "main",
+                CloneUrl = "https://github.com/FactoryOps/delivery-reports.git",
+                WebUrl = "https://github.com/FactoryOps/delivery-reports",
+                IsArchived = false,
+                OpenIssueCount = 3,
+                PullRequestCount = 1,
+                ImportedAtUtc = SeededAtUtc,
+                UpdatedAtUtc = SeededAtUtc.AddMinutes(4),
+            });
         }
     }
 
     private static async Task SeedInstancesAsync(ConductorDbContext dbContext, CancellationToken cancellationToken)
     {
-        if (!await dbContext.SymphonyInstances.AnyAsync(instance => instance.Id == ConductorInstanceId, cancellationToken))
-        {
-            var instance = new SymphonyInstance(
-                ConductorInstanceId,
-                ConductorRepositoryId,
-                "Conductor main",
-                ExecutionMode.Docker,
-                new Uri("http://localhost:8010"),
-                InstanceLifecycleStatus.Running,
-                InstanceHealthStatus.Healthy);
+        DbSet<SymphonyInstanceRecord> instances = dbContext.Set<SymphonyInstanceRecord>();
 
-            instance.RecordHealth(InstanceHealthStatus.Healthy, SeededAtUtc.AddMinutes(18));
-            dbContext.SymphonyInstances.Add(instance);
+        if (!await instances.AnyAsync(instance => instance.Id == Id(ConductorInstanceId), cancellationToken))
+        {
+            instances.Add(new SymphonyInstanceRecord
+            {
+                Id = Id(ConductorInstanceId),
+                RepositoryId = Id(ConductorRepositoryId),
+                DisplayName = "Conductor main",
+                ExecutionMode = ExecutionMode.Docker.ToString(),
+                BaseUrl = "http://localhost:8010",
+                Status = InstanceLifecycleStatus.Running.ToString(),
+                HealthStatus = InstanceHealthStatus.Healthy.ToString(),
+                DeliveryStatus = "Healthy",
+                ReleaseSelector = "latest",
+                ResolvedReleaseTag = "v0.1.0-dev",
+                CreatedAtUtc = SeededAtUtc,
+                UpdatedAtUtc = SeededAtUtc.AddMinutes(18),
+                LastHealthCheckAtUtc = SeededAtUtc.AddMinutes(18),
+                LastSeenAtUtc = SeededAtUtc.AddMinutes(18),
+            });
         }
 
-        if (!await dbContext.SymphonyInstances.AnyAsync(instance => instance.Id == SymphonyInstanceId, cancellationToken))
+        if (!await instances.AnyAsync(instance => instance.Id == Id(SymphonyInstanceId), cancellationToken))
         {
-            var instance = new SymphonyInstance(
-                SymphonyInstanceId,
-                SymphonyRepositoryId,
-                "Symphony release monitor",
-                ExecutionMode.LocalProcess,
-                new Uri("http://localhost:8020"),
-                InstanceLifecycleStatus.Running,
-                InstanceHealthStatus.Warning);
-
-            instance.RecordHealth(InstanceHealthStatus.Warning, SeededAtUtc.AddMinutes(12));
-            dbContext.SymphonyInstances.Add(instance);
+            instances.Add(new SymphonyInstanceRecord
+            {
+                Id = Id(SymphonyInstanceId),
+                RepositoryId = Id(SymphonyRepositoryId),
+                DisplayName = "Symphony release monitor",
+                ExecutionMode = ExecutionMode.LocalProcess.ToString(),
+                BaseUrl = "http://localhost:8020",
+                Status = InstanceLifecycleStatus.Running.ToString(),
+                HealthStatus = InstanceHealthStatus.Warning.ToString(),
+                DeliveryStatus = "AttentionNeeded",
+                ReleaseSelector = "v0.1.0-dev",
+                ResolvedReleaseTag = "v0.1.0-dev",
+                CreatedAtUtc = SeededAtUtc,
+                UpdatedAtUtc = SeededAtUtc.AddMinutes(12),
+                LastHealthCheckAtUtc = SeededAtUtc.AddMinutes(12),
+                LastSeenAtUtc = SeededAtUtc.AddMinutes(12),
+            });
         }
 
-        if (!await dbContext.SymphonyInstances.AnyAsync(instance => instance.Id == DeliveryInstanceId, cancellationToken))
+        if (!await instances.AnyAsync(instance => instance.Id == Id(DeliveryInstanceId), cancellationToken))
         {
-            var instance = new SymphonyInstance(
-                DeliveryInstanceId,
-                DeliveryRepositoryId,
-                "Delivery report worker",
-                ExecutionMode.Docker,
-                new Uri("http://localhost:8030"),
-                InstanceLifecycleStatus.Stopped,
-                InstanceHealthStatus.Offline);
-
-            instance.RecordHealth(InstanceHealthStatus.Offline, SeededAtUtc.AddMinutes(4));
-            dbContext.SymphonyInstances.Add(instance);
+            instances.Add(new SymphonyInstanceRecord
+            {
+                Id = Id(DeliveryInstanceId),
+                RepositoryId = Id(DeliveryRepositoryId),
+                DisplayName = "Delivery report worker",
+                ExecutionMode = ExecutionMode.Docker.ToString(),
+                BaseUrl = "http://localhost:8030",
+                Status = InstanceLifecycleStatus.Stopped.ToString(),
+                HealthStatus = InstanceHealthStatus.Offline.ToString(),
+                DeliveryStatus = "Blocked",
+                ReleaseSelector = "latest",
+                CreatedAtUtc = SeededAtUtc,
+                UpdatedAtUtc = SeededAtUtc.AddMinutes(4),
+                LastHealthCheckAtUtc = SeededAtUtc.AddMinutes(4),
+            });
         }
     }
 
     private static async Task SeedSnapshotsAsync(ConductorDbContext dbContext, CancellationToken cancellationToken)
     {
-        if (!await dbContext.InstanceSnapshots.AnyAsync(snapshot => snapshot.SymphonyInstanceId == ConductorInstanceId, cancellationToken))
+        DbSet<InstanceSnapshotRecord> snapshots = dbContext.Set<InstanceSnapshotRecord>();
+
+        if (!await snapshots.AnyAsync(snapshot => snapshot.Id == Id(ConductorSnapshotId), cancellationToken))
         {
-            dbContext.InstanceSnapshots.Add(new InstanceSnapshot(
-                ConductorInstanceId,
-                SeededAtUtc.AddMinutes(18),
-                InstanceHealthStatus.Healthy,
-                """{"status":"healthy","latencyMs":42}""",
-                """{"version":"0.1.0-dev","mode":"docker"}""",
-                """{"running":3,"retrying":0,"tracked":8}"""));
+            snapshots.Add(new InstanceSnapshotRecord
+            {
+                Id = Id(ConductorSnapshotId),
+                SymphonyInstanceId = Id(ConductorInstanceId),
+                CapturedAtUtc = SeededAtUtc.AddMinutes(18),
+                HealthStatus = InstanceHealthStatus.Healthy.ToString(),
+                HttpStatusCode = 200,
+                LatencyMilliseconds = 42,
+                HealthJson = """{"status":"healthy","latencyMs":42}""",
+                RuntimeJson = """{"version":"0.1.0-dev","mode":"docker"}""",
+                StateJson = """{"running":3,"retrying":0,"tracked":8}""",
+            });
         }
 
-        if (!await dbContext.InstanceSnapshots.AnyAsync(snapshot => snapshot.SymphonyInstanceId == SymphonyInstanceId, cancellationToken))
+        if (!await snapshots.AnyAsync(snapshot => snapshot.Id == Id(SymphonySnapshotId), cancellationToken))
         {
-            dbContext.InstanceSnapshots.Add(new InstanceSnapshot(
-                SymphonyInstanceId,
-                SeededAtUtc.AddMinutes(12),
-                InstanceHealthStatus.Warning,
-                """{"status":"warning","latencyMs":118}""",
-                """{"version":"0.1.0-dev","mode":"local"}""",
-                """{"running":1,"retrying":2,"tracked":5}"""));
+            snapshots.Add(new InstanceSnapshotRecord
+            {
+                Id = Id(SymphonySnapshotId),
+                SymphonyInstanceId = Id(SymphonyInstanceId),
+                CapturedAtUtc = SeededAtUtc.AddMinutes(12),
+                HealthStatus = InstanceHealthStatus.Warning.ToString(),
+                HttpStatusCode = 200,
+                LatencyMilliseconds = 118,
+                HealthJson = """{"status":"warning","latencyMs":118}""",
+                RuntimeJson = """{"version":"0.1.0-dev","mode":"local"}""",
+                StateJson = """{"running":1,"retrying":2,"tracked":5}""",
+            });
         }
 
-        if (!await dbContext.InstanceSnapshots.AnyAsync(snapshot => snapshot.SymphonyInstanceId == DeliveryInstanceId, cancellationToken))
+        if (!await snapshots.AnyAsync(snapshot => snapshot.Id == Id(DeliverySnapshotId), cancellationToken))
         {
-            dbContext.InstanceSnapshots.Add(new InstanceSnapshot(
-                DeliveryInstanceId,
-                SeededAtUtc.AddMinutes(4),
-                InstanceHealthStatus.Offline,
-                """{"status":"offline","error":"connection refused"}""",
-                null,
-                """{"running":0,"retrying":0,"tracked":3}"""));
+            snapshots.Add(new InstanceSnapshotRecord
+            {
+                Id = Id(DeliverySnapshotId),
+                SymphonyInstanceId = Id(DeliveryInstanceId),
+                CapturedAtUtc = SeededAtUtc.AddMinutes(4),
+                HealthStatus = InstanceHealthStatus.Offline.ToString(),
+                ErrorMessage = "Connection refused",
+                HealthJson = """{"status":"offline","error":"connection refused"}""",
+                StateJson = """{"running":0,"retrying":0,"tracked":3}""",
+            });
         }
     }
+
+    private static string Id(ProjectId id) => id.Value.ToString("D");
+
+    private static string Id(RepositoryId id) => id.Value.ToString("D");
+
+    private static string Id(SymphonyInstanceId id) => id.Value.ToString("D");
+
+    private static string Id(InstanceSnapshotId id) => id.Value.ToString("D");
 }

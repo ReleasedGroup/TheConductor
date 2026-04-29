@@ -1,6 +1,11 @@
+using Conductor.Core.Application.Queries;
+using Conductor.Core.Domain;
+using Conductor.Core.Domain.Ids;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace Conductor.Host.Tests;
@@ -8,7 +13,6 @@ namespace Conductor.Host.Tests;
 public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global::Program>>, IDisposable
 {
     private readonly WebApplicationFactory<global::Program> factory;
-    private readonly string databasePath = Path.Combine(Path.GetTempPath(), $"conductor-host-tests-{Guid.NewGuid():N}.db");
 
     public HostSmokeTests(WebApplicationFactory<global::Program> factory)
     {
@@ -19,8 +23,13 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
             {
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:Conductor"] = $"Data Source={databasePath};Cache=Shared",
+                    ["Conductor:BootstrapDevelopmentDatabase"] = "false",
                 });
+            });
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IConductorReadModelQueries>();
+                services.AddSingleton<IConductorReadModelQueries>(new StubConductorReadModelQueries());
             });
         });
     }
@@ -37,7 +46,7 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
     }
 
     [Fact]
-    public async Task HomePageServesPlaceholderDashboard()
+    public async Task HomePageServesSeededDashboard()
     {
         using HttpClient client = CreateClient();
 
@@ -46,6 +55,8 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
         Assert.Contains("Conductor Dashboard", content);
         Assert.Contains("ReleasedGroup/TheConductor", content);
         Assert.Contains("Development fleet", content);
+        Assert.Contains("Startup verification", content);
+        Assert.Contains("/health/ready", content);
     }
 
     private HttpClient CreateClient() =>
@@ -57,13 +68,32 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
     public void Dispose()
     {
         factory.Dispose();
+    }
 
-        string directory = Path.GetDirectoryName(databasePath) ?? Path.GetTempPath();
-        string fileName = Path.GetFileName(databasePath);
+    private sealed class StubConductorReadModelQueries : IConductorReadModelQueries
+    {
+        private static readonly RepositoryOverview[] Repositories =
+        [
+            new(
+                new RepositoryId(new Guid("15357d28-1f50-4a93-8f1b-aa728cc9015d")),
+                "ReleasedGroup/TheConductor",
+                "Conductor Platform",
+                "main",
+                "https://github.com/ReleasedGroup/TheConductor",
+                ExecutionMode.Docker,
+                InstanceLifecycleStatus.Running,
+                InstanceHealthStatus.Healthy,
+                "http://localhost:8010",
+                DateTimeOffset.Parse("2026-04-29T00:18:00Z")),
+        ];
 
-        foreach (string path in Directory.EnumerateFiles(directory, $"{fileName}*"))
-        {
-            File.Delete(path);
-        }
+        public Task<ConductorDashboardSummary> GetDashboardSummaryAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ConductorDashboardSummary(1, 1, 1, 0, Repositories, []));
+
+        public Task<IReadOnlyList<RepositoryOverview>> ListRepositoriesAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<RepositoryOverview>>(Repositories);
+
+        public Task<RepositoryOverview?> GetRepositoryAsync(RepositoryId repositoryId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<RepositoryOverview?>(Repositories.SingleOrDefault(repository => repository.RepositoryId == repositoryId));
     }
 }

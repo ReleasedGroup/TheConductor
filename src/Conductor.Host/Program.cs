@@ -15,7 +15,8 @@ builder.Services.AddConductorWorkers();
 
 WebApplication app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() &&
+    app.Configuration.GetValue("Conductor:BootstrapDevelopmentDatabase", defaultValue: true))
 {
     await app.Services.BootstrapDevelopmentDatabaseAsync(app.Logger);
 }

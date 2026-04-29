@@ -8,7 +8,6 @@ namespace Conductor.Api.Tests;
 public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
     private readonly WebApplicationFactory<Program> factory;
-    private readonly string databasePath = Path.Combine(Path.GetTempPath(), $"conductor-api-tests-{Guid.NewGuid():N}.db");
 
     public HealthEndpointTests(WebApplicationFactory<Program> factory)
     {
@@ -19,7 +18,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
             {
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:Conductor"] = $"Data Source={databasePath};Cache=Shared",
+                    ["Conductor:BootstrapDevelopmentDatabase"] = "false",
                 });
             });
         });
@@ -48,13 +47,5 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
     public void Dispose()
     {
         factory.Dispose();
-
-        string directory = Path.GetDirectoryName(databasePath) ?? Path.GetTempPath();
-        string fileName = Path.GetFileName(databasePath);
-
-        foreach (string path in Directory.EnumerateFiles(directory, $"{fileName}*"))
-        {
-            File.Delete(path);
-        }
     }
 }

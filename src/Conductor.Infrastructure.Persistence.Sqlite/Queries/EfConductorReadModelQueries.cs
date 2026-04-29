@@ -1,8 +1,7 @@
 using Conductor.Core.Application.Queries;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
-using Conductor.Core.Domain.Repositories;
-using Conductor.Core.Domain.Symphony;
+using Conductor.Infrastructure.Persistence.Sqlite.Schema;
 using Microsoft.EntityFrameworkCore;
 
 namespace Conductor.Infrastructure.Persistence.Sqlite.Queries;
@@ -16,8 +15,8 @@ public sealed class EfConductorReadModelQueries(IDbContextFactory<ConductorDbCon
 
         await using ConductorDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        int projectCount = await dbContext.Projects.CountAsync(cancellationToken);
-        int instanceCount = await dbContext.SymphonyInstances.CountAsync(cancellationToken);
+        int projectCount = await dbContext.Set<ProjectRecord>().CountAsync(cancellationToken);
+        int instanceCount = await dbContext.Set<SymphonyInstanceRecord>().CountAsync(cancellationToken);
         int needsAttentionCount = repositories.Count(NeedsAttention);
 
         return new ConductorDashboardSummary(
@@ -40,17 +39,17 @@ public sealed class EfConductorReadModelQueries(IDbContextFactory<ConductorDbCon
     {
         await using ConductorDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        Dictionary<ProjectId, string> projectNames = await dbContext.Projects
+        Dictionary<string, string> projectNames = await dbContext.Set<ProjectRecord>()
             .AsNoTracking()
             .ToDictionaryAsync(project => project.Id, project => project.Name, cancellationToken);
 
-        List<Repository> repositories = await dbContext.Repositories
+        List<RepositoryRecord> repositories = await dbContext.Set<RepositoryRecord>()
             .AsNoTracking()
             .OrderBy(repository => repository.Owner)
             .ThenBy(repository => repository.Name)
             .ToListAsync(cancellationToken);
 
-        List<SymphonyInstance> instances = await dbContext.SymphonyInstances
+        List<SymphonyInstanceRecord> instances = await dbContext.Set<SymphonyInstanceRecord>()
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
@@ -69,27 +68,31 @@ public sealed class EfConductorReadModelQueries(IDbContextFactory<ConductorDbCon
     }
 
     private static RepositoryOverview ToOverview(
-        Repository repository,
-        IReadOnlyDictionary<ProjectId, string> projectNames,
-        IReadOnlyList<SymphonyInstance> instances)
+        RepositoryRecord repository,
+        IReadOnlyDictionary<string, string> projectNames,
+        IReadOnlyList<SymphonyInstanceRecord> instances)
     {
-        SymphonyInstance? instance = instances.SingleOrDefault(candidate => candidate.RepositoryId == repository.Id);
+        SymphonyInstanceRecord? instance = instances.SingleOrDefault(candidate => candidate.RepositoryId == repository.Id);
         string projectName = repository.ProjectId is { } projectId && projectNames.TryGetValue(projectId, out string? name)
             ? name
             : "Unassigned";
 
         return new RepositoryOverview(
-            repository.Id,
-            repository.FullName,
+            new RepositoryId(Guid.Parse(repository.Id)),
+            $"{repository.Owner}/{repository.Name}",
             projectName,
             repository.DefaultBranch,
-            repository.WebUrl.ToString(),
-            instance?.ExecutionMode,
-            instance?.LifecycleStatus,
-            instance?.HealthStatus,
-            instance?.BaseUrl.ToString(),
+            repository.WebUrl,
+            ParseEnum<ExecutionMode>(instance?.ExecutionMode),
+            ParseEnum<InstanceLifecycleStatus>(instance?.Status),
+            ParseEnum<InstanceHealthStatus>(instance?.HealthStatus),
+            instance?.BaseUrl,
             instance?.LastSeenAtUtc);
     }
+
+    private static TEnum? ParseEnum<TEnum>(string? value)
+        where TEnum : struct, Enum =>
+        Enum.TryParse(value, ignoreCase: false, out TEnum result) ? result : null;
 
     private static bool NeedsAttention(RepositoryOverview repository) =>
         repository.HealthStatus is InstanceHealthStatus.Warning or InstanceHealthStatus.Critical or InstanceHealthStatus.Offline ||

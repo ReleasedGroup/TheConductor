@@ -8,15 +8,21 @@ namespace Conductor.Infrastructure.Persistence.Sqlite;
 
 public static class SqlitePersistenceServiceCollectionExtensions
 {
-    private const string DefaultConnectionString = "Data Source=./data/conductor.db;Cache=Shared";
-
     public static IServiceCollection AddConductorPersistence(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        string connectionString = configuration.GetConnectionString("Conductor") ?? DefaultConnectionString;
+        string connectionString = configuration.GetConnectionString(SqlitePersistenceOptions.ConnectionStringName)
+            ?? SqlitePersistenceOptions.DefaultConnectionString;
 
-        void Configure(DbContextOptionsBuilder options) => options.UseSqlite(connectionString);
+        services.AddSingleton<SqliteConnectionPragmaInterceptor>();
+
+        void Configure(IServiceProvider serviceProvider, DbContextOptionsBuilder options)
+        {
+            options
+                .UseConductorSqlite(connectionString)
+                .AddInterceptors(serviceProvider.GetRequiredService<SqliteConnectionPragmaInterceptor>());
+        }
 
         services.AddDbContextFactory<ConductorDbContext>(Configure);
         services.AddScoped(provider => provider.GetRequiredService<IDbContextFactory<ConductorDbContext>>().CreateDbContext());

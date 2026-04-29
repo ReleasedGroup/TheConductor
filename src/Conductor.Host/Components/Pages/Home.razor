@@ -100,6 +100,25 @@
             </section>
         </section>
     }
+
+    <section class="startup-panel" aria-label="Startup verification">
+        <div>
+            <h2>Startup verification</h2>
+            <p>The local host can be checked from the dashboard route and the built-in health probes.</p>
+        </div>
+        <dl>
+            @foreach ((string Label, string Route, string State) check in StartupChecks)
+            {
+                <div>
+                    <dt>@check.Label</dt>
+                    <dd>
+                        <code>@check.Route</code>
+                        <span>@check.State</span>
+                    </dd>
+                </div>
+            }
+        </dl>
+    </section>
 </section>
 
 @code {
@@ -116,6 +135,13 @@
         ("Repositories", summary.RepositoryCount.ToString(System.Globalization.CultureInfo.InvariantCulture), "Imported development records"),
         ("Instances", summary.InstanceCount.ToString(System.Globalization.CultureInfo.InvariantCulture), "Managed Symphony runtimes"),
         ("Attention", summary.NeedsAttentionCount.ToString(System.Globalization.CultureInfo.InvariantCulture), "Warning or offline states"),
+    ];
+
+    private static readonly (string Label, string Route, string State)[] StartupChecks =
+    [
+        ("Dashboard route", "/", "Seeded dashboard served"),
+        ("Live health", "/health/live", "Probe available"),
+        ("Ready health", "/health/ready", "Probe available"),
     ];
 
     private static string RepositoryHref(RepositoryOverview repository) =>

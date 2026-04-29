@@ -25,6 +25,8 @@ public sealed class DashboardSmokeTests
         Assert.Contains("Conductor Dashboard", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Development fleet", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Warning", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Startup verification", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("/health/live", dashboard.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
