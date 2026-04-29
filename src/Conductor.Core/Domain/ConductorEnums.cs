@@ -1,10 +1,48 @@
 namespace Conductor.Core.Domain;
 
+public enum AlertSeverity
+{
+    Info,
+    Warning,
+    Critical,
+}
+
+public enum AlertStatus
+{
+    Active,
+    Acknowledged,
+    Resolved,
+}
+
+public enum AuditEventOutcome
+{
+    Succeeded,
+    Failed,
+    Denied,
+}
+
+public enum BackgroundOperationStatus
+{
+    Queued,
+    Running,
+    Succeeded,
+    Failed,
+    Canceled,
+}
+
 public enum CredentialInheritanceMode
 {
     InheritDefault,
     SpecificSecret,
     None,
+}
+
+public enum EventSeverity
+{
+    Information,
+    Warning,
+    Error,
+    Critical,
 }
 
 public enum ExecutionMode
@@ -44,4 +82,39 @@ public enum ProjectStatus
 public enum RepositoryProvider
 {
     GitHub,
+}
+
+public enum ReportType
+{
+    DailyDeliveryBrief,
+    WeeklySoftwareFactory,
+    Project,
+    EngineeringReliability,
+}
+
+public enum RunStatus
+{
+    Queued,
+    Running,
+    Succeeded,
+    Failed,
+    Canceled,
+    TimedOut,
+}
+
+public enum SymphonyIssueStatus
+{
+    Unknown,
+    Queued,
+    Running,
+    Succeeded,
+    Failed,
+    Blocked,
+    NoSession,
+}
+
+public enum TrackedIssueState
+{
+    Open,
+    Closed,
 }

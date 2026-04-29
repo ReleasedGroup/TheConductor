@@ -35,20 +35,20 @@ Welcome to the **Agentic Development Platform**, an AI-powered full-stack softwa
       // .devcontainer/devcontainer.json
     {
     "name": "released-agentic-ai",
-  
+
     "image": "mcr.microsoft.com/dotnet/sdk:10.0",
-  
+
     "features": {
       // .NET SDK 10 (RC)
       "ghcr.io/devcontainers/features/dotnet:2": { "version": "10.0" },
-  
+
       // Node.js (current LTS)
       "ghcr.io/devcontainers/features/node:1":   { "version": "lts" },
-  
+
       // NEW → GitHub CLI (“gh”)
       "ghcr.io/devcontainers/features/github-cli:1": {}            // installs the latest gh release :contentReference[oaicite:0]{index=0}
     },
-  
+
     "customizations": {
       "vscode": {
         "extensions": [
@@ -60,11 +60,11 @@ Welcome to the **Agentic Development Platform**, an AI-powered full-stack softwa
         ]
       }
     },
-  
-     "remoteEnv": { 
+
+     "remoteEnv": {
         "CODEX_HOME":"/workspaces/<Your Project>/codex"
     },
-  
+
     "postCreateCommand": "npm i -g @openai/codex",
      // Start the agent on container start (headless, no attach required)
     "postStartCommand": "/workspaces/<Your Project>/scripts/mcp-agentclient-linux-x64 --server-url https://master-control-program.azurewebsites.net --project-key <Your Project Key>"
@@ -136,7 +136,7 @@ We use ChatGPT 5.1 Pro with Deep Research to create the requirements specificati
 
 ```
 Write a detailed requirements specification for a software project based
- on the following information: ... - [insert project description, user stories, 
+ on the following information: ... - [insert project description, user stories,
  and any other relevant details here]
 ```
 
@@ -181,8 +181,8 @@ The workflow is:
 
 By following this cycle (“**create in Markdown, release in Word/PDF, update in Markdown**”), you ensure documentation stays consistent, versioned, and easily maintainable by developers, while still presenting well to outside stakeholders.
 
-At the end of Sprint 0, you should have: 
-- Approved **requirements and technical spec** (in Markdown, with possibly Word/PDF exports). 
+At the end of Sprint 0, you should have:
+- Approved **requirements and technical spec** (in Markdown, with possibly Word/PDF exports).
 - A baseline GitHub repository with documentation and maybe skeleton code or at least a README.
 - Development and AI tools configured on your codespace.
 - A clear plan for Sprint 1 features.
@@ -395,22 +395,22 @@ After the CI/CD pipeline runs for the first time on your merged Sprint 1 code, y
 
 ## Conclusion and Best Practices
 
-By following this user guide, you’ve set up a robust, AI-augmented development workflow: 
-- You started with a strong planning foundation using **documentation-first** practices, ensuring clarity before coding. - 
+By following this user guide, you’ve set up a robust, AI-augmented development workflow:
+- You started with a strong planning foundation using **documentation-first** practices, ensuring clarity before coding. -
 - You leveraged **GitHub** for end-to-end project management – from issues and branches to pull requests and CI/CD integration, keeping everything transparent and version-controlled.
-- You used **AI coding assistants** (OpenAI Codex CLI for backend, Claude for frontend) to accelerate development while maintaining quality and consistency. 
+- You used **AI coding assistants** (OpenAI Codex CLI for backend, Claude for frontend) to accelerate development while maintaining quality and consistency.
 
-Remember that AI is a tool to boost productivity, but human oversight is key 
+Remember that AI is a tool to boost productivity, but human oversight is key
 
-- always review AI outputs and steer the results. - 
-- You implemented a rigorous **testing strategy** at multiple levels to catch issues early and give confidence in each release. - 
+- always review AI outputs and steer the results. -
+- You implemented a rigorous **testing strategy** at multiple levels to catch issues early and give confidence in each release. -
 - You set up a fully automated **CI/CD pipeline** such that every commit that passes tests can be quickly deployed. This means your team can practice continuous delivery
   - releasing small increments frequently rather than big infrequent launches.
 - You achieved **production deployment in Sprint 1**, unlocking immediate benefits like real user feedback, early discovery of any production issues, and a faster feedback loop for improvements.
 
 As you continue using the Agentic Development Platform, keep in mind these best practices:
 - **Keep Documentation and Code in Sync:** Whenever a change in direction or scope occurs, update the requirements or tech specs. This ensures the Markdown docs remain a living source of truth for the AI agents and new team members.
-- **Small, Incremental Changes:** It’s better to have many small pull requests than a giant one. Small changes are easier to review (for both humans and AI) and debug when something goes wrong. This aligns with the sprint mindset of delivering value in slices. - 
+- **Small, Incremental Changes:** It’s better to have many small pull requests than a giant one. Small changes are easier to review (for both humans and AI) and debug when something goes wrong. This aligns with the sprint mindset of delivering value in slices. -
 - **Embrace AI-Human Collaboration:** Use AI to handle boilerplate and suggest solutions, but always apply your expertise for critical decision-making, creative design, and final quality control. The platform is about **“AI-human collaboration at its finest”** - neither the AI nor the human alone could achieve the same speed and quality.
 - **Monitor Continuously:** Keep an eye on your CI pipeline results and production monitors. When something fails, treat it with urgency. A green pipeline and healthy production are the backbone of trust in this fast-paced approach.
 - **Refine the Process:** In retrospectives, discuss how the AI tools are fitting into your flow. Perhaps you need to fine-tune prompts, or update the AGENTS.md with new guidelines if Codex or Claude made certain mistakes. Continuously improving how you use the platform will yield better outcomes over time.
@@ -782,7 +782,7 @@ Navigate to /projects/{projectId} to view details for a specific project.
 
 The page shows project metadata and tasks, and when you are signed in with GitHub it also displays the current sprint (GitHub milestone) summary for the linked repository:
 - Active milestone name, due date, and progress (X of Y issues closed)
-  
+
   Defaults for task dates:
   - Projects can optionally specify `DefaultTaskDueInDays` and `DefaultTaskDeadlineInDays` to control the default DueDate/Deadline for imported tasks (from GitHub issues).
   - When not set, the server uses 7 days from today for DueDate and aligns Deadline to the same date. The Dashboard new-task form also defaults the DueDate to 7 days out.
