@@ -1,4 +1,5 @@
 using Conductor.Core.Application.Queries;
+using Conductor.Core.Application.Secrets;
 using Conductor.Core.Application.Snapshots;
 using Conductor.Infrastructure.Persistence.Sqlite.Queries;
 using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
@@ -33,6 +34,7 @@ public static class SqlitePersistenceServiceCollectionExtensions
             provider.GetRequiredService<SqliteProjectionQueryService>());
         services.AddScoped<IInstanceSummaryQueryService>(provider =>
             provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<ISecretDescriptorQueryService, SqliteSecretDescriptorQueryService>();
         services.AddScoped<IInstanceSnapshotStore, SqliteInstanceSnapshotStore>();
 
         return services;
