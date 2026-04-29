@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Conductor.Core\Conductor.Core.csproj" />
     <ProjectReference Include="..\..\src\Conductor.Host\Conductor.Host.csproj" />
   </ItemGroup>
 
