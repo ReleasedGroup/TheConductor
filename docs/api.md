@@ -111,7 +111,7 @@ Behavior:
 - Validates `owner/name` repository identity and derives GitHub clone/web URLs when explicit URLs are not provided.
 - Creates or updates the repository registry record.
 - Creates a `NotProvisioned` Symphony instance shell when orchestration is requested.
-- Records an audit event for the import.
+- Records an audit event for the import with the actor from `requestedByUserId` or `system`, the target repository identifier, the import timestamp, a `Succeeded` outcome, and metadata containing the repository full name and optional instance shell outcome.
 
 Responses:
 
