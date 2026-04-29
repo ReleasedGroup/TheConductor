@@ -48,6 +48,7 @@ public static class SqlitePersistenceServiceCollectionExtensions
             provider.GetRequiredService<SqliteProjectionQueryService>());
         services.AddScoped<ISecretDescriptorQueryService, SqliteSecretDescriptorQueryService>();
         services.AddScoped<IManualInstanceRegistrationService, SqliteManualInstanceRegistrationService>();
+        services.AddScoped<IInstanceCredentialAssignmentService, SqliteInstanceCredentialAssignmentService>();
         services.AddScoped<IInstanceCollectionStore, SqliteInstanceCollectionStore>();
         services.AddScoped<IInstanceSnapshotStore, SqliteInstanceSnapshotStore>();
         services.TryAddSingleton(TimeProvider.System);

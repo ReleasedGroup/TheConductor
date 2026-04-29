@@ -6,6 +6,12 @@ Feature guides will provide task-focused documentation for major Conductor capab
 
 Planned guides include repository onboarding, workflow profile management, Symphony instance operations, secret handling, alert review, and report generation.
 
+## Assign Instance Credentials
+
+Operators can assign credential references from the Instances page or through `PUT /api/instances/{instanceId}/credentials`.
+
+Each Symphony instance tracks GitHub and OpenAI/Codex credentials independently. For each credential, choose `InheritDefault`, `SpecificSecret`, or `None`. Specific selections must reference an existing descriptor with a compatible type and scope; Conductor stores only the descriptor reference on the instance and never returns the secret value after save.
+
 ## Dashboard Active Repositories
 
 The dashboard active repositories table shows the persisted operational projection for imported repositories. Each row combines repository metadata with related project, Symphony instance, tracked issue, run, pull request, and event data.
