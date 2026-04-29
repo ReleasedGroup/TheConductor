@@ -5,7 +5,7 @@ Conductor is the fleet control layer above Symphony. It is being built as a .NET
 ## Solution Layout
 
 - `Conductor.slnx` is the .NET solution entry point.
-- `src/Conductor.Host` contains the Blazor Web App host, health endpoints, worker registration, and the placeholder dashboard.
+- `src/Conductor.Host` contains the Blazor Web App host, health endpoints, worker registration, the dashboard, and reusable dashboard components.
 - `src/Conductor.Core` contains domain types, value objects, and infrastructure-facing contracts, including the workflow profile, release artifact, and secret descriptor entities.
 - `src/Conductor.Infrastructure.Persistence.Sqlite` contains the EF Core SQLite persistence project, DbContext registration, and migration target.
 - `src/Conductor.Infrastructure.*` projects contain adapter boundaries for GitHub, Symphony HTTP, runners, secrets, reporting, and notifications.
@@ -26,7 +26,7 @@ dotnet format Conductor.slnx --no-restore --verify-no-changes
 dotnet run --project src/Conductor.Host/Conductor.Host.csproj
 ```
 
-The root route (`/`) serves the placeholder dashboard for local startup checks. The same startup baseline also exposes `/health/live` and `/health/ready`.
+The root route (`/`) serves the dashboard baseline for local startup checks, including a reusable repository orchestration health heatmap populated with starter projection data. The same startup baseline also exposes `/health/live` and `/health/ready`.
 
 ## Persistence Configuration
 
@@ -37,3 +37,11 @@ Data Source=./data/conductor.db;Cache=Shared
 ```
 
 The SQLite registration creates the database directory when a file-backed connection string is used and applies the required startup PRAGMAs for foreign keys, WAL journaling, and a 5 second busy timeout when EF Core opens a connection.
+
+## Persistence Migrations
+
+Apply the current EF Core migration set with:
+
+```powershell
+dotnet ef database update --project src/Conductor.Infrastructure.Persistence.Sqlite --startup-project src/Conductor.Infrastructure.Persistence.Sqlite
+```

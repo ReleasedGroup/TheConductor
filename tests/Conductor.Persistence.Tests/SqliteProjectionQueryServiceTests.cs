@@ -1,12 +1,9 @@
 using Conductor.Core.Application.Queries;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
-using Conductor.Core.Domain.Projects;
-using Conductor.Core.Domain.Repositories;
-using Conductor.Core.Domain.Snapshots;
-using Conductor.Core.Domain.Symphony;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Conductor.Infrastructure.Persistence.Sqlite.Queries;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Conductor.Persistence.Tests;
@@ -16,17 +13,18 @@ public sealed class SqliteProjectionQueryServiceTests
     [Fact]
     public async Task ListRepositoriesAsync_Filters_By_Project_And_Search_And_Excludes_Archived()
     {
-        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateDbContextAsync(connection);
         var fixture = await SeedPortfolioAsync(dbContext);
         SqliteProjectionQueryService queryService = new(dbContext);
 
         IReadOnlyList<RepositoryListItemProjection> repositories =
             await queryService.ListRepositoriesAsync(new RepositoryListQuery(
-                fixture.ProjectAlpha.Id,
+                fixture.ProjectAlphaId,
                 Search: "api"));
 
         RepositoryListItemProjection repository = Assert.Single(repositories);
-        Assert.Equal(fixture.ApiRepository.Id, repository.Id);
+        Assert.Equal(fixture.ApiRepositoryId, repository.Id);
         Assert.Equal("Alpha", repository.ProjectName);
         Assert.Equal("ReleasedGroup/api-service", repository.FullName);
         Assert.Equal(2, repository.InstanceCount);
@@ -38,38 +36,40 @@ public sealed class SqliteProjectionQueryServiceTests
     [Fact]
     public async Task ListInstanceSummariesAsync_Returns_Latest_Snapshot_And_Excludes_Destroyed_Instances()
     {
-        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateDbContextAsync(connection);
         var fixture = await SeedPortfolioAsync(dbContext);
         SqliteProjectionQueryService queryService = new(dbContext);
 
         IReadOnlyList<InstanceSummaryProjection> instances =
             await queryService.ListInstanceSummariesAsync(new InstanceSummaryQuery(
-                RepositoryId: fixture.ApiRepository.Id));
+                RepositoryId: fixture.ApiRepositoryId));
 
         Assert.Equal(2, instances.Count);
 
         InstanceSummaryProjection runningInstance = Assert.Single(instances, instance =>
-            instance.Id == fixture.ApiPrimaryInstance.Id);
+            instance.Id == fixture.ApiPrimaryInstanceId);
         Assert.Equal("ReleasedGroup/api-service", runningInstance.RepositoryFullName);
         Assert.Equal("Alpha", runningInstance.ProjectName);
         Assert.Equal(InstanceLifecycleStatus.Running, runningInstance.LifecycleStatus);
         Assert.Equal(fixture.LatestSnapshotAtUtc, runningInstance.LatestSnapshotCapturedAtUtc);
 
-        Assert.DoesNotContain(instances, instance => instance.Id == fixture.DestroyedInstance.Id);
+        Assert.DoesNotContain(instances, instance => instance.Id == fixture.DestroyedInstanceId);
     }
 
     [Fact]
     public async Task ListRepositoriesAsync_Uses_Unknown_Health_For_Repositories_Without_Instances()
     {
-        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateDbContextAsync(connection);
         var fixture = await SeedPortfolioAsync(dbContext);
         SqliteProjectionQueryService queryService = new(dbContext);
 
         IReadOnlyList<RepositoryListItemProjection> repositories =
-            await queryService.ListRepositoriesAsync(new RepositoryListQuery(fixture.ProjectBeta.Id));
+            await queryService.ListRepositoriesAsync(new RepositoryListQuery(fixture.ProjectBetaId));
 
         RepositoryListItemProjection repository = Assert.Single(repositories);
-        Assert.Equal(fixture.BetaRepository.Id, repository.Id);
+        Assert.Equal(fixture.BetaRepositoryId, repository.Id);
         Assert.Equal(0, repository.InstanceCount);
         Assert.Equal(InstanceHealthStatus.Unknown, repository.WorstHealthStatus);
         Assert.Null(repository.LastHealthCheckAtUtc);
@@ -78,18 +78,19 @@ public sealed class SqliteProjectionQueryServiceTests
     [Fact]
     public async Task GetDashboardAsync_Returns_Project_Scoped_Fleet_Projection()
     {
-        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateDbContextAsync(connection);
         var fixture = await SeedPortfolioAsync(dbContext);
         SqliteProjectionQueryService queryService = new(dbContext);
 
         DashboardProjection dashboard =
-            await queryService.GetDashboardAsync(new DashboardQuery(fixture.ProjectAlpha.Id));
+            await queryService.GetDashboardAsync(new DashboardQuery(fixture.ProjectAlphaId));
 
         Assert.Equal(2, dashboard.Metrics.ManagedRepositoryCount);
         Assert.Equal(1, dashboard.Metrics.HealthyRepositoryCount);
         Assert.Equal(1, dashboard.Metrics.ActiveAgentCount);
-        Assert.Equal(0, dashboard.Metrics.BlockedIssueCount);
-        Assert.Equal(0, dashboard.Metrics.OpenPullRequestCount);
+        Assert.Equal(1, dashboard.Metrics.BlockedIssueCount);
+        Assert.Equal(3, dashboard.Metrics.OpenPullRequestCount);
         Assert.Equal(0m, dashboard.Metrics.EstimatedSpendToday);
         Assert.Equal(2, dashboard.ActiveRepositories.Count);
         Assert.Equal(3, dashboard.InstanceSummaries.Count);
@@ -99,15 +100,22 @@ public sealed class SqliteProjectionQueryServiceTests
             bucket.Status == InstanceHealthStatus.Warning).Count);
     }
 
-    private static async Task<ConductorDbContext> CreateDbContextAsync()
+    private static async Task<SqliteConnection> OpenConnectionAsync()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        return connection;
+    }
+
+    private static async Task<ConductorDbContext> CreateDbContextAsync(SqliteConnection connection)
     {
         DbContextOptions<ConductorDbContext> options = new DbContextOptionsBuilder<ConductorDbContext>()
-            .UseSqlite("Data Source=:memory:")
+            .UseSqlite(connection)
             .Options;
 
         ConductorDbContext dbContext = new(options);
-        await dbContext.Database.OpenConnectionAsync();
-        await dbContext.Database.EnsureCreatedAsync();
+        await dbContext.Database.MigrateAsync();
 
         return dbContext;
     }
@@ -119,151 +127,205 @@ public sealed class SqliteProjectionQueryServiceTests
         DateTimeOffset warningObservedAtUtc = createdAtUtc.AddMinutes(10);
         DateTimeOffset latestSnapshotAtUtc = createdAtUtc.AddMinutes(15);
 
-        var projectAlpha = new Project(
-            ProjectId.New(),
-            "Alpha",
-            "Delivery",
-            ProjectStatus.Active,
-            createdAtUtc,
-            createdAtUtc);
-        var projectBeta = new Project(
-            ProjectId.New(),
-            "Beta",
-            "Delivery",
-            ProjectStatus.Active,
-            createdAtUtc,
-            createdAtUtc);
+        ProjectId projectAlphaId = ProjectId.New();
+        ProjectId projectBetaId = ProjectId.New();
+        RepositoryId apiRepositoryId = RepositoryId.New();
+        RepositoryId webRepositoryId = RepositoryId.New();
+        RepositoryId archivedRepositoryId = RepositoryId.New();
+        RepositoryId betaRepositoryId = RepositoryId.New();
+        SymphonyInstanceId apiPrimaryInstanceId = SymphonyInstanceId.New();
+        SymphonyInstanceId apiCanaryInstanceId = SymphonyInstanceId.New();
+        SymphonyInstanceId webInstanceId = SymphonyInstanceId.New();
+        SymphonyInstanceId destroyedInstanceId = SymphonyInstanceId.New();
 
-        var apiRepository = new Repository(
-            RepositoryId.New(),
-            RepositoryProvider.GitHub,
-            "ReleasedGroup",
+        await InsertProjectAsync(dbContext, projectAlphaId, "Alpha", createdAtUtc);
+        await InsertProjectAsync(dbContext, projectBetaId, "Beta", createdAtUtc);
+        await InsertRepositoryAsync(
+            dbContext,
+            apiRepositoryId,
+            projectAlphaId,
             "api-service",
-            "main",
-            new Uri("https://github.com/ReleasedGroup/api-service.git"),
-            new Uri("https://github.com/ReleasedGroup/api-service"),
             isArchived: false,
-            projectAlpha.Id);
-        var webRepository = new Repository(
-            RepositoryId.New(),
-            RepositoryProvider.GitHub,
-            "ReleasedGroup",
+            pullRequestCount: 2,
+            createdAtUtc);
+        await InsertRepositoryAsync(
+            dbContext,
+            webRepositoryId,
+            projectAlphaId,
             "web-client",
-            "main",
-            new Uri("https://github.com/ReleasedGroup/web-client.git"),
-            new Uri("https://github.com/ReleasedGroup/web-client"),
             isArchived: false,
-            projectAlpha.Id);
-        var archivedRepository = new Repository(
-            RepositoryId.New(),
-            RepositoryProvider.GitHub,
-            "ReleasedGroup",
+            pullRequestCount: 1,
+            createdAtUtc);
+        await InsertRepositoryAsync(
+            dbContext,
+            archivedRepositoryId,
+            projectAlphaId,
             "api-archive",
-            "main",
-            new Uri("https://github.com/ReleasedGroup/api-archive.git"),
-            new Uri("https://github.com/ReleasedGroup/api-archive"),
             isArchived: true,
-            projectAlpha.Id);
-        var betaRepository = new Repository(
-            RepositoryId.New(),
-            RepositoryProvider.GitHub,
-            "ReleasedGroup",
+            pullRequestCount: 8,
+            createdAtUtc);
+        await InsertRepositoryAsync(
+            dbContext,
+            betaRepositoryId,
+            projectBetaId,
             "api-beta",
-            "main",
-            new Uri("https://github.com/ReleasedGroup/api-beta.git"),
-            new Uri("https://github.com/ReleasedGroup/api-beta"),
             isArchived: false,
-            projectBeta.Id);
+            pullRequestCount: 5,
+            createdAtUtc);
 
-        var apiPrimaryInstance = new SymphonyInstance(
-            SymphonyInstanceId.New(),
-            apiRepository.Id,
+        await InsertInstanceAsync(
+            dbContext,
+            apiPrimaryInstanceId,
+            apiRepositoryId,
             "API primary",
             ExecutionMode.Docker,
-            new Uri("http://localhost:5010"),
-            InstanceLifecycleStatus.Running);
-        apiPrimaryInstance.RecordHealth(InstanceHealthStatus.Healthy, healthyObservedAtUtc);
-
-        var apiCanaryInstance = new SymphonyInstance(
-            SymphonyInstanceId.New(),
-            apiRepository.Id,
+            InstanceLifecycleStatus.Running,
+            InstanceHealthStatus.Healthy,
+            "http://localhost:5010",
+            createdAtUtc,
+            healthyObservedAtUtc,
+            healthyObservedAtUtc);
+        await InsertInstanceAsync(
+            dbContext,
+            apiCanaryInstanceId,
+            apiRepositoryId,
             "API canary",
             ExecutionMode.LocalProcess,
-            new Uri("http://localhost:5011"),
-            InstanceLifecycleStatus.Stopped);
-        apiCanaryInstance.RecordHealth(InstanceHealthStatus.Warning, warningObservedAtUtc);
-
-        var webInstance = new SymphonyInstance(
-            SymphonyInstanceId.New(),
-            webRepository.Id,
+            InstanceLifecycleStatus.Stopped,
+            InstanceHealthStatus.Warning,
+            "http://localhost:5011",
+            createdAtUtc,
+            warningObservedAtUtc,
+            warningObservedAtUtc);
+        await InsertInstanceAsync(
+            dbContext,
+            webInstanceId,
+            webRepositoryId,
             "Web primary",
             ExecutionMode.Docker,
-            new Uri("http://localhost:5020"),
-            InstanceLifecycleStatus.Stopped);
-        webInstance.RecordHealth(InstanceHealthStatus.Healthy, healthyObservedAtUtc);
-
-        var destroyedInstance = new SymphonyInstance(
-            SymphonyInstanceId.New(),
-            apiRepository.Id,
+            InstanceLifecycleStatus.Stopped,
+            InstanceHealthStatus.Healthy,
+            "http://localhost:5020",
+            createdAtUtc,
+            healthyObservedAtUtc,
+            healthyObservedAtUtc);
+        await InsertInstanceAsync(
+            dbContext,
+            destroyedInstanceId,
+            apiRepositoryId,
             "API retired",
             ExecutionMode.Docker,
-            new Uri("http://localhost:5099"),
-            InstanceLifecycleStatus.Destroyed);
-        destroyedInstance.RecordHealth(InstanceHealthStatus.Offline, warningObservedAtUtc);
+            InstanceLifecycleStatus.Destroyed,
+            InstanceHealthStatus.Offline,
+            "http://localhost:5099",
+            createdAtUtc,
+            warningObservedAtUtc,
+            null);
 
-        dbContext.AddRange(projectAlpha, projectBeta);
-        dbContext.AddRange(apiRepository, webRepository, archivedRepository, betaRepository);
-        dbContext.AddRange(apiPrimaryInstance, apiCanaryInstance, webInstance, destroyedInstance);
-        dbContext.AddRange(
-            new InstanceSnapshot(
-                InstanceSnapshotId.New(),
-                apiPrimaryInstance.Id,
-                healthyObservedAtUtc,
-                InstanceHealthStatus.Healthy,
-                """{"status":"healthy"}""",
-                "{}",
-                "{}",
-                activeIssueCount: 3,
-                runningSessionCount: 1,
-                retryQueueCount: 0,
-                failedRunCount: 0,
-                tokenInputTotal: 100,
-                tokenOutputTotal: 50),
-            new InstanceSnapshot(
-                InstanceSnapshotId.New(),
-                apiPrimaryInstance.Id,
-                latestSnapshotAtUtc,
-                InstanceHealthStatus.Healthy,
-                """{"status":"healthy"}""",
-                "{}",
-                "{}",
-                activeIssueCount: 4,
-                runningSessionCount: 2,
-                retryQueueCount: 1,
-                failedRunCount: 0,
-                tokenInputTotal: 160,
-                tokenOutputTotal: 80));
-
-        await dbContext.SaveChangesAsync();
+        await InsertSnapshotAsync(dbContext, apiPrimaryInstanceId, healthyObservedAtUtc);
+        await InsertSnapshotAsync(dbContext, apiPrimaryInstanceId, latestSnapshotAtUtc);
+        await InsertTrackedIssueAsync(dbContext, apiRepositoryId, isBlocked: true, createdAtUtc);
+        await InsertTrackedIssueAsync(dbContext, webRepositoryId, isBlocked: false, createdAtUtc);
 
         return new PortfolioFixture(
-            projectAlpha,
-            projectBeta,
-            apiRepository,
-            betaRepository,
-            apiPrimaryInstance,
-            destroyedInstance,
+            projectAlphaId,
+            projectBetaId,
+            apiRepositoryId,
+            betaRepositoryId,
+            apiPrimaryInstanceId,
+            destroyedInstanceId,
             warningObservedAtUtc,
             latestSnapshotAtUtc);
     }
 
+    private static async Task InsertProjectAsync(
+        ConductorDbContext dbContext,
+        ProjectId projectId,
+        string name,
+        DateTimeOffset createdAtUtc)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO Projects (Id, Name, OwnerName, Status, CreatedAtUtc, UpdatedAtUtc)
+            VALUES ({FormatId(projectId.Value)}, {name}, {"Delivery"}, {nameof(ProjectStatus.Active)}, {createdAtUtc}, {createdAtUtc});
+            """);
+    }
+
+    private static async Task InsertRepositoryAsync(
+        ConductorDbContext dbContext,
+        RepositoryId repositoryId,
+        ProjectId projectId,
+        string name,
+        bool isArchived,
+        int pullRequestCount,
+        DateTimeOffset createdAtUtc)
+    {
+        string fullName = $"https://github.com/ReleasedGroup/{name}";
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO Repositories
+                (Id, ProjectId, Provider, Owner, Name, DefaultBranch, CloneUrl, WebUrl, IsArchived, OpenIssueCount, PullRequestCount, ImportedAtUtc, UpdatedAtUtc)
+            VALUES
+                ({FormatId(repositoryId.Value)}, {FormatId(projectId.Value)}, {nameof(RepositoryProvider.GitHub)}, {"ReleasedGroup"}, {name}, {"main"}, {fullName + ".git"}, {fullName}, {isArchived}, {0}, {pullRequestCount}, {createdAtUtc}, {createdAtUtc});
+            """);
+    }
+
+    private static async Task InsertInstanceAsync(
+        ConductorDbContext dbContext,
+        SymphonyInstanceId instanceId,
+        RepositoryId repositoryId,
+        string displayName,
+        ExecutionMode executionMode,
+        InstanceLifecycleStatus lifecycleStatus,
+        InstanceHealthStatus healthStatus,
+        string baseUrl,
+        DateTimeOffset createdAtUtc,
+        DateTimeOffset? lastHealthCheckAtUtc,
+        DateTimeOffset? lastSeenAtUtc)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO SymphonyInstances
+                (Id, RepositoryId, WorkflowProfileId, DisplayName, ExecutionMode, BaseUrl, Status, HealthStatus, DeliveryStatus, ReleaseSelector, ResolvedReleaseTag, GitHubSecretId, OpenAiSecretId, CreatedAtUtc, UpdatedAtUtc, LastHealthCheckAtUtc, LastSeenAtUtc)
+            VALUES
+                ({FormatId(instanceId.Value)}, {FormatId(repositoryId.Value)}, {null}, {displayName}, {executionMode.ToString()}, {baseUrl}, {lifecycleStatus.ToString()}, {healthStatus.ToString()}, {"Healthy"}, {null}, {null}, {null}, {null}, {createdAtUtc}, {createdAtUtc}, {lastHealthCheckAtUtc}, {lastSeenAtUtc});
+            """);
+    }
+
+    private static async Task InsertSnapshotAsync(
+        ConductorDbContext dbContext,
+        SymphonyInstanceId instanceId,
+        DateTimeOffset capturedAtUtc)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO InstanceSnapshots
+                (Id, SymphonyInstanceId, CapturedAtUtc, HealthStatus, HttpStatusCode, LatencyMilliseconds, ErrorMessage, HealthJson, RuntimeJson, StateJson)
+            VALUES
+                ({FormatId(Guid.NewGuid())}, {FormatId(instanceId.Value)}, {capturedAtUtc}, {nameof(InstanceHealthStatus.Healthy)}, {200}, {42L}, {null}, {"""{"status":"healthy"}"""}, {"{}"}, {"{}"});
+            """);
+    }
+
+    private static async Task InsertTrackedIssueAsync(
+        ConductorDbContext dbContext,
+        RepositoryId repositoryId,
+        bool isBlocked,
+        DateTimeOffset updatedAtUtc)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO TrackedIssues
+                (Id, RepositoryId, GitHubIssueNumber, Title, SymphonyStatus, IsBlocked, Url, UpdatedAtUtc, LabelsJson, AssigneesJson, PullRequestsJson)
+            VALUES
+                ({FormatId(Guid.NewGuid())}, {FormatId(repositoryId.Value)}, {18L}, {"Issue"}, {nameof(SymphonyIssueStatus.Running)}, {isBlocked}, {null}, {updatedAtUtc}, {null}, {null}, {null});
+            """);
+    }
+
+    private static string FormatId(Guid id) => id.ToString("D");
+
     private sealed record PortfolioFixture(
-        Project ProjectAlpha,
-        Project ProjectBeta,
-        Repository ApiRepository,
-        Repository BetaRepository,
-        SymphonyInstance ApiPrimaryInstance,
-        SymphonyInstance DestroyedInstance,
+        ProjectId ProjectAlphaId,
+        ProjectId ProjectBetaId,
+        RepositoryId ApiRepositoryId,
+        RepositoryId BetaRepositoryId,
+        SymphonyInstanceId ApiPrimaryInstanceId,
+        SymphonyInstanceId DestroyedInstanceId,
         DateTimeOffset WarningObservedAtUtc,
         DateTimeOffset LatestSnapshotAtUtc);
 }

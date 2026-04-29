@@ -17,11 +17,13 @@ The query services return DTO projections, not EF entities. This keeps Blazor co
 Dashboard projections include:
 
 - fleet metrics for managed repositories, healthy repositories, and active agents
+- blocked issue count from tracked issues
+- open pull request count from repository metadata
 - health buckets by `InstanceHealthStatus`
 - repository rows for the active repositories table
 - instance summary rows for dashboard drill-down
 
-Blocked issue count, open pull request count, and estimated spend are currently returned as zero until the corresponding issue, pull request, run, and usage persistence models are added.
+Estimated spend is currently returned as zero until run and usage persistence models are added.
 
 Repository list projections include:
 
@@ -44,4 +46,4 @@ Instance summary projections include:
 
 Projection queries use `AsNoTracking` and project directly to DTO-friendly row shapes. Destroyed instances are excluded from dashboard and repository summary counts by default.
 
-UTC timestamps are persisted as integer ticks in the SQLite mapping so aggregate queries such as latest health check and latest snapshot can run in SQLite instead of falling back to client-side aggregation.
+SQLite cannot aggregate `DateTimeOffset` consistently through EF Core, so latest health-check and snapshot timestamps are calculated after loading the filtered no-tracking row set.

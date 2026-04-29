@@ -1,6 +1,7 @@
 using Conductor.Core.Application.Queries;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
+using Conductor.Infrastructure.Persistence.Sqlite.Schema;
 using Microsoft.EntityFrameworkCore;
 
 namespace Conductor.Infrastructure.Persistence.Sqlite.Queries;
@@ -28,6 +29,11 @@ public sealed class SqliteProjectionQueryService :
             await ListRepositoriesAsync(repositoryQuery, cancellationToken);
         IReadOnlyList<InstanceSummaryProjection> instances =
             await ListInstanceSummariesAsync(instanceQuery, cancellationToken);
+        string[] repositoryIds = repositories
+            .Select(repository => FormatId(repository.Id.Value))
+            .ToArray();
+        int blockedIssueCount = await CountBlockedIssuesAsync(repositoryIds, cancellationToken);
+        int openPullRequestCount = await CountOpenPullRequestsAsync(repositoryIds, cancellationToken);
 
         FleetMetricProjection metrics = new(
             ManagedRepositoryCount: repositories.Count,
@@ -35,8 +41,8 @@ public sealed class SqliteProjectionQueryService :
                 repository.WorstHealthStatus == InstanceHealthStatus.Healthy),
             ActiveAgentCount: instances.Count(instance =>
                 instance.LifecycleStatus == InstanceLifecycleStatus.Running),
-            BlockedIssueCount: 0,
-            OpenPullRequestCount: 0,
+            BlockedIssueCount: blockedIssueCount,
+            OpenPullRequestCount: openPullRequestCount,
             EstimatedSpendToday: 0m);
 
         IReadOnlyList<HealthBucketProjection> healthBuckets = Enum
@@ -57,7 +63,7 @@ public sealed class SqliteProjectionQueryService :
         RepositoryListQuery query,
         CancellationToken cancellationToken = default)
     {
-        IQueryable<Core.Domain.Repositories.Repository> repositories = dbContext.Repositories.AsNoTracking();
+        IQueryable<RepositoryRecord> repositories = dbContext.Set<RepositoryRecord>().AsNoTracking();
 
         if (!query.IncludeArchived)
         {
@@ -66,7 +72,8 @@ public sealed class SqliteProjectionQueryService :
 
         if (query.ProjectId is { } projectId)
         {
-            repositories = repositories.Where(repository => repository.ProjectId == projectId);
+            string projectIdValue = FormatId(projectId.Value);
+            repositories = repositories.Where(repository => repository.ProjectId == projectIdValue);
         }
 
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -77,63 +84,51 @@ public sealed class SqliteProjectionQueryService :
                 repository.Name.Contains(search));
         }
 
-        var rows = await (
-            from repository in repositories
-            join project in dbContext.Projects.AsNoTracking()
-                on repository.ProjectId equals project.Id into projectJoin
-            from project in projectJoin.DefaultIfEmpty()
-            join instance in dbContext.SymphonyInstances.AsNoTracking()
-                on repository.Id equals instance.RepositoryId into instanceJoin
-            select new
-            {
-                repository.Id,
-                repository.ProjectId,
-                ProjectName = project == null ? null : project.Name,
-                repository.Provider,
-                repository.Owner,
-                repository.Name,
-                repository.DefaultBranch,
-                repository.WebUrl,
-                repository.IsArchived,
-                InstanceCount = instanceJoin.Count(instance =>
-                    instance.LifecycleStatus != InstanceLifecycleStatus.Destroyed),
-                RunningInstanceCount = instanceJoin.Count(instance =>
-                    instance.LifecycleStatus == InstanceLifecycleStatus.Running),
-                WorstHealthSeverity = instanceJoin.Any(instance =>
-                    instance.LifecycleStatus != InstanceLifecycleStatus.Destroyed)
-                    ? instanceJoin
-                        .Where(instance => instance.LifecycleStatus != InstanceLifecycleStatus.Destroyed)
-                        .Max(instance =>
-                            instance.HealthStatus == InstanceHealthStatus.Offline ? 4 :
-                            instance.HealthStatus == InstanceHealthStatus.Critical ? 3 :
-                            instance.HealthStatus == InstanceHealthStatus.Warning ? 2 :
-                            instance.HealthStatus == InstanceHealthStatus.Unknown ? 1 : 0)
-                    : 1,
-                LastHealthCheckAtUtc = instanceJoin
-                    .Where(instance => instance.LifecycleStatus != InstanceLifecycleStatus.Destroyed)
-                    .Max(instance => instance.LastHealthCheckAtUtc),
-            })
-            .OrderBy(row => row.ProjectName)
-            .ThenBy(row => row.Owner)
-            .ThenBy(row => row.Name)
+        List<RepositoryRecord> repositoryRows = await repositories
+            .OrderBy(repository => repository.Owner)
+            .ThenBy(repository => repository.Name)
             .ToListAsync(cancellationToken);
 
-        return rows
-            .Select(row => new RepositoryListItemProjection(
-                row.Id,
-                row.ProjectId,
-                row.ProjectName,
-                row.Provider,
-                row.Owner,
-                row.Name,
-                $"{row.Owner}/{row.Name}",
-                row.DefaultBranch,
-                row.WebUrl,
-                row.IsArchived,
-                row.InstanceCount,
-                row.RunningInstanceCount,
-                MapHealthSeverity(row.WorstHealthSeverity),
-                row.LastHealthCheckAtUtc))
+        Dictionary<string, ProjectRecord> projectsById = await LoadProjectsAsync(
+            repositoryRows.Select(repository => repository.ProjectId),
+            cancellationToken);
+        Dictionary<string, List<SymphonyInstanceRecord>> instancesByRepositoryId =
+            await LoadActiveInstancesByRepositoryAsync(
+                repositoryRows.Select(repository => repository.Id),
+                cancellationToken);
+
+        return repositoryRows
+            .Select(repository =>
+            {
+                List<SymphonyInstanceRecord> instances = instancesByRepositoryId.GetValueOrDefault(repository.Id) ?? [];
+                InstanceHealthStatus worstHealthStatus = instances.Count == 0
+                    ? InstanceHealthStatus.Unknown
+                    : instances
+                        .Select(instance => ParseEnum<InstanceHealthStatus>(instance.HealthStatus))
+                        .OrderByDescending(MapHealthSeverity)
+                        .First();
+
+                projectsById.TryGetValue(repository.ProjectId ?? string.Empty, out ProjectRecord? project);
+
+                return new RepositoryListItemProjection(
+                    ParseRepositoryId(repository.Id),
+                    ParseProjectId(repository.ProjectId),
+                    project?.Name,
+                    ParseEnum<RepositoryProvider>(repository.Provider),
+                    repository.Owner,
+                    repository.Name,
+                    $"{repository.Owner}/{repository.Name}",
+                    repository.DefaultBranch,
+                    new Uri(repository.WebUrl, UriKind.Absolute),
+                    repository.IsArchived,
+                    instances.Count,
+                    instances.Count(instance => ParseEnum<InstanceLifecycleStatus>(instance.Status) == InstanceLifecycleStatus.Running),
+                    worstHealthStatus,
+                    instances.Select(instance => instance.LastHealthCheckAtUtc).Max());
+            })
+            .OrderBy(repository => repository.ProjectName)
+            .ThenBy(repository => repository.Owner)
+            .ThenBy(repository => repository.Name)
             .ToArray();
     }
 
@@ -141,93 +136,193 @@ public sealed class SqliteProjectionQueryService :
         InstanceSummaryQuery query,
         CancellationToken cancellationToken = default)
     {
-        IQueryable<Core.Domain.Symphony.SymphonyInstance> instances = dbContext.SymphonyInstances.AsNoTracking();
+        IQueryable<RepositoryRecord> repositories = dbContext.Set<RepositoryRecord>().AsNoTracking();
 
-        if (!query.IncludeDestroyed)
+        if (query.ProjectId is { } projectId)
         {
-            instances = instances.Where(instance =>
-                instance.LifecycleStatus != InstanceLifecycleStatus.Destroyed);
+            string projectIdValue = FormatId(projectId.Value);
+            repositories = repositories.Where(repository => repository.ProjectId == projectIdValue);
         }
 
         if (query.RepositoryId is { } repositoryId)
         {
-            instances = instances.Where(instance => instance.RepositoryId == repositoryId);
+            string repositoryIdValue = FormatId(repositoryId.Value);
+            repositories = repositories.Where(repository => repository.Id == repositoryIdValue);
         }
 
-        IQueryable<Core.Domain.Repositories.Repository> repositories = dbContext.Repositories.AsNoTracking();
+        List<RepositoryRecord> repositoryRows = await repositories.ToListAsync(cancellationToken);
+        string[] repositoryIds = repositoryRows.Select(repository => repository.Id).ToArray();
 
-        if (query.ProjectId is { } projectId)
+        IQueryable<SymphonyInstanceRecord> instances = dbContext.Set<SymphonyInstanceRecord>()
+            .AsNoTracking()
+            .Where(instance => repositoryIds.Contains(instance.RepositoryId));
+
+        if (!query.IncludeDestroyed)
         {
-            repositories = repositories.Where(repository => repository.ProjectId == projectId);
+            instances = instances.Where(instance => instance.Status != nameof(InstanceLifecycleStatus.Destroyed));
         }
 
-        var latestSnapshots =
-            from snapshot in dbContext.InstanceSnapshots.AsNoTracking()
-            group snapshot by snapshot.SymphonyInstanceId
-            into snapshotGroup
-            select new
-            {
-                SymphonyInstanceId = snapshotGroup.Key,
-                CapturedAtUtc = snapshotGroup.Max(snapshot => snapshot.CapturedAtUtc),
-            };
-
-        var rows = await (
-            from instance in instances
-            join repository in repositories
-                on instance.RepositoryId equals repository.Id
-            join project in dbContext.Projects.AsNoTracking()
-                on repository.ProjectId equals project.Id into projectJoin
-            from project in projectJoin.DefaultIfEmpty()
-            join latestSnapshot in latestSnapshots
-                on instance.Id equals latestSnapshot.SymphonyInstanceId into latestSnapshotJoin
-            from latestSnapshot in latestSnapshotJoin.DefaultIfEmpty()
-            select new
-            {
-                instance.Id,
-                instance.RepositoryId,
-                RepositoryFullName = repository.Owner + "/" + repository.Name,
-                repository.ProjectId,
-                ProjectName = project == null ? null : project.Name,
-                instance.DisplayName,
-                instance.ExecutionMode,
-                instance.BaseUrl,
-                instance.LifecycleStatus,
-                instance.HealthStatus,
-                instance.LastHealthCheckAtUtc,
-                instance.LastSeenAtUtc,
-                LatestSnapshotCapturedAtUtc = latestSnapshot == null
-                    ? null
-                    : (DateTimeOffset?)latestSnapshot.CapturedAtUtc,
-            })
-            .OrderBy(row => row.RepositoryFullName)
-            .ThenBy(row => row.DisplayName)
+        List<SymphonyInstanceRecord> instanceRows = await instances
+            .OrderBy(instance => instance.DisplayName)
             .ToListAsync(cancellationToken);
 
-        return rows
-            .Select(row => new InstanceSummaryProjection(
-                row.Id,
-                row.RepositoryId,
-                row.RepositoryFullName,
-                row.ProjectId,
-                row.ProjectName,
-                row.DisplayName,
-                row.ExecutionMode,
-                row.BaseUrl,
-                row.LifecycleStatus,
-                row.HealthStatus,
-                row.LastHealthCheckAtUtc,
-                row.LastSeenAtUtc,
-                row.LatestSnapshotCapturedAtUtc))
+        Dictionary<string, RepositoryRecord> repositoriesById = repositoryRows.ToDictionary(
+            repository => repository.Id,
+            StringComparer.Ordinal);
+        Dictionary<string, ProjectRecord> projectsById = await LoadProjectsAsync(
+            repositoryRows.Select(repository => repository.ProjectId),
+            cancellationToken);
+        Dictionary<string, DateTimeOffset> latestSnapshotByInstanceId = await LoadLatestSnapshotsByInstanceAsync(
+            instanceRows.Select(instance => instance.Id),
+            cancellationToken);
+
+        return instanceRows
+            .Select(instance =>
+            {
+                RepositoryRecord repository = repositoriesById[instance.RepositoryId];
+                projectsById.TryGetValue(repository.ProjectId ?? string.Empty, out ProjectRecord? project);
+                latestSnapshotByInstanceId.TryGetValue(instance.Id, out DateTimeOffset latestSnapshotAtUtc);
+
+                return new InstanceSummaryProjection(
+                    ParseSymphonyInstanceId(instance.Id),
+                    ParseRepositoryId(instance.RepositoryId),
+                    $"{repository.Owner}/{repository.Name}",
+                    ParseProjectId(repository.ProjectId),
+                    project?.Name,
+                    instance.DisplayName,
+                    ParseEnum<ExecutionMode>(instance.ExecutionMode),
+                    new Uri(instance.BaseUrl, UriKind.Absolute),
+                    ParseEnum<InstanceLifecycleStatus>(instance.Status),
+                    ParseEnum<InstanceHealthStatus>(instance.HealthStatus),
+                    instance.LastHealthCheckAtUtc,
+                    instance.LastSeenAtUtc,
+                    latestSnapshotAtUtc == default ? null : latestSnapshotAtUtc);
+            })
+            .OrderBy(instance => instance.RepositoryFullName)
+            .ThenBy(instance => instance.DisplayName)
             .ToArray();
     }
 
-    private static InstanceHealthStatus MapHealthSeverity(int severity) => severity switch
+    private async Task<Dictionary<string, ProjectRecord>> LoadProjectsAsync(
+        IEnumerable<string?> projectIds,
+        CancellationToken cancellationToken)
     {
-        0 => InstanceHealthStatus.Healthy,
-        1 => InstanceHealthStatus.Unknown,
-        2 => InstanceHealthStatus.Warning,
-        3 => InstanceHealthStatus.Critical,
-        4 => InstanceHealthStatus.Offline,
-        _ => InstanceHealthStatus.Unknown,
+        string[] ids = projectIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (ids.Length == 0)
+        {
+            return new Dictionary<string, ProjectRecord>(StringComparer.Ordinal);
+        }
+
+        return await dbContext.Set<ProjectRecord>()
+            .AsNoTracking()
+            .Where(project => ids.Contains(project.Id))
+            .ToDictionaryAsync(project => project.Id, StringComparer.Ordinal, cancellationToken);
+    }
+
+    private async Task<int> CountBlockedIssuesAsync(
+        IReadOnlyCollection<string> repositoryIds,
+        CancellationToken cancellationToken)
+    {
+        if (repositoryIds.Count == 0)
+        {
+            return 0;
+        }
+
+        return await dbContext.Set<TrackedIssueRecord>()
+            .AsNoTracking()
+            .CountAsync(issue => repositoryIds.Contains(issue.RepositoryId) && issue.IsBlocked, cancellationToken);
+    }
+
+    private async Task<int> CountOpenPullRequestsAsync(
+        IReadOnlyCollection<string> repositoryIds,
+        CancellationToken cancellationToken)
+    {
+        if (repositoryIds.Count == 0)
+        {
+            return 0;
+        }
+
+        return await dbContext.Set<RepositoryRecord>()
+            .AsNoTracking()
+            .Where(repository => repositoryIds.Contains(repository.Id))
+            .SumAsync(repository => repository.PullRequestCount, cancellationToken);
+    }
+
+    private async Task<Dictionary<string, List<SymphonyInstanceRecord>>> LoadActiveInstancesByRepositoryAsync(
+        IEnumerable<string> repositoryIds,
+        CancellationToken cancellationToken)
+    {
+        string[] ids = repositoryIds.Distinct(StringComparer.Ordinal).ToArray();
+
+        if (ids.Length == 0)
+        {
+            return new Dictionary<string, List<SymphonyInstanceRecord>>(StringComparer.Ordinal);
+        }
+
+        List<SymphonyInstanceRecord> instances = await dbContext.Set<SymphonyInstanceRecord>()
+            .AsNoTracking()
+            .Where(instance =>
+                ids.Contains(instance.RepositoryId) &&
+                instance.Status != nameof(InstanceLifecycleStatus.Destroyed))
+            .ToListAsync(cancellationToken);
+
+        return instances
+            .GroupBy(instance => instance.RepositoryId, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.ToList(),
+                StringComparer.Ordinal);
+    }
+
+    private async Task<Dictionary<string, DateTimeOffset>> LoadLatestSnapshotsByInstanceAsync(
+        IEnumerable<string> instanceIds,
+        CancellationToken cancellationToken)
+    {
+        string[] ids = instanceIds.Distinct(StringComparer.Ordinal).ToArray();
+
+        if (ids.Length == 0)
+        {
+            return new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal);
+        }
+
+        List<InstanceSnapshotRecord> snapshots = await dbContext.Set<InstanceSnapshotRecord>()
+            .AsNoTracking()
+            .Where(snapshot => ids.Contains(snapshot.SymphonyInstanceId))
+            .ToListAsync(cancellationToken);
+
+        return snapshots
+            .GroupBy(snapshot => snapshot.SymphonyInstanceId, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Max(snapshot => snapshot.CapturedAtUtc),
+                StringComparer.Ordinal);
+    }
+
+    private static string FormatId(Guid id) => id.ToString("D");
+
+    private static ProjectId? ParseProjectId(string? id) =>
+        string.IsNullOrWhiteSpace(id) ? null : new ProjectId(Guid.Parse(id));
+
+    private static RepositoryId ParseRepositoryId(string id) => new(Guid.Parse(id));
+
+    private static SymphonyInstanceId ParseSymphonyInstanceId(string id) => new(Guid.Parse(id));
+
+    private static TEnum ParseEnum<TEnum>(string value)
+        where TEnum : struct, Enum =>
+        Enum.Parse<TEnum>(value);
+
+    private static int MapHealthSeverity(InstanceHealthStatus status) => status switch
+    {
+        InstanceHealthStatus.Healthy => 0,
+        InstanceHealthStatus.Unknown => 1,
+        InstanceHealthStatus.Warning => 2,
+        InstanceHealthStatus.Critical => 3,
+        InstanceHealthStatus.Offline => 4,
+        _ => 1,
     };
 }
