@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -93,6 +94,13 @@ public sealed class ManualInstanceRegistrationEndpointTests
         {
             connection.Open();
 
+            builder.ConfigureAppConfiguration((_, configuration) =>
+            {
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["InstanceCollector:Enabled"] = "false",
+                });
+            });
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<ConductorDbContext>();

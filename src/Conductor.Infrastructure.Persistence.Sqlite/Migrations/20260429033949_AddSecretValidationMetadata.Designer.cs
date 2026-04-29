@@ -3,6 +3,7 @@ using System;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
 {
     [DbContext(typeof(ConductorDbContext))]
-    partial class ConductorDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260429033949_AddSecretValidationMetadata")]
+    partial class AddSecretValidationMetadata
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -541,26 +544,6 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                     b.ToTable("RunAttempts", (string)null);
                 });
 
-            modelBuilder.Entity("Conductor.Core.Domain.Secrets.EncryptedSecretValue", b =>
-                {
-                    b.Property<Guid>("SecretId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ProtectedValue")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("RotatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("SecretId");
-
-                    b.ToTable("EncryptedSecretValues", (string)null);
-                });
-
             modelBuilder.Entity("Conductor.Core.Domain.Secrets.SecretDescriptor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -935,15 +918,6 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                     b.HasOne("Conductor.Core.Domain.Runs.Run", null)
                         .WithMany()
                         .HasForeignKey("RunId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Conductor.Core.Domain.Secrets.EncryptedSecretValue", b =>
-                {
-                    b.HasOne("Conductor.Core.Domain.Secrets.SecretDescriptor", null)
-                        .WithOne()
-                        .HasForeignKey("Conductor.Core.Domain.Secrets.EncryptedSecretValue", "SecretId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

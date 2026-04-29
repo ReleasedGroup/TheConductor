@@ -1,0 +1,19 @@
+{
+  "sessions": [
+    {
+      "issue": "32",
+      "sessionId": "session-32",
+      "turnCount": 4,
+      "lastActivityUtc": "2026-04-29T01:00:00Z",
+      "tokens": {
+        "input": 1200,
+        "output": 640
+      }
+    }
+  ],
+  "retryQueue": [],
+  "trackedIssues": {
+    "running": 1,
+    "blocked": 0
+  }
+}
