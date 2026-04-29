@@ -43,6 +43,7 @@ public sealed class SqlitePersistenceSmokeTests
         "Alerts",
         "Reports",
         "SecretDescriptors",
+        "EncryptedSecretValues",
         "AuditEvents",
         "BackgroundOperations",
     ];

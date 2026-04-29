@@ -3,6 +3,7 @@ using System;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
 {
     [DbContext(typeof(ConductorDbContext))]
-    partial class ConductorDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260429033219_AddEncryptedSecretValues")]
+    partial class AddEncryptedSecretValues
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -606,19 +609,7 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                     b.Property<int>("ActiveIssueCount")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("ApplicationName")
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ApplicationVersion")
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTimeOffset>("CapturedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("FailedRunCount")
@@ -632,28 +623,11 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("HttpStatusCode")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long?>("LatencyMilliseconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("PersistenceProvider")
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("RetryQueueCount")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("RunningSessionCount")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("RuntimeDefaultsJson")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RuntimeInstanceId")
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("RuntimeJson")
                         .HasColumnType("TEXT");
@@ -669,18 +643,6 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Migrations
 
                     b.Property<long>("TokenOutputTotal")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("WorkflowOwner")
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("WorkflowRepository")
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("WorkflowSourcePath")
-                        .HasMaxLength(2048)
-                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
