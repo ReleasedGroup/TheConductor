@@ -91,7 +91,8 @@ a {
 }
 
 .dashboard,
-.instances-page {
+.instances-page,
+.repositories-page {
   display: grid;
   gap: 24px;
   max-width: 1220px;
@@ -1147,7 +1148,9 @@ h2 {
 }
 
 .instance-registration,
-.instances-panel {
+.instances-panel,
+.repository-import,
+.repositories-panel {
   display: grid;
   gap: 18px;
   padding: 24px;
@@ -1176,6 +1179,113 @@ h2 {
   font-size: 0.8rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.repository-import-form {
+  display: grid;
+  gap: 18px;
+}
+
+.import-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.repository-import-form label {
+  display: grid;
+  gap: 8px;
+  color: #dbe6ee;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.repository-import-form input,
+.repository-import-form select {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid #3b4652;
+  border-radius: 6px;
+  background: #111417;
+  color: #ffffff;
+  font: inherit;
+}
+
+.repository-import-form input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
+.repository-import-form input:focus,
+.repository-import-form select:focus {
+  border-color: #9ee7d7;
+  outline: 2px solid rgba(158, 231, 215, 0.18);
+  outline-offset: 1px;
+}
+
+.repository-import-form input:disabled,
+.repository-import-form select:disabled {
+  cursor: not-allowed;
+  opacity: 0.66;
+}
+
+.import-options,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.checkbox-row {
+  display: inline-flex;
+  grid-template-columns: none;
+  align-items: center;
+  min-height: 34px;
+  gap: 8px;
+}
+
+.orchestration-shell {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid #2b3138;
+  border-radius: 8px;
+  background: #191f25;
+}
+
+.orchestration-shell legend {
+  padding: 0 6px;
+  color: #aeb9c5;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.form-actions button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #2d6f5e;
+  border-radius: 6px;
+  background: #1f7665;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.form-actions button:hover:not(:disabled),
+.form-actions button:focus-visible {
+  background: #259078;
+}
+
+.form-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.66;
 }
 
 .registration-form {
@@ -1249,25 +1359,30 @@ h2 {
   margin-bottom: 0;
 }
 
-.instances-table-wrap {
+.instances-table-wrap,
+.repositories-table-wrap {
   overflow-x: auto;
 }
 
-.instances-table {
+.instances-table,
+.repositories-table {
   width: 100%;
   min-width: 780px;
   border-collapse: collapse;
 }
 
 .instances-table th,
-.instances-table td {
+.instances-table td,
+.repositories-table th,
+.repositories-table td {
   padding: 14px 12px;
   border-top: 1px solid #2b3138;
   text-align: left;
   vertical-align: middle;
 }
 
-.instances-table th {
+.instances-table th,
+.repositories-table th {
   color: #aeb9c5;
   font-size: 0.78rem;
   font-weight: 800;
@@ -1316,21 +1431,30 @@ h2 {
   color: #f2c14e;
 }
 
-.instances-table td {
+.instances-table td,
+.repositories-table td {
   color: #dbe6ee;
 }
 
-.instances-table td:first-child {
+.instances-table td:first-child,
+.repositories-table td:first-child,
+.repositories-table td:nth-child(5) {
   display: grid;
   gap: 5px;
 }
 
-.instances-table td:first-child a {
+.instances-table td:first-child a,
+.repositories-table td:first-child a,
+.repositories-table small {
   width: fit-content;
   max-width: 100%;
   color: #9cc2ff;
   font-size: 0.84rem;
   overflow-wrap: anywhere;
+}
+
+.repositories-table small {
+  color: #aeb9c5;
 }
 
 .ui-state {
@@ -1488,6 +1612,7 @@ h2 {
   .activity-panel,
   .registration-form,
   .form-fields,
+  .import-form-grid,
   .live-activity-header,
   .startup-panel dl {
     grid-template-columns: 1fr;

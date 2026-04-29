@@ -1,0 +1,417 @@
+@page "/repositories"
+@rendermode InteractiveServer
+@using Conductor.Core.Application.Queries
+@using Conductor.Core.Application.Repositories
+@using Conductor.Core.Domain
+@using Conductor.Core.Domain.Ids
+@inject IRepositoryImportService RepositoryImportService
+@inject IRepositoryListQueryService RepositoryListQueryService
+@inject IProjectListQueryService ProjectListQueryService
+
+<PageTitle>Repositories - Conductor</PageTitle>
+
+<section class="repositories-page">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Repository registry</p>
+            <h1>Repositories</h1>
+            <p class="dashboard-summary">Import GitHub repositories and prepare orchestration shells.</p>
+        </div>
+        <div class="dashboard-meta">
+            <StatusBadge Text="@($"{repositories.Count} managed")" Tone="@StatusBadgeTone.Info" />
+        </div>
+    </header>
+
+    <section class="repository-import" aria-label="Import GitHub repository">
+        <form class="repository-import-form" @onsubmit="ImportRepositoryAsync" @onsubmit:preventDefault>
+            <div class="import-form-grid">
+                <label>
+                    <span>GitHub repository</span>
+                    <input
+                        id="repository-full-name"
+                        type="text"
+                        required
+                        placeholder="owner/name"
+                        autocomplete="off"
+                        @bind="importForm.RepositoryFullName"
+                        disabled="@isSubmitting" />
+                </label>
+                <label>
+                    <span>Default branch</span>
+                    <input
+                        type="text"
+                        required
+                        maxlength="255"
+                        @bind="importForm.DefaultBranch"
+                        disabled="@isSubmitting" />
+                </label>
+                <label>
+                    <span>Project</span>
+                    <select @bind="importForm.ProjectId" disabled="@isSubmitting">
+                        <option value="">Unassigned</option>
+                        @foreach (ProjectListItemProjection project in projects)
+                        {
+                            <option value="@project.Id.ToString()">@project.Name</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    <span>Visibility</span>
+                    <select @bind="importForm.Visibility" disabled="@isSubmitting">
+                        @foreach (RepositoryVisibility visibility in Enum.GetValues<RepositoryVisibility>())
+                        {
+                            <option value="@visibility.ToString()">@visibility</option>
+                        }
+                    </select>
+                </label>
+            </div>
+
+            <div class="import-options">
+                <label class="checkbox-row">
+                    <input
+                        id="repository-archived"
+                        type="checkbox"
+                        @bind="importForm.IsArchived"
+                        disabled="@isSubmitting" />
+                    <span>Archived</span>
+                </label>
+                <label class="checkbox-row">
+                    <input
+                        id="create-instance-shell"
+                        type="checkbox"
+                        @bind="importForm.CreateSymphonyInstance"
+                        disabled="@isSubmitting || importForm.IsArchived" />
+                    <span>Create Symphony instance shell</span>
+                </label>
+            </div>
+
+            @if (importForm.CreateSymphonyInstance && !importForm.IsArchived)
+            {
+                <fieldset class="orchestration-shell">
+                    <legend>Orchestration shell</legend>
+                    <div class="import-form-grid">
+                        <label>
+                            <span>Instance name</span>
+                            <input
+                                type="text"
+                                maxlength="200"
+                                @bind="importForm.InstanceDisplayName"
+                                disabled="@isSubmitting" />
+                        </label>
+                        <label>
+                            <span>Instance URL</span>
+                            <input
+                                id="instance-base-url"
+                                type="url"
+                                required
+                                inputmode="url"
+                                @bind="importForm.InstanceBaseUrl"
+                                disabled="@isSubmitting" />
+                        </label>
+                        <label>
+                            <span>Execution mode</span>
+                            <select @bind="importForm.ExecutionMode" disabled="@isSubmitting">
+                                @foreach (ExecutionMode executionMode in Enum.GetValues<ExecutionMode>())
+                                {
+                                    <option value="@executionMode.ToString()">@executionMode</option>
+                                }
+                            </select>
+                        </label>
+                        <label>
+                            <span>Port</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="65535"
+                                @bind="importForm.Port"
+                                disabled="@isSubmitting" />
+                        </label>
+                        <label>
+                            <span>Symphony release</span>
+                            <input
+                                type="text"
+                                maxlength="128"
+                                @bind="importForm.ReleaseTag"
+                                disabled="@isSubmitting" />
+                        </label>
+                        <label>
+                            <span>GitHub credential</span>
+                            <select @bind="importForm.GitHubCredentialMode" disabled="@isSubmitting">
+                                <option value="@CredentialInheritanceMode.InheritDefault.ToString()">Inherit default</option>
+                                <option value="@CredentialInheritanceMode.None.ToString()">None</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>OpenAI/Codex credential</span>
+                            <select @bind="importForm.OpenAiCredentialMode" disabled="@isSubmitting">
+                                <option value="@CredentialInheritanceMode.InheritDefault.ToString()">Inherit default</option>
+                                <option value="@CredentialInheritanceMode.None.ToString()">None</option>
+                            </select>
+                        </label>
+                    </div>
+                </fieldset>
+            }
+
+            <div class="form-actions">
+                <button type="submit" disabled="@isSubmitting">
+                    @(isSubmitting ? "Importing" : "Import repository")
+                </button>
+            </div>
+        </form>
+
+        @if (validationMessages.Count > 0)
+        {
+            <ErrorState
+                Title="Repository was not imported."
+                Message="Review the validation result and retry."
+                Detail="@string.Join(" ", validationMessages)" />
+        }
+        else if (importError is not null)
+        {
+            <ErrorState
+                Title="Repository was not imported."
+                Message="The import request did not complete."
+                Detail="@importError" />
+        }
+        else if (importResult is not null)
+        {
+            <SuccessState
+                Title="@($"{importResult.RepositoryFullName} imported")"
+                Message="@BuildImportSummary(importResult)" />
+        }
+    </section>
+
+    <section class="repositories-panel" aria-label="Managed repositories">
+        <div class="instances-panel-header">
+            <div>
+                <p class="eyebrow">Registry</p>
+                <h2>Managed repositories</h2>
+            </div>
+        </div>
+
+        @if (loadError is not null)
+        {
+            <ErrorState
+                Title="Repositories could not be loaded."
+                Message="Check the persistence store and retry."
+                Detail="@loadError" />
+        }
+        else if (isLoading)
+        {
+            <LoadingState
+                Title="Loading repositories"
+                Message="Reading persisted repository registry data." />
+        }
+        else if (repositories.Count == 0)
+        {
+            <EmptyState
+                Title="No repositories are imported."
+                Message="Imported GitHub repositories will appear here after validation succeeds." />
+        }
+        else
+        {
+            <div class="repositories-table-wrap">
+                <table class="repositories-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Repository</th>
+                            <th scope="col">Project</th>
+                            <th scope="col">Branch</th>
+                            <th scope="col">Health</th>
+                            <th scope="col">Instances</th>
+                            <th scope="col">Last health</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (RepositoryListItemProjection repository in repositories)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@repository.FullName</strong>
+                                    <a href="@repository.WebUrl.AbsoluteUri" target="_blank" rel="noreferrer">@repository.Provider</a>
+                                </td>
+                                <td>@(repository.ProjectName ?? "Unassigned")</td>
+                                <td>@repository.DefaultBranch</td>
+                                <td>
+                                    <StatusBadge
+                                        Text="@repository.WorstHealthStatus.ToString()"
+                                        Tone="@MapHealthTone(repository.WorstHealthStatus)" />
+                                </td>
+                                <td>
+                                    <span>@repository.InstanceCount total</span>
+                                    <small>@repository.RunningInstanceCount running</small>
+                                </td>
+                                <td>@FormatTimestamp(repository.LastHealthCheckAtUtc)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</section>
+
+@code {
+    private readonly RepositoryImportForm importForm = new();
+    private IReadOnlyList<RepositoryListItemProjection> repositories = [];
+    private IReadOnlyList<ProjectListItemProjection> projects = [];
+    private readonly List<string> validationMessages = [];
+    private RepositoryImportResult? importResult;
+    private string? importError;
+    private string? loadError;
+    private bool isLoading = true;
+    private bool isSubmitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageDataAsync();
+    }
+
+    private async Task ImportRepositoryAsync()
+    {
+        validationMessages.Clear();
+        importError = null;
+        importResult = null;
+        isSubmitting = true;
+
+        try
+        {
+            importResult = await RepositoryImportService.ImportAsync(CreateRequest());
+            importForm.Reset();
+            await LoadPageDataAsync();
+        }
+        catch (RepositoryImportValidationException ex)
+        {
+            validationMessages.AddRange(ex.Errors.SelectMany(error => error.Value));
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            importError = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private RepositoryImportRequest CreateRequest()
+    {
+        ProjectId? projectId = null;
+        if (ProjectId.TryParse(importForm.ProjectId, out ProjectId parsedProjectId))
+        {
+            projectId = parsedProjectId;
+        }
+
+        return new RepositoryImportRequest(
+            importForm.RepositoryFullName,
+            importForm.DefaultBranch,
+            Visibility: ParseEnum<RepositoryVisibility>(importForm.Visibility),
+            IsArchived: importForm.IsArchived,
+            ProjectId: projectId,
+            CreateSymphonyInstance: importForm.CreateSymphonyInstance,
+            InstanceDisplayName: importForm.InstanceDisplayName,
+            ExecutionMode: ParseEnum<ExecutionMode>(importForm.ExecutionMode),
+            InstanceBaseUrl: importForm.InstanceBaseUrl,
+            Port: importForm.Port,
+            ReleaseTag: importForm.ReleaseTag,
+            GitHubCredentialInheritanceMode: ParseEnum<CredentialInheritanceMode>(importForm.GitHubCredentialMode),
+            OpenAiCredentialInheritanceMode: ParseEnum<CredentialInheritanceMode>(importForm.OpenAiCredentialMode),
+            RequestedByUserId: "ui");
+    }
+
+    private async Task LoadPageDataAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            projects = await ProjectListQueryService.ListProjectsAsync(new ProjectListQuery());
+            repositories = await RepositoryListQueryService.ListRepositoriesAsync(new RepositoryListQuery());
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            loadError = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static TEnum ParseEnum<TEnum>(string value)
+        where TEnum : struct, Enum
+    {
+        return Enum.TryParse(value, out TEnum parsed)
+            ? parsed
+            : default;
+    }
+
+    private static StatusBadgeTone MapHealthTone(InstanceHealthStatus healthStatus) => healthStatus switch
+    {
+        InstanceHealthStatus.Healthy => StatusBadgeTone.Success,
+        InstanceHealthStatus.Warning => StatusBadgeTone.Warning,
+        InstanceHealthStatus.Critical or InstanceHealthStatus.Offline => StatusBadgeTone.Critical,
+        _ => StatusBadgeTone.Neutral,
+    };
+
+    private static string FormatTimestamp(DateTimeOffset? timestamp)
+    {
+        return timestamp is null
+            ? "Not checked"
+            : timestamp.Value.ToLocalTime().ToString("MMM d, yyyy HH:mm");
+    }
+
+    private static string BuildImportSummary(RepositoryImportResult result)
+    {
+        return result.CreatedSymphonyInstance
+            ? $"{result.SymphonyInstanceDisplayName} was created in NotProvisioned state."
+            : "Repository metadata is ready for orchestration setup.";
+    }
+
+    private sealed class RepositoryImportForm
+    {
+        public string RepositoryFullName { get; set; } = string.Empty;
+
+        public string DefaultBranch { get; set; } = "main";
+
+        public string ProjectId { get; set; } = string.Empty;
+
+        public string Visibility { get; set; } = RepositoryVisibility.Public.ToString();
+
+        public bool IsArchived { get; set; }
+
+        public bool CreateSymphonyInstance { get; set; }
+
+        public string? InstanceDisplayName { get; set; }
+
+        public string ExecutionMode { get; set; } = Conductor.Core.Domain.ExecutionMode.LocalProcess.ToString();
+
+        public string InstanceBaseUrl { get; set; } = "http://localhost:8080/";
+
+        public int? Port { get; set; } = 8080;
+
+        public string ReleaseTag { get; set; } = "latest";
+
+        public string GitHubCredentialMode { get; set; } = CredentialInheritanceMode.InheritDefault.ToString();
+
+        public string OpenAiCredentialMode { get; set; } = CredentialInheritanceMode.InheritDefault.ToString();
+
+        public void Reset()
+        {
+            RepositoryFullName = string.Empty;
+            DefaultBranch = "main";
+            ProjectId = string.Empty;
+            Visibility = RepositoryVisibility.Public.ToString();
+            IsArchived = false;
+            CreateSymphonyInstance = false;
+            InstanceDisplayName = null;
+            ExecutionMode = Conductor.Core.Domain.ExecutionMode.LocalProcess.ToString();
+            InstanceBaseUrl = "http://localhost:8080/";
+            Port = 8080;
+            ReleaseTag = "latest";
+            GitHubCredentialMode = CredentialInheritanceMode.InheritDefault.ToString();
+            OpenAiCredentialMode = CredentialInheritanceMode.InheritDefault.ToString();
+        }
+    }
+}
