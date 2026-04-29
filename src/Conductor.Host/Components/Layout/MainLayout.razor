@@ -1,42 +1,21 @@
 @inherits LayoutComponentBase
 
 <div class="app-shell">
-    <aside class="sidebar" aria-label="Primary navigation">
-        <div class="brand">
+    <aside class="side-nav" aria-label="Primary">
+        <a class="brand" href="/">
             <span class="brand-mark" aria-hidden="true">C</span>
-            <div>
-                <div class="brand-name">Conductor</div>
-                <div class="brand-subtitle">Fleet control</div>
-            </div>
-        </div>
-
-        <nav class="nav-list">
-            <a class="nav-link active" href="/">Dashboard</a>
-            <a class="nav-link" href="/">Projects</a>
-            <a class="nav-link" href="/">Repositories</a>
-            <a class="nav-link" href="/">Runs</a>
-            <a class="nav-link" href="/">Reports</a>
-            <a class="nav-link" href="/">Infrastructure</a>
+            <span>Conductor</span>
+        </a>
+        <nav>
+            <a href="/" aria-current="page">Dashboard</a>
+            <a href="/projects">Projects</a>
+            <a href="/repositories">Repositories</a>
+            <a href="/instances">Instances</a>
+            <a href="/reports">Reports</a>
         </nav>
     </aside>
 
-    <div class="workspace">
-        <header class="topbar">
-            <div>
-                <p class="eyebrow">Software delivery control surface</p>
-                <p class="topbar-title">Portfolio operations</p>
-            </div>
-            <div class="environment-pill">Local development</div>
-        </header>
-
-        <main class="content">
-            @Body
-        </main>
-    </div>
-</div>
-
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">x</span>
+    <main class="main-panel">
+        @Body
+    </main>
 </div>

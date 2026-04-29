@@ -1,11 +1,19 @@
 using Conductor.Host.Components;
+using Conductor.Host.Endpoints;
+using Conductor.Host.Workers;
+using Conductor.Infrastructure.Persistence.Sqlite;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRazorComponents()
+builder.Services
+    .AddRazorComponents()
     .AddInteractiveServerComponents();
 
-var app = builder.Build();
+builder.Services.AddHealthChecks();
+builder.Services.AddConductorPersistence(builder.Configuration);
+builder.Services.AddConductorWorkers();
+
+WebApplication app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -14,18 +22,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UseStaticFiles();
 app.UseAntiforgery();
 
-app.MapStaticAssets();
 app.MapGet("/favicon.ico", () => Results.NoContent()).ExcludeFromDescription();
-app.MapGet("/health/live", () => Results.Ok(new HealthCheckResponse("Healthy", "Conductor.Host")));
-app.MapGet("/health/ready", () => Results.Ok(new HealthCheckResponse("Ready", "Conductor.Host")));
+app.MapConductorHealth();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
-
-internal sealed record HealthCheckResponse(string Status, string Service);
 
 public partial class Program;

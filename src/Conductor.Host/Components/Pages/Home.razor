@@ -2,113 +2,54 @@
 
 <PageTitle>Conductor Dashboard</PageTitle>
 
-<section class="dashboard-heading">
-    <div>
-        <p class="eyebrow">Sprint 0 foundation</p>
-        <h1>Conductor dashboard</h1>
-    </div>
-    <div class="status-summary">
-        <span class="status-dot healthy" aria-hidden="true"></span>
-        Host online
-    </div>
-</section>
-
-<section class="metric-grid" aria-label="Portfolio metrics">
-    @foreach (var metric in Metrics)
-    {
-        <article class="metric-panel">
-            <span class="metric-label">@metric.Label</span>
-            <strong>@metric.Value</strong>
-            <span class="metric-detail">@metric.Detail</span>
-        </article>
-    }
-</section>
-
-<section class="dashboard-grid">
-    <article class="panel">
-        <div class="panel-header">
-            <div>
-                <p class="eyebrow">Repository fleet</p>
-                <h2>Active repositories</h2>
-            </div>
-            <span class="panel-meta">Demo data</span>
+<section class="dashboard">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Fleet overview</p>
+            <h1>Conductor Dashboard</h1>
         </div>
+        <span class="status-pill">Sprint 0 scaffold</span>
+    </header>
 
-        <div class="repository-table" role="table" aria-label="Active repositories">
-            <div class="table-row table-head" role="row">
-                <span role="columnheader">Project</span>
-                <span role="columnheader">Repository</span>
-                <span role="columnheader">Health</span>
-                <span role="columnheader">Running</span>
-                <span role="columnheader">Updated</span>
-            </div>
-            @foreach (var repository in Repositories)
+    <section class="metric-grid" aria-label="Dashboard metrics">
+        @foreach ((string Label, string Value, string Hint) metric in Metrics)
+        {
+            <article class="metric-tile">
+                <span>@metric.Label</span>
+                <strong>@metric.Value</strong>
+                <small>@metric.Hint</small>
+            </article>
+        }
+    </section>
+
+    <section class="activity-panel">
+        <div>
+            <h2>Operational baseline</h2>
+            <p>The host is running with the initial project, persistence, and test structure in place.</p>
+        </div>
+        <ul>
+            @foreach (string indicator in Indicators)
             {
-                <div class="table-row" role="row">
-                    <span role="cell">@repository.Project</span>
-                    <span role="cell">@repository.Name</span>
-                    <span role="cell">
-                        <span class="health-badge @repository.HealthClass">@repository.Health</span>
-                    </span>
-                    <span role="cell">@repository.RunningAgents</span>
-                    <span role="cell">@repository.Updated</span>
-                </div>
+                <li>@indicator</li>
             }
-        </div>
-    </article>
-
-    <aside class="panel attention-panel" aria-label="Needs attention">
-        <div class="panel-header">
-            <div>
-                <p class="eyebrow">Operations</p>
-                <h2>Needs attention</h2>
-            </div>
-        </div>
-
-        <ol class="attention-list">
-            @foreach (var item in AttentionItems)
-            {
-                <li>
-                    <strong>@item.Title</strong>
-                    <span>@item.Detail</span>
-                </li>
-            }
-        </ol>
-    </aside>
+        </ul>
+    </section>
 </section>
 
 @code {
-    private static readonly Metric[] Metrics =
+    private static readonly (string Label, string Value, string Hint)[] Metrics =
     [
-        new("Managed repositories", "0", "Registry pending"),
-        new("Symphony instances", "0", "No active runners"),
-        new("Active agents", "0", "Idle"),
-        new("Blocked issues", "0", "No alerts")
+        ("Projects", "0", "Ready for Sprint 1 seed data"),
+        ("Repositories", "0", "Import workflow pending"),
+        ("Instances", "0", "Provisioning starts in later sprints"),
+        ("Alerts", "0", "In-app rules not active yet"),
     ];
 
-    private static readonly RepositoryRow[] Repositories =
+    private static readonly string[] Indicators =
     [
-        new("Foundation", "conductor-host", "Healthy", "healthy", "0", "Just now"),
-        new("Platform", "persistence", "Pending", "warning", "0", "Not provisioned"),
-        new("Operations", "runners", "Pending", "warning", "0", "Not provisioned")
+        "Blazor Web App host",
+        "SQLite persistence registration",
+        "Health endpoints",
+        "Layered test projects",
     ];
-
-    private static readonly AttentionItem[] AttentionItems =
-    [
-        new("No managed repositories", "Repository registry is empty."),
-        new("No Symphony instances", "Fleet runtime is idle."),
-        new("CI baseline", "Automation workflow is not configured.")
-    ];
-
-    private sealed record Metric(string Label, string Value, string Detail);
-
-    private sealed record RepositoryRow(
-        string Project,
-        string Name,
-        string Health,
-        string HealthClass,
-        string RunningAgents,
-        string Updated);
-
-    private sealed record AttentionItem(string Title, string Detail);
 }
