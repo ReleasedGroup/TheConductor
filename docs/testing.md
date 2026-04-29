@@ -26,6 +26,7 @@ dotnet restore Conductor.slnx
 dotnet build Conductor.slnx --no-restore --warnaserror
 dotnet test Conductor.slnx --no-build
 dotnet format Conductor.slnx --verify-no-changes
+./scripts/validate-docs.ps1
 ```
 
 Warnings are treated as failures. Do not commit changes that require suppressing compiler, analyzer, package, formatter, or test warnings unless the suppression is intentional and documented.
