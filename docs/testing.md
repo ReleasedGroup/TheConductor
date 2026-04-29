@@ -11,7 +11,7 @@ The solution includes the Sprint 0 test skeletons from `docs/technical.md`:
 | `tests/Conductor.Core.Tests` | Unit tests for domain rules, application services, workflow generation, release selection, secret behavior, and alert logic. |
 | `tests/Conductor.Persistence.Tests` | SQLite persistence tests for migrations, repositories, query projections, retention, and audit writes. |
 | `tests/Conductor.Api.Tests` | Minimal API tests using `WebApplicationFactory` for endpoint behavior, authorization, and validation responses. |
-| `tests/Conductor.Blazor.Tests` | bUnit component tests for dashboard UI, status badges, forms, and secret-safe rendering. |
+| `tests/Conductor.Blazor.Tests` | bUnit component tests for dashboard UI, shared loading/empty/error/success states, status badges, forms, and secret-safe rendering. |
 | `tests/Conductor.Integration.Tests` | Fixture-backed integration tests for clients, runners, and cross-project workflows that do not require external credentials by default. |
 | `tests/Conductor.Host.Tests` | Host smoke tests for application startup, routing, and health behavior. |
 

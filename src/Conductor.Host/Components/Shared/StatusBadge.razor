@@ -1,17 +1,47 @@
-<span class="@CssClass" aria-label="@AriaLabel">
-    @Text
+<span class="@CssClass" aria-label="@AccessibleLabel">
+    <span class="status-badge-indicator" aria-hidden="true"></span>
+    <span>@EffectiveText</span>
 </span>
 
 @code {
     [Parameter]
-    public string Text { get; set; } = "Unknown";
+    public string? Text { get; set; }
 
     [Parameter]
-    public string? Tone { get; set; }
+    public StatusBadgeTone Tone { get; set; } = StatusBadgeTone.Neutral;
 
-    private string NormalizedTone => (Tone ?? Text).Trim().ToLowerInvariant().Replace(" ", "-");
+    [Parameter]
+    public string? Class { get; set; }
 
-    private string CssClass => $"status-badge status-{NormalizedTone}";
+    private string EffectiveText =>
+        string.IsNullOrWhiteSpace(Text) ? GetToneLabel(Tone) : Text;
 
-    private string AriaLabel => $"Status: {Text}";
+    private string AccessibleLabel => $"{GetToneLabel(Tone)} status: {EffectiveText}";
+
+    private string CssClass =>
+        string.IsNullOrWhiteSpace(Class)
+            ? $"status-badge status-badge--{GetToneCssName(Tone)}"
+            : $"status-badge status-badge--{GetToneCssName(Tone)} {Class}";
+
+    private static string GetToneLabel(StatusBadgeTone tone) =>
+        tone switch
+        {
+            StatusBadgeTone.Neutral => "Neutral",
+            StatusBadgeTone.Info => "Info",
+            StatusBadgeTone.Success => "Success",
+            StatusBadgeTone.Warning => "Warning",
+            StatusBadgeTone.Critical => "Critical",
+            _ => "Neutral",
+        };
+
+    private static string GetToneCssName(StatusBadgeTone tone) =>
+        tone switch
+        {
+            StatusBadgeTone.Neutral => "neutral",
+            StatusBadgeTone.Info => "info",
+            StatusBadgeTone.Success => "success",
+            StatusBadgeTone.Warning => "warning",
+            StatusBadgeTone.Critical => "critical",
+            _ => "neutral",
+        };
 }

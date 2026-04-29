@@ -30,13 +30,14 @@ public sealed class DashboardComponentTests : BunitContext
     public void StatusBadgeIncludesTextAndToneClass()
     {
         IRenderedComponent<StatusBadge> badge = Render<StatusBadge>(parameters => parameters
-            .Add(component => component.Text, "Critical"));
+            .Add(component => component.Text, "Critical")
+            .Add(component => component.Tone, StatusBadgeTone.Critical));
 
         var element = badge.Find(".status-badge");
 
         Assert.Contains("Critical", element.TextContent);
-        Assert.Contains("status-critical", element.GetAttribute("class"));
-        Assert.Equal("Status: Critical", element.GetAttribute("aria-label"));
+        Assert.Contains("status-badge--critical", element.GetAttribute("class"));
+        Assert.Equal("Critical status: Critical", element.GetAttribute("aria-label"));
     }
 
     [Fact]
@@ -73,7 +74,7 @@ public sealed class DashboardComponentTests : BunitContext
 
         Assert.Contains("billing-api", table.Markup);
         Assert.NotNull(table.Find("td.danger-cell"));
-        Assert.Contains("status-warning", table.Find(".status-badge").GetAttribute("class"));
+        Assert.Contains("status-badge--warning", table.Find(".status-badge").GetAttribute("class"));
     }
 
     private static DashboardProjection CreateProjection()

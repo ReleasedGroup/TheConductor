@@ -39,19 +39,6 @@ public sealed record RepositoryRow
     public string Sparkline { get; init; } = string.Empty;
 }
 
-public sealed record ActivityEvent
-{
-    public string Time { get; init; } = string.Empty;
-
-    public string Repository { get; init; } = string.Empty;
-
-    public string Reference { get; init; } = string.Empty;
-
-    public string Summary { get; init; } = string.Empty;
-
-    public string Tone { get; init; } = "neutral";
-}
-
 public sealed record QuickAction
 {
     public string Title { get; init; } = string.Empty;

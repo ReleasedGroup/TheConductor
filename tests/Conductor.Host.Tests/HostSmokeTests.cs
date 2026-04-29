@@ -23,7 +23,7 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
     }
 
     [Fact]
-    public async Task HomePageServesProjectionDashboard()
+    public async Task HomePageServesProjectionDashboardWithLiveActivity()
     {
         using HttpClient client = CreateClient();
 
@@ -34,6 +34,8 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
         Assert.Contains("Repository orchestration health", content);
         Assert.Contains("Needs attention", content);
         Assert.Contains("Active Repositories", content);
+        Assert.Contains("Live activity", content);
+        Assert.Contains("Tests failed and a continuation run started.", content);
     }
 
     private HttpClient CreateClient() =>

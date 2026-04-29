@@ -1,23 +1,25 @@
 @page "/"
 @using System.Text.Json
+@using Conductor.Core.Application.Dashboard
+@using Conductor.Core.Domain
 @inject IDashboardProjectionStore DashboardProjectionStore
 
 <PageTitle>Dashboard | Conductor</PageTitle>
 
 @if (loadError is not null)
 {
-    <section class="state-panel" role="alert">
-        <p class="eyebrow">Dashboard unavailable</p>
-        <h1>Projection data could not be loaded.</h1>
-        <p>@loadError</p>
-    </section>
+    <ErrorState
+        Class="state-panel"
+        Title="Dashboard metrics could not be loaded."
+        Message="Check the dashboard projection source and try again."
+        Detail="@loadError" />
 }
 else if (projection is null)
 {
-    <section class="state-panel" aria-busy="true">
-        <p class="eyebrow">Loading</p>
-        <h1>Dashboard projection is loading.</h1>
-    </section>
+    <LoadingState
+        Class="state-panel"
+        Title="Loading dashboard metrics"
+        Message="Fetching persisted dashboard projection data." />
 }
 else
 {
@@ -29,23 +31,26 @@ else
                 <p>Good morning, Nick. Here is what is happening across your software orchestra.</p>
             </div>
             <div class="scope-controls" aria-label="Dashboard filters">
-                <span class="status-pill">Sprint 2 metrics</span>
+                <StatusBadge Text="Sprint 2 metrics" Tone="StatusBadgeTone.Info" />
                 <span class="projection-stamp">Projection @projection.CapturedAtUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm")</span>
             </div>
         </div>
 
         @if (projection.Metrics.Count == 0)
         {
-            <div class="dashboard-state">No dashboard metrics are available yet.</div>
+            <EmptyState
+                Class="dashboard-state"
+                Title="No dashboard metrics are available yet."
+                Message="Metrics will appear after dashboard projection data is collected." />
         }
         else
         {
-            <div class="metric-grid" aria-label="Fleet metrics">
+            <section class="metric-grid" aria-label="Dashboard metrics">
                 @foreach (DashboardMetric metric in projection.Metrics)
                 {
                     <MetricTile Metric="metric" />
                 }
-            </div>
+            </section>
         }
 
         <div class="dashboard-grid">
@@ -57,12 +62,14 @@ else
             <NeedsAttentionPanel Items="AttentionItems" />
             <RepositoryTable Repositories="Repositories" />
             <QuickActions Actions="QuickActions" />
-            <LiveActivityStream Events="Activity" />
+            <LiveActivityStream Events="ActivityEvents" ReferenceTimeUtc="ReferenceTimeUtc" />
         </div>
     </section>
 }
 
 @code {
+    private static readonly DateTimeOffset ReferenceTimeUtc = new(2026, 4, 29, 18, 20, 0, TimeSpan.Zero);
+
     private DashboardProjection? projection;
     private string? loadError;
 
@@ -122,13 +129,43 @@ else
         new() { Project = "Marketing Site", Repository = "marketing-site", Health = "Healthy", ActiveIssues = 3, RunningAgents = 1, FailedRuns = 0, OpenPullRequests = 1, LastActivity = "12m ago", Sparkline = "_/\\__/\\_" }
     ];
 
-    private static readonly ActivityEvent[] Activity =
+    private static readonly LiveActivityEvent[] ActivityEvents =
     [
-        new() { Time = "09:18", Repository = "crm-sync", Reference = "#44", Summary = "Pull request opened", Tone = "review" },
-        new() { Time = "09:16", Repository = "billing-api", Reference = "#77", Summary = "Tests failed, continuation started", Tone = "critical" },
-        new() { Time = "09:14", Repository = "acme-portal", Reference = "#128", Summary = "Workspace prepared", Tone = "healthy" },
-        new() { Time = "09:12", Repository = "data-pipeline", Reference = "#102", Summary = "Run completed successfully", Tone = "healthy" },
-        new() { Time = "09:10", Repository = "internal-tools", Reference = "#58", Summary = "Issue discovered", Tone = "active" }
+        new(
+            ReferenceTimeUtc.AddMinutes(-2),
+            EventSeverity.Information,
+            "Pull request opened",
+            "crm-sync",
+            44,
+            "Pull request opened."),
+        new(
+            ReferenceTimeUtc.AddMinutes(-4),
+            EventSeverity.Information,
+            "Workspace prepared",
+            "acme-portal",
+            128,
+            "Workspace prepared for the next orchestration run."),
+        new(
+            ReferenceTimeUtc.AddMinutes(-8),
+            EventSeverity.Error,
+            "Continuation started",
+            "billing-api",
+            77,
+            "Tests failed and a continuation run started."),
+        new(
+            ReferenceTimeUtc.AddMinutes(-12),
+            EventSeverity.Warning,
+            "Instance offline",
+            "client-mobile",
+            null,
+            "Symphony instance health moved to offline."),
+        new(
+            ReferenceTimeUtc.AddMinutes(-15),
+            EventSeverity.Information,
+            "Run completed",
+            "data-pipeline",
+            102,
+            "Run completed successfully.")
     ];
 
     private static readonly QuickAction[] QuickActions =

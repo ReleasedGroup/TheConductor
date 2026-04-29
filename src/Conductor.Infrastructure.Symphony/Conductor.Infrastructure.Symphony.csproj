@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" />
+
     <ProjectReference Include="..\Conductor.Core\Conductor.Core.csproj" />
   </ItemGroup>
 

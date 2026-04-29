@@ -29,7 +29,7 @@
                         <tr>
                             <td>@repository.Project</td>
                             <td><a href="/repositories">@repository.Repository</a></td>
-                            <td><StatusBadge Text="@repository.Health" /></td>
+                            <td><StatusBadge Text="@repository.Health" Tone="@GetHealthTone(repository.Health)" /></td>
                             <td>@repository.ActiveIssues</td>
                             <td>@repository.RunningAgents</td>
                             <td class="@(repository.FailedRuns > 0 ? "danger-cell" : null)">@repository.FailedRuns</td>
@@ -50,4 +50,14 @@
 @code {
     [Parameter]
     public IReadOnlyList<RepositoryRow> Repositories { get; set; } = [];
+
+    private static StatusBadgeTone GetHealthTone(string health) =>
+        health.Trim().ToLowerInvariant() switch
+        {
+            "healthy" => StatusBadgeTone.Success,
+            "warning" => StatusBadgeTone.Warning,
+            "critical" => StatusBadgeTone.Critical,
+            "offline" => StatusBadgeTone.Neutral,
+            _ => StatusBadgeTone.Neutral,
+        };
 }
