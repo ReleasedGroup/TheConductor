@@ -1,4 +1,5 @@
 @page "/"
+@inject IConductorReadModelQueries Queries
 
 <PageTitle>Conductor Dashboard</PageTitle>
 
@@ -8,48 +9,130 @@
             <p class="eyebrow">Fleet overview</p>
             <h1>Conductor Dashboard</h1>
         </div>
-        <span class="status-pill">Sprint 0 scaffold</span>
+        <span class="status-pill">Development fleet</span>
     </header>
 
-    <section class="metric-grid" aria-label="Dashboard metrics">
-        @foreach ((string Label, string Value, string Hint) metric in Metrics)
-        {
-            <article class="metric-tile">
-                <span>@metric.Label</span>
-                <strong>@metric.Value</strong>
-                <small>@metric.Hint</small>
-            </article>
-        }
-    </section>
-
-    <section class="activity-panel">
-        <div>
-            <h2>Operational baseline</h2>
-            <p>The host is running with the initial project, persistence, and test structure in place.</p>
-        </div>
-        <ul>
-            @foreach (string indicator in Indicators)
+    @if (Summary is null)
+    {
+        <section class="empty-state">
+            <p>Loading dashboard data...</p>
+        </section>
+    }
+    else
+    {
+        <section class="metric-grid" aria-label="Dashboard metrics">
+            @foreach ((string Label, string Value, string Hint) metric in BuildMetrics(Summary))
             {
-                <li>@indicator</li>
+                <article class="metric-tile">
+                    <span>@metric.Label</span>
+                    <strong>@metric.Value</strong>
+                    <small>@metric.Hint</small>
+                </article>
             }
-        </ul>
-    </section>
+        </section>
+
+        <section class="dashboard-grid">
+            <section class="data-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>Active repositories</h2>
+                        <p>Seeded repositories with running Symphony instances.</p>
+                    </div>
+                    <a class="text-link" href="/repositories">View all</a>
+                </div>
+
+                @if (Summary.ActiveRepositories.Count == 0)
+                {
+                    <p class="muted-text">No active repositories are available.</p>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Repository</th>
+                                    <th>Project</th>
+                                    <th>Health</th>
+                                    <th>Mode</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (RepositoryOverview repository in Summary.ActiveRepositories)
+                                {
+                                    <tr>
+                                        <td><a href="@RepositoryHref(repository)">@repository.FullName</a></td>
+                                        <td>@repository.ProjectName</td>
+                                        <td><span class="@HealthStatusClass(repository.HealthStatus)">@DisplayHealth(repository.HealthStatus)</span></td>
+                                        <td>@DisplayMode(repository.ExecutionMode)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+
+            <section class="data-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>Needs attention</h2>
+                        <p>Seeded warning and offline states for dashboard validation.</p>
+                    </div>
+                </div>
+
+                @if (Summary.NeedsAttention.Count == 0)
+                {
+                    <p class="muted-text">No repositories need attention.</p>
+                }
+                else
+                {
+                    <ul class="attention-list">
+                        @foreach (RepositoryOverview repository in Summary.NeedsAttention)
+                        {
+                            <li>
+                                <a href="@RepositoryHref(repository)">@repository.FullName</a>
+                                <span class="@HealthStatusClass(repository.HealthStatus)">@DisplayHealth(repository.HealthStatus)</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+        </section>
+    }
 </section>
 
 @code {
-    private static readonly (string Label, string Value, string Hint)[] Metrics =
+    private ConductorDashboardSummary? Summary { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Summary = await Queries.GetDashboardSummaryAsync();
+    }
+
+    private static (string Label, string Value, string Hint)[] BuildMetrics(ConductorDashboardSummary summary) =>
     [
-        ("Projects", "0", "Ready for Sprint 1 seed data"),
-        ("Repositories", "0", "Import workflow pending"),
-        ("Instances", "0", "Provisioning starts in later sprints"),
-        ("Alerts", "0", "In-app rules not active yet"),
+        ("Projects", summary.ProjectCount.ToString(System.Globalization.CultureInfo.InvariantCulture), "Seeded portfolio groups"),
+        ("Repositories", summary.RepositoryCount.ToString(System.Globalization.CultureInfo.InvariantCulture), "Imported development records"),
+        ("Instances", summary.InstanceCount.ToString(System.Globalization.CultureInfo.InvariantCulture), "Managed Symphony runtimes"),
+        ("Attention", summary.NeedsAttentionCount.ToString(System.Globalization.CultureInfo.InvariantCulture), "Warning or offline states"),
     ];
 
-    private static readonly string[] Indicators =
-    [
-        "Blazor Web App host",
-        "SQLite persistence registration",
-        "Health endpoints",
-        "Layered test projects",
-    ];
+    private static string RepositoryHref(RepositoryOverview repository) =>
+        $"/repositories/{repository.RepositoryId.Value:D}";
+
+    private static string DisplayHealth(InstanceHealthStatus? status) =>
+        status?.ToString() ?? "No instance";
+
+    private static string DisplayMode(ExecutionMode? mode) =>
+        mode?.ToString() ?? "None";
+
+    private static string HealthStatusClass(InstanceHealthStatus? status) =>
+        status switch
+        {
+            InstanceHealthStatus.Healthy => "status-badge status-healthy",
+            InstanceHealthStatus.Warning => "status-badge status-warning",
+            InstanceHealthStatus.Critical or InstanceHealthStatus.Offline => "status-badge status-critical",
+            _ => "status-badge",
+        };
 }

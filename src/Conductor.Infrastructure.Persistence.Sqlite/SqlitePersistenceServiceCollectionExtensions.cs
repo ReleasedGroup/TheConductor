@@ -1,3 +1,5 @@
+using Conductor.Core.Application.Queries;
+using Conductor.Infrastructure.Persistence.Sqlite.Queries;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +16,11 @@ public static class SqlitePersistenceServiceCollectionExtensions
     {
         string connectionString = configuration.GetConnectionString("Conductor") ?? DefaultConnectionString;
 
-        services.AddDbContext<ConductorDbContext>(options => options.UseSqlite(connectionString));
+        void Configure(DbContextOptionsBuilder options) => options.UseSqlite(connectionString);
+
+        services.AddDbContextFactory<ConductorDbContext>(Configure);
+        services.AddScoped(provider => provider.GetRequiredService<IDbContextFactory<ConductorDbContext>>().CreateDbContext());
+        services.AddScoped<IConductorReadModelQueries, EfConductorReadModelQueries>();
 
         return services;
     }

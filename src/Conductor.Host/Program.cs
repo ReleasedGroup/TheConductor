@@ -15,6 +15,11 @@ builder.Services.AddConductorWorkers();
 
 WebApplication app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    await app.Services.BootstrapDevelopmentDatabaseAsync(app.Logger);
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);

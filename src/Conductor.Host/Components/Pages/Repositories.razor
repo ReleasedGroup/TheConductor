@@ -1,0 +1,98 @@
+@page "/repositories"
+@inject IConductorReadModelQueries Queries
+
+<PageTitle>Repositories - Conductor</PageTitle>
+
+<section class="dashboard">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Repository registry</p>
+            <h1>Repositories</h1>
+        </div>
+        <span class="status-pill">Seeded data</span>
+    </header>
+
+    @if (RepositoryRows is null)
+    {
+        <section class="empty-state">
+            <p>Loading repositories...</p>
+        </section>
+    }
+    else if (RepositoryRows.Count == 0)
+    {
+        <section class="empty-state">
+            <p>No repositories are registered.</p>
+        </section>
+    }
+    else
+    {
+        <section class="data-panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Imported repositories</h2>
+                    <p>Development seed records for dashboard and repository flows.</p>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Repository</th>
+                            <th>Project</th>
+                            <th>Branch</th>
+                            <th>Instance</th>
+                            <th>Health</th>
+                            <th>Last seen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (RepositoryOverview repository in RepositoryRows)
+                        {
+                            <tr>
+                                <td>
+                                    <a href="@RepositoryHref(repository)">@repository.FullName</a>
+                                </td>
+                                <td>@repository.ProjectName</td>
+                                <td>@repository.DefaultBranch</td>
+                                <td>@DisplayMode(repository.ExecutionMode)</td>
+                                <td><span class="@HealthStatusClass(repository.HealthStatus)">@DisplayHealth(repository.HealthStatus)</span></td>
+                                <td>@FormatLastSeen(repository.LastSeenAtUtc)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<RepositoryOverview>? RepositoryRows { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        RepositoryRows = await Queries.ListRepositoriesAsync();
+    }
+
+    private static string RepositoryHref(RepositoryOverview repository) =>
+        $"/repositories/{repository.RepositoryId.Value:D}";
+
+    private static string DisplayHealth(InstanceHealthStatus? status) =>
+        status?.ToString() ?? "No instance";
+
+    private static string DisplayMode(ExecutionMode? mode) =>
+        mode?.ToString() ?? "None";
+
+    private static string FormatLastSeen(DateTimeOffset? lastSeenAtUtc) =>
+        lastSeenAtUtc?.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) ?? "Never";
+
+    private static string HealthStatusClass(InstanceHealthStatus? status) =>
+        status switch
+        {
+            InstanceHealthStatus.Healthy => "status-badge status-healthy",
+            InstanceHealthStatus.Warning => "status-badge status-warning",
+            InstanceHealthStatus.Critical or InstanceHealthStatus.Offline => "status-badge status-critical",
+            _ => "status-badge",
+        };
+}
