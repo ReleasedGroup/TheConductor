@@ -1,5 +1,6 @@
 using Conductor.Core.Abstractions.Secrets;
 using Conductor.Core.Domain;
+using Conductor.Core.Domain.Ids;
 using Conductor.Core.Domain.Secrets;
 using Conductor.Infrastructure.Persistence.Sqlite;
 using Conductor.Infrastructure.Secrets;
@@ -63,6 +64,71 @@ public sealed class SqliteSecretStoreTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.ResolveAsync(
             new SecretReference(descriptor.Id, CredentialInheritanceMode.InheritDefault),
             CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Uses_Secret_Resolution_Policy()
+    {
+        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        DataProtectionSecretStore store = CreateStore(dbContext);
+        var projectId = ProjectId.New();
+        var repositoryId = RepositoryId.New();
+        var instanceId = SymphonyInstanceId.New();
+        await store.CreateAsync(
+            new CreateSecretRequest(
+                "Global GitHub token",
+                SecretType.GitHubToken,
+                SecretScopeType.Global,
+                ScopeId: null,
+                "global-secret"),
+            CancellationToken.None);
+        await store.CreateAsync(
+            new CreateSecretRequest(
+                "Repository GitHub token",
+                SecretType.GitHubToken,
+                SecretScopeType.Repository,
+                repositoryId.ToString(),
+                "repository-secret"),
+            CancellationToken.None);
+        SecretDescriptor instanceDescriptor = await store.CreateAsync(
+            new CreateSecretRequest(
+                "Instance GitHub token",
+                SecretType.GitHubToken,
+                SecretScopeType.SymphonyInstance,
+                instanceId.ToString(),
+                "instance-secret"),
+            CancellationToken.None);
+
+        ResolvedSecret? resolved = await store.ResolveAsync(
+            new SecretResolutionRequest(
+                SecretType.GitHubToken,
+                instanceId,
+                repositoryId,
+                projectId,
+                CredentialInheritanceMode.InheritDefault),
+            CancellationToken.None);
+
+        Assert.NotNull(resolved);
+        Assert.Equal(instanceDescriptor.Id, resolved.SecretId);
+        Assert.Equal("instance-secret", resolved.Value);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Returns_Null_When_No_Descriptor_Matches()
+    {
+        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        DataProtectionSecretStore store = CreateStore(dbContext);
+
+        ResolvedSecret? resolved = await store.ResolveAsync(
+            new SecretResolutionRequest(
+                SecretType.GitHubToken,
+                SymphonyInstanceId.New(),
+                RepositoryId.New(),
+                projectId: null,
+                CredentialInheritanceMode.InheritDefault),
+            CancellationToken.None);
+
+        Assert.Null(resolved);
     }
 
     [Fact]

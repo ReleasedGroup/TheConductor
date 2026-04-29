@@ -37,6 +37,12 @@ Warnings are treated as failures. Do not commit changes that require suppressing
 
 Tests that require real external services must be opt-in so the default suite remains deterministic.
 
+GitHub repository discovery tests should use `FakeGitHubRepositoryClient` from
+`Conductor.Infrastructure.GitHub` unless they are explicitly validating live
+GitHub behavior. Seed the fake with `GitHubRepositorySummary` values and use
+`QueueSearchFailure` to exercise retry and error-handling paths without live
+credentials.
+
 Use these flags when those suites are added:
 
 ```text
