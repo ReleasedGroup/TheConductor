@@ -8,7 +8,7 @@
             <p class="eyebrow">Fleet overview</p>
             <h1>Conductor Dashboard</h1>
         </div>
-        <span class="status-pill">Sprint 2 dashboard</span>
+        <StatusBadge Text="Sprint 2 dashboard" Tone="@StatusBadgeTone.Info" />
     </header>
 
     <section class="metric-grid" aria-label="Dashboard metrics">
@@ -38,10 +38,9 @@
     </section>
 
     <section class="startup-panel" aria-label="Startup verification">
-        <div>
-            <h2>Startup verification</h2>
-            <p>The local host can be checked from the dashboard route and the built-in health probes.</p>
-        </div>
+        <SuccessState
+            Title="Startup verification"
+            Message="The local host can be checked from the dashboard route and the built-in health probes." />
         <dl>
             @foreach ((string Label, string Route, string State) check in StartupChecks)
             {

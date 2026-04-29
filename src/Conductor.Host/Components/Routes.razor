@@ -6,9 +6,9 @@
     <NotFound>
         <LayoutView Layout="@typeof(MainLayout)">
             <PageTitle>Not found - Conductor</PageTitle>
-            <section class="empty-state">
-                <p>That Conductor page is not available yet.</p>
-            </section>
+            <EmptyState
+                Title="That Conductor page is not available yet."
+                Message="Use the primary navigation to return to an available workspace." />
         </LayoutView>
     </NotFound>
 </Router>
