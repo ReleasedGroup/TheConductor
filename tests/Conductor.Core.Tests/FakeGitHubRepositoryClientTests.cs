@@ -1,4 +1,5 @@
 using Conductor.Core.Abstractions.GitHub;
+using Conductor.Core.Domain.Repositories;
 using Conductor.Infrastructure.GitHub;
 
 namespace Conductor.Core.Tests;
@@ -65,6 +66,40 @@ public sealed class FakeGitHubRepositoryClientTests
             () => client.SearchRepositoriesAsync("conductor", cancellation.Token));
 
         Assert.Empty(client.SearchQueries);
+    }
+
+    [Fact]
+    public async Task ValidateRepositoryAccessAsync_Returns_Access_For_Seeded_Repository()
+    {
+        var client = new FakeGitHubRepositoryClient([Repository("ReleasedGroup", "TheConductor")]);
+
+        GitHubRepositoryAccessValidationResult result = await client.ValidateRepositoryAccessAsync(
+            new GitHubRepositoryAccessValidationRequest(
+                new GitHubRepositoryFullName("ReleasedGroup", "TheConductor"),
+                "ghp_selected_pat"),
+            CancellationToken.None);
+
+        Assert.Equal(GitHubRepositoryAccessValidationStatus.Accessible, result.Status);
+        Assert.True(result.HasRepositoryAccess);
+        Assert.NotNull(result.Permissions);
+        Assert.True(result.Permissions.Pull);
+        GitHubRepositoryAccessValidationRequest request = Assert.Single(client.ValidationRequests);
+        Assert.DoesNotContain("ghp_selected_pat", request.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ValidateRepositoryAccessAsync_Returns_NotAccessible_For_Unknown_Repository()
+    {
+        var client = new FakeGitHubRepositoryClient([Repository("ReleasedGroup", "TheConductor")]);
+
+        GitHubRepositoryAccessValidationResult result = await client.ValidateRepositoryAccessAsync(
+            new GitHubRepositoryAccessValidationRequest(
+                new GitHubRepositoryFullName("ReleasedGroup", "missing"),
+                "ghp_selected_pat"),
+            CancellationToken.None);
+
+        Assert.Equal(GitHubRepositoryAccessValidationStatus.RepositoryNotAccessible, result.Status);
+        Assert.False(result.HasRepositoryAccess);
     }
 
     private static GitHubRepositorySummary Repository(string owner, string name) =>

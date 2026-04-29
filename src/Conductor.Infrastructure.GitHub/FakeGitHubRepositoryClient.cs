@@ -7,6 +7,7 @@ public sealed class FakeGitHubRepositoryClient : IGitHubRepositoryClient
     private readonly object syncRoot = new();
     private readonly List<GitHubRepositorySummary> repositories = [];
     private readonly List<string> searchQueries = [];
+    private readonly List<GitHubRepositoryAccessValidationRequest> validationRequests = [];
     private readonly Queue<Exception> searchFailures = [];
 
     public FakeGitHubRepositoryClient()
@@ -36,6 +37,17 @@ public sealed class FakeGitHubRepositoryClient : IGitHubRepositoryClient
             lock (syncRoot)
             {
                 return searchQueries.ToArray();
+            }
+        }
+    }
+
+    public IReadOnlyList<GitHubRepositoryAccessValidationRequest> ValidationRequests
+    {
+        get
+        {
+            lock (syncRoot)
+            {
+                return validationRequests.ToArray();
             }
         }
     }
@@ -101,6 +113,59 @@ public sealed class FakeGitHubRepositoryClient : IGitHubRepositoryClient
                 .ToArray();
 
             return Task.FromResult<IReadOnlyList<GitHubRepositorySummary>>(matches);
+        }
+    }
+
+    public Task<GitHubRepositoryAccessValidationResult> ValidateRepositoryAccessAsync(
+        GitHubRepositoryAccessValidationRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled<GitHubRepositoryAccessValidationResult>(cancellationToken);
+        }
+
+        lock (syncRoot)
+        {
+            validationRequests.Add(request);
+
+            if (string.IsNullOrWhiteSpace(request.PersonalAccessToken))
+            {
+                return Task.FromResult(new GitHubRepositoryAccessValidationResult(
+                    GitHubRepositoryAccessValidationStatus.InvalidToken,
+                    "The selected PAT is empty.",
+                    Permissions: null,
+                    TokenScopes: [],
+                    RateLimitRemaining: null,
+                    RateLimitResetUtc: null));
+            }
+
+            bool repositoryExists = repositories.Any(repository =>
+                string.Equals(repository.Owner, request.RepositoryFullName.Owner, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(repository.Name, request.RepositoryFullName.Name, StringComparison.OrdinalIgnoreCase));
+
+            return Task.FromResult(repositoryExists
+                ? new GitHubRepositoryAccessValidationResult(
+                    GitHubRepositoryAccessValidationStatus.Accessible,
+                    "Fake GitHub confirmed the selected PAT can access the target repository.",
+                    new GitHubRepositoryPermissionSet(
+                        Admin: false,
+                        Maintain: false,
+                        Push: false,
+                        Triage: true,
+                        Pull: true),
+                    TokenScopes: ["repo"],
+                    RateLimitRemaining: null,
+                    RateLimitResetUtc: null)
+                : new GitHubRepositoryAccessValidationResult(
+                    GitHubRepositoryAccessValidationStatus.RepositoryNotAccessible,
+                    "Fake GitHub did not return the target repository.",
+                    Permissions: null,
+                    TokenScopes: [],
+                    RateLimitRemaining: null,
+                    RateLimitResetUtc: null));
         }
     }
 
