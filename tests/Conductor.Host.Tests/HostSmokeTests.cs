@@ -31,8 +31,8 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
 
         Assert.Contains("Dashboard", content);
         Assert.Contains("Healthy Repos", content);
-        Assert.Contains("Orchestration Health", content);
-        Assert.Contains("Needs Attention", content);
+        Assert.Contains("Repository orchestration health", content);
+        Assert.Contains("Needs attention", content);
         Assert.Contains("Active Repositories", content);
     }
 

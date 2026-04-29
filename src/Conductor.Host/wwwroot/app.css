@@ -336,6 +336,14 @@ h1:focus-visible,
   color: #c4d0df;
 }
 
+.eyebrow {
+  margin-bottom: 6px;
+  color: #8fbaff;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .scope-controls {
   display: flex;
   flex-wrap: wrap;
@@ -343,13 +351,18 @@ h1:focus-visible,
   gap: 10px;
 }
 
-.filter-button {
+.status-pill,
+.projection-stamp {
   min-height: 36px;
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   color: #dce5ef;
+}
+
+.status-pill {
+  color: #9ee7d7;
 }
 
 .metric-grid {
@@ -362,6 +375,7 @@ h1:focus-visible,
 .metric-tile,
 .panel,
 .health-heatmap,
+.needs-attention-panel,
 .quick-action,
 .state-panel {
   border: 1px solid var(--line);
@@ -379,79 +393,117 @@ h1:focus-visible,
   padding: 18px;
 }
 
-.metric-icon {
+.metric-tile__icon {
   display: grid;
   width: 54px;
   height: 54px;
   place-items: center;
   border-radius: 50%;
+  background: rgba(59, 130, 246, 0.16);
+  color: #8fbbff;
   font-size: 13px;
   font-weight: 800;
 }
 
-.tone-healthy .metric-icon,
-.status-healthy,
-.status-done,
-.tone-healthy.activity-icon {
-  background: rgba(34, 197, 94, 0.16);
-  color: #67e891;
+.metric-tile__icon svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
-.tone-active .metric-icon,
-.tone-active.activity-icon {
-  background: rgba(59, 130, 246, 0.16);
-  color: #8fbbff;
+.metric-tile__icon span {
+  font-size: 24px;
+  line-height: 1;
 }
 
-.tone-warning .metric-icon,
-.status-warning {
-  background: rgba(250, 204, 21, 0.16);
-  color: #f9d64f;
+.metric-tile__content {
+  min-width: 0;
 }
 
-.tone-review .metric-icon,
-.tone-review.activity-icon {
-  background: rgba(168, 85, 247, 0.17);
-  color: #d1a9ff;
-}
-
-.tone-cost .metric-icon {
-  background: rgba(20, 184, 166, 0.16);
-  color: #4ee7d2;
-}
-
-.tone-critical.activity-icon,
-.status-critical {
-  background: rgba(239, 68, 68, 0.16);
-  color: #ff8a8a;
-}
-
-.status-offline {
-  background: rgba(148, 163, 184, 0.14);
-  color: #c1cad8;
-}
-
-.metric-tile h2 {
+.metric-tile__label {
   color: #dce5ef;
-  font-size: 14px;
   font-weight: 700;
 }
 
-.metric-value {
+.metric-tile__value {
   margin-top: 6px;
   font-size: 30px;
   font-weight: 800;
   line-height: 1;
 }
 
-.metric-detail {
+.metric-tile__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 10px;
   color: var(--muted);
 }
 
-.metric-detail span {
-  color: #61e28f;
+.metric-tile__trend {
   font-weight: 700;
+}
+
+.metric-tile__trend--positive {
+  color: #61e28f;
+}
+
+.metric-tile__trend--negative {
+  color: #ff8a8a;
+}
+
+.metric-tile__trend--neutral {
+  color: #8fbbff;
+}
+
+.metric-tile--healthy .metric-tile__icon {
+  background: rgba(34, 197, 94, 0.16);
+  color: #67e891;
+}
+
+.metric-tile--active .metric-tile__icon {
+  background: rgba(59, 130, 246, 0.16);
+  color: #8fbbff;
+}
+
+.metric-tile--warning .metric-tile__icon {
+  background: rgba(250, 204, 21, 0.16);
+  color: #f9d64f;
+}
+
+.metric-tile--critical .metric-tile__icon {
+  background: rgba(168, 85, 247, 0.17);
+  color: #d1a9ff;
+}
+
+.metric-tile--cost .metric-tile__icon {
+  background: rgba(20, 184, 166, 0.16);
+  color: #4ee7d2;
+}
+
+.dashboard-state,
+.state-panel,
+.empty-state {
+  padding: 24px;
+  color: var(--muted);
+}
+
+.state-panel {
+  max-width: 760px;
+  padding: 28px;
+}
+
+.state-panel h1 {
+  margin-top: 8px;
+  font-size: 26px;
+}
+
+.state-panel p:last-child {
+  margin-top: 10px;
 }
 
 .dashboard-grid {
@@ -461,12 +513,14 @@ h1:focus-visible,
 }
 
 .panel,
-.health-heatmap {
+.health-heatmap,
+.needs-attention-panel {
   padding: 18px;
 }
 
 .panel-heading,
-.health-heatmap-header {
+.health-heatmap-header,
+.needs-attention-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -475,19 +529,9 @@ h1:focus-visible,
 }
 
 .panel-heading h2,
-.health-heatmap h2 {
+.health-heatmap h2,
+.needs-attention-title h2 {
   font-size: 16px;
-}
-
-.panel-heading h2 span {
-  display: inline-grid;
-  min-width: 24px;
-  height: 24px;
-  margin-left: 6px;
-  place-items: center;
-  border-radius: 999px;
-  background: rgba(239, 68, 68, 0.7);
-  font-size: 12px;
 }
 
 .health-heatmap {
@@ -498,22 +542,19 @@ h1:focus-visible,
   grid-column: span 6;
 }
 
-.attention-panel,
+.needs-attention-panel,
 .repository-panel,
 .quick-actions,
 .activity-panel {
   grid-column: 1 / -1;
 }
 
-.eyebrow {
-  margin-bottom: 6px;
-  color: #8fbaff;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
+.health-heatmap-header {
+  align-items: flex-start;
 }
 
 .health-heatmap-header p:not(.eyebrow) {
+  margin-top: 6px;
   color: var(--muted);
 }
 
@@ -539,7 +580,8 @@ h1:focus-visible,
   border-radius: 3px;
 }
 
-.heatmap-table-wrap {
+.heatmap-table-wrap,
+.table-wrap {
   overflow-x: auto;
 }
 
@@ -565,6 +607,8 @@ h1:focus-visible,
 .heatmap-grid td,
 .heatmap-grid th {
   padding: 0;
+  border: 0;
+  white-space: normal;
 }
 
 .heatmap-cell {
@@ -663,6 +707,25 @@ h1:focus-visible,
   border-radius: 50%;
 }
 
+.needs-attention-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.attention-count {
+  display: inline-grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: #6b2a24;
+  color: #ffd5cb;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .attention-list li,
 .activity-list li {
   display: grid;
@@ -672,11 +735,15 @@ h1:focus-visible,
   border-bottom: 1px solid var(--line);
 }
 
-.attention-list li {
+.attention-item {
+  display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  color: var(--text);
 }
 
-.attention-icon {
+.severity-marker {
   display: inline-grid;
   width: 24px;
   height: 24px;
@@ -685,16 +752,35 @@ h1:focus-visible,
   font-weight: 800;
 }
 
-.attention-title {
+.attention-severity-critical .severity-marker,
+.tone-critical.activity-icon,
+.status-critical {
+  background: rgba(239, 68, 68, 0.16);
+  color: #ff8a8a;
+}
+
+.attention-severity-warning .severity-marker,
+.status-warning {
+  background: rgba(250, 204, 21, 0.16);
+  color: #f9d64f;
+}
+
+.attention-copy,
+.attention-title-row {
+  display: grid;
+  gap: 6px;
+}
+
+.attention-title-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.attention-list p,
+.attention-summary,
+.attention-list time,
 .activity-list p {
-  margin-top: 6px;
   color: #c7d0dc;
 }
 
@@ -702,8 +788,10 @@ h1:focus-visible,
 .activity-list time {
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
 }
 
+.severity-badge,
 .status-badge {
   display: inline-flex;
   min-height: 24px;
@@ -712,6 +800,25 @@ h1:focus-visible,
   border-radius: 6px;
   font-size: 12px;
   font-weight: 800;
+}
+
+.severity-badge {
+  background: rgba(148, 163, 184, 0.14);
+  color: #dbe6ee;
+}
+
+.attention-empty-state,
+.empty-state {
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.attention-empty-state {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
 }
 
 .repository-panel {
@@ -723,14 +830,10 @@ h1:focus-visible,
   padding: 18px 18px 0;
 }
 
-.table-wrap {
-  overflow-x: auto;
-}
-
 table {
   width: 100%;
-  border-collapse: collapse;
   min-width: 850px;
+  border-collapse: collapse;
 }
 
 th,
@@ -765,6 +868,10 @@ td {
 }
 
 .panel-link {
+  color: #9cc4ff;
+}
+
+.repository-panel > .panel-link {
   display: block;
   padding: 12px 18px 16px;
   border-top: 1px solid var(--line);
@@ -786,7 +893,6 @@ td {
   min-height: 90px;
   padding: 16px;
   color: var(--text);
-  align-self: start;
 }
 
 .quick-action > span:first-child {
@@ -821,27 +927,26 @@ td {
   border-radius: 50%;
 }
 
-.empty-state {
-  padding: 24px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 8px;
-  color: var(--muted);
-  text-align: center;
+.tone-healthy.activity-icon,
+.status-healthy,
+.status-done {
+  background: rgba(34, 197, 94, 0.16);
+  color: #67e891;
 }
 
-.state-panel {
-  max-width: 760px;
-  padding: 28px;
+.tone-active.activity-icon {
+  background: rgba(59, 130, 246, 0.16);
+  color: #8fbbff;
 }
 
-.state-panel h1 {
-  margin-top: 8px;
-  font-size: 26px;
+.tone-review.activity-icon {
+  background: rgba(168, 85, 247, 0.17);
+  color: #d1a9ff;
 }
 
-.state-panel p:last-child {
-  margin-top: 10px;
-  color: var(--muted);
+.status-offline {
+  background: rgba(148, 163, 184, 0.14);
+  color: #c1cad8;
 }
 
 @media (max-width: 1220px) {

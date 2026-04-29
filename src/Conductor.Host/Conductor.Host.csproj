@@ -6,7 +6,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Update="Data\dashboard-projection.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="Data\dashboard-projection.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

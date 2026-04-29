@@ -1,28 +1,40 @@
-<section class="panel attention-panel" aria-labelledby="attention-title">
-    <div class="panel-heading">
-        <h2 id="attention-title">Needs Attention <span>@Items.Count</span></h2>
-        <a href="/alerts">View all</a>
-    </div>
+@using System.Globalization
+@using Conductor.Core.Application.Dashboard
+@using Conductor.Core.Domain
 
-    @if (Items.Count == 0)
+<section class="needs-attention-panel" aria-labelledby="@headingId">
+    <header class="needs-attention-header">
+        <div class="needs-attention-title">
+            <h2 id="@headingId">Needs attention</h2>
+            <span class="attention-count">@attentionItems.Count</span>
+        </div>
+        <a class="panel-link" href="/alerts">View all</a>
+    </header>
+
+    @if (attentionItems.Count == 0)
     {
-        <p class="empty-state">No repositories need attention.</p>
+        <div class="attention-empty-state">
+            <strong>All clear</strong>
+            <span>No critical or warning items are active.</span>
+        </div>
     }
     else
     {
         <ul class="attention-list">
-            @foreach (var item in Items)
+            @foreach (DashboardAttentionItem item in attentionItems)
             {
-                <li>
-                    <span class="@($"attention-icon status-{Normalize(item.Severity)}")" aria-hidden="true">!</span>
-                    <div>
-                        <div class="attention-title">
-                            <strong>@item.Repository</strong>
-                            <StatusBadge Text="@item.Severity" />
-                        </div>
-                        <p>@item.Summary</p>
-                    </div>
-                    <time>@item.Age</time>
+                <li class="@GetSeverityClass(item.Severity)">
+                    <a class="attention-item" href="@item.TargetHref" aria-label="@BuildItemLabel(item)">
+                        <span class="severity-marker" aria-hidden="true">@GetSeverityMarker(item.Severity)</span>
+                        <span class="attention-copy">
+                            <span class="attention-title-row">
+                                <strong>@item.SourceName</strong>
+                                <span class="severity-badge">@item.Severity</span>
+                            </span>
+                            <span class="attention-summary">@item.Summary</span>
+                        </span>
+                        <time datetime="@item.CreatedAtUtc.ToString("O", CultureInfo.InvariantCulture)">@item.AgeLabel</time>
+                    </a>
                 </li>
             }
         </ul>
@@ -30,8 +42,37 @@
 </section>
 
 @code {
-    [Parameter]
-    public IReadOnlyList<AttentionItem> Items { get; set; } = [];
+    private readonly string headingId = $"needs-attention-{Guid.NewGuid():N}";
+    private IReadOnlyList<DashboardAttentionItem> attentionItems = [];
 
-    private static string Normalize(string value) => value.Trim().ToLowerInvariant().Replace(" ", "-");
+    [Parameter]
+    public IReadOnlyList<DashboardAttentionItem> Items { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        attentionItems = Items
+            .Where(item => item.Severity is AlertSeverity.Critical or AlertSeverity.Warning)
+            .OrderBy(item => item.Severity is AlertSeverity.Critical ? 0 : 1)
+            .ThenByDescending(item => item.CreatedAtUtc)
+            .ToArray();
+    }
+
+    private static string GetSeverityClass(AlertSeverity severity) =>
+        severity switch
+        {
+            AlertSeverity.Critical => "attention-severity-critical",
+            AlertSeverity.Warning => "attention-severity-warning",
+            _ => "attention-severity-info",
+        };
+
+    private static string GetSeverityMarker(AlertSeverity severity) =>
+        severity switch
+        {
+            AlertSeverity.Critical => "!!",
+            AlertSeverity.Warning => "!",
+            _ => "i",
+        };
+
+    private static string BuildItemLabel(DashboardAttentionItem item) =>
+        $"Open {item.TargetKind} {item.SourceName}: {item.Severity} - {item.Summary}";
 }

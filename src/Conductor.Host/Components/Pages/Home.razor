@@ -1,17 +1,18 @@
 @page "/"
+@using System.Text.Json
 @inject IDashboardProjectionStore DashboardProjectionStore
 
 <PageTitle>Dashboard | Conductor</PageTitle>
 
-@if (_loadError is not null)
+@if (loadError is not null)
 {
     <section class="state-panel" role="alert">
         <p class="eyebrow">Dashboard unavailable</p>
         <h1>Projection data could not be loaded.</h1>
-        <p>@_loadError</p>
+        <p>@loadError</p>
     </section>
 }
-else if (_dashboard is null)
+else if (projection is null)
 {
     <section class="state-panel" aria-busy="true">
         <p class="eyebrow">Loading</p>
@@ -23,49 +24,130 @@ else
     <section class="dashboard-page" aria-labelledby="dashboard-title">
         <div class="page-heading">
             <div>
+                <p class="eyebrow">Fleet overview</p>
                 <h1 id="dashboard-title">Dashboard</h1>
-                <p>Good morning, @_dashboard.OperatorName. Here is what is happening across your software orchestra.</p>
+                <p>Good morning, Nick. Here is what is happening across your software orchestra.</p>
             </div>
             <div class="scope-controls" aria-label="Dashboard filters">
-                <button type="button" class="filter-button" aria-label="Date scope">@_dashboard.DateScope</button>
-                <button type="button" class="filter-button" aria-label="Project scope">@_dashboard.ProjectScope</button>
+                <span class="status-pill">Sprint 2 metrics</span>
+                <span class="projection-stamp">Projection @projection.CapturedAtUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm")</span>
             </div>
         </div>
 
-        <div class="metric-grid" aria-label="Fleet metrics">
-            @foreach (DashboardMetric metric in _dashboard.Metrics)
-            {
-                <MetricTile Metric="metric" />
-            }
-        </div>
+        @if (projection.Metrics.Count == 0)
+        {
+            <div class="dashboard-state">No dashboard metrics are available yet.</div>
+        }
+        else
+        {
+            <div class="metric-grid" aria-label="Fleet metrics">
+                @foreach (DashboardMetric metric in projection.Metrics)
+                {
+                    <MetricTile Metric="metric" />
+                }
+            </div>
+        }
 
         <div class="dashboard-grid">
             <HealthHeatmap
-                Title="Orchestration Health"
+                Title="Repository orchestration health"
                 Description="Repository health over the latest orchestration windows."
-                Buckets="_dashboard.HealthBuckets" />
-            <WorkloadDonut Workload="_dashboard.Workload" />
-            <NeedsAttentionPanel Items="_dashboard.NeedsAttention" />
-            <RepositoryTable Repositories="_dashboard.Repositories" />
-            <QuickActions Actions="_dashboard.QuickActions" />
-            <LiveActivityStream Events="_dashboard.Activity" />
+                Buckets="HealthBuckets" />
+            <WorkloadDonut Workload="Workload" />
+            <NeedsAttentionPanel Items="AttentionItems" />
+            <RepositoryTable Repositories="Repositories" />
+            <QuickActions Actions="QuickActions" />
+            <LiveActivityStream Events="Activity" />
         </div>
     </section>
 }
 
 @code {
-    private DashboardProjection? _dashboard;
-    private string? _loadError;
+    private DashboardProjection? projection;
+    private string? loadError;
+
+    private IReadOnlyList<DashboardAttentionItem> AttentionItems =>
+        projection?.AttentionItems ?? Array.Empty<DashboardAttentionItem>();
+
+    private static readonly HealthHeatmapBucket[] HealthBuckets =
+    [
+        new("acme-portal", "24h", HealthHeatmapStatus.Healthy, 99, "All orchestration checks completed."),
+        new("acme-portal", "18h", HealthHeatmapStatus.Healthy, 98, "Workers and health probes are responsive."),
+        new("acme-portal", "12h", HealthHeatmapStatus.Healthy, 97, "Backlog recovered after retry."),
+        new("acme-portal", "6h", HealthHeatmapStatus.Healthy, 99, "No active orchestration alerts."),
+        new("acme-portal", "Now", HealthHeatmapStatus.Healthy, 99, "All repositories are within policy."),
+        new("billing-api", "24h", HealthHeatmapStatus.Healthy, 94, "Runtime checks passed."),
+        new("billing-api", "18h", HealthHeatmapStatus.Warning, 78, "Release polling reported elevated latency."),
+        new("billing-api", "12h", HealthHeatmapStatus.Warning, 72, "Two failed runs are queued for retry."),
+        new("billing-api", "6h", HealthHeatmapStatus.Critical, 42, "Workflow dispatch failed repeatedly."),
+        new("billing-api", "Now", HealthHeatmapStatus.Warning, 76, "Dispatch recovered with retry backlog."),
+        new("client-mobile", "24h", HealthHeatmapStatus.Offline, 0, "No agent heartbeat received."),
+        new("client-mobile", "18h", HealthHeatmapStatus.Critical, 38, "Repository credentials need rotation."),
+        new("client-mobile", "12h", HealthHeatmapStatus.Warning, 69, "Credential rotation started."),
+        new("client-mobile", "6h", HealthHeatmapStatus.Warning, 72, "Pending PR checks are draining."),
+        new("client-mobile", "Now", HealthHeatmapStatus.Offline, 0, "Symphony instance is offline."),
+        new("crm-sync", "24h", HealthHeatmapStatus.Healthy, 96, "Documentation validation passed."),
+        new("crm-sync", "18h", HealthHeatmapStatus.Healthy, 96, "No blocked documentation runs."),
+        new("crm-sync", "12h", HealthHeatmapStatus.Healthy, 97, "Review queue is clear."),
+        new("crm-sync", "6h", HealthHeatmapStatus.Warning, 80, "One stale branch requires attention."),
+        new("crm-sync", "Now", HealthHeatmapStatus.Healthy, 95, "Stale branch warning cleared."),
+        new("data-pipeline", "24h", HealthHeatmapStatus.Healthy, 92, "Collectors completed normally."),
+        new("data-pipeline", "18h", HealthHeatmapStatus.Warning, 71, "Queue depth increased."),
+        new("data-pipeline", "12h", HealthHeatmapStatus.Healthy, 91, "Queue depth recovered."),
+        new("data-pipeline", "6h", HealthHeatmapStatus.Critical, 35, "High failure rate detected."),
+        new("data-pipeline", "Now", HealthHeatmapStatus.Critical, 40, "Failure rate remains elevated.")
+    ];
+
+    private static readonly WorkloadProjection Workload = new()
+    {
+        TotalActiveIssues = 138,
+        Slices =
+        [
+            new() { Label = "In Progress", Count = 78, Percentage = "57%", Color = "#3b82f6" },
+            new() { Label = "Queued", Count = 22, Percentage = "16%", Color = "#2563eb" },
+            new() { Label = "Retrying", Count = 11, Percentage = "8%", Color = "#facc15" },
+            new() { Label = "Blocked", Count = 7, Percentage = "5%", Color = "#ef4444" },
+            new() { Label = "Done", Count = 20, Percentage = "14%", Color = "#22c55e" }
+        ]
+    };
+
+    private static readonly RepositoryRow[] Repositories =
+    [
+        new() { Project = "ACME Portal", Repository = "acme-portal", Health = "Healthy", ActiveIssues = 9, RunningAgents = 3, FailedRuns = 0, OpenPullRequests = 2, LastActivity = "4m ago", Sparkline = "___/\\_/\\_" },
+        new() { Project = "Billing Engine", Repository = "billing-api", Health = "Warning", ActiveIssues = 14, RunningAgents = 5, FailedRuns = 2, OpenPullRequests = 1, LastActivity = "1m ago", Sparkline = "_/\\/\\_/_" },
+        new() { Project = "Mobile App", Repository = "client-mobile", Health = "Offline", ActiveIssues = 0, RunningAgents = 0, FailedRuns = 0, OpenPullRequests = 0, LastActivity = "2h ago", Sparkline = "________" },
+        new() { Project = "CRM Sync", Repository = "crm-sync", Health = "Healthy", ActiveIssues = 7, RunningAgents = 2, FailedRuns = 0, OpenPullRequests = 1, LastActivity = "6m ago", Sparkline = "__/\\_/\\_" },
+        new() { Project = "Data Pipeline", Repository = "data-pipeline", Health = "Warning", ActiveIssues = 11, RunningAgents = 3, FailedRuns = 3, OpenPullRequests = 2, LastActivity = "3m ago", Sparkline = "_/\\/\\_/\\/" },
+        new() { Project = "Internal Tools", Repository = "internal-tools", Health = "Healthy", ActiveIssues = 4, RunningAgents = 1, FailedRuns = 0, OpenPullRequests = 0, LastActivity = "10m ago", Sparkline = "__/\\____" },
+        new() { Project = "Marketing Site", Repository = "marketing-site", Health = "Healthy", ActiveIssues = 3, RunningAgents = 1, FailedRuns = 0, OpenPullRequests = 1, LastActivity = "12m ago", Sparkline = "_/\\__/\\_" }
+    ];
+
+    private static readonly ActivityEvent[] Activity =
+    [
+        new() { Time = "09:18", Repository = "crm-sync", Reference = "#44", Summary = "Pull request opened", Tone = "review" },
+        new() { Time = "09:16", Repository = "billing-api", Reference = "#77", Summary = "Tests failed, continuation started", Tone = "critical" },
+        new() { Time = "09:14", Repository = "acme-portal", Reference = "#128", Summary = "Workspace prepared", Tone = "healthy" },
+        new() { Time = "09:12", Repository = "data-pipeline", Reference = "#102", Summary = "Run completed successfully", Tone = "healthy" },
+        new() { Time = "09:10", Repository = "internal-tools", Reference = "#58", Summary = "Issue discovered", Tone = "active" }
+    ];
+
+    private static readonly QuickAction[] QuickActions =
+    [
+        new() { Title = "Import Repository", Description = "Add a GitHub repository to orchestration", Href = "/repositories", Icon = "IR" },
+        new() { Title = "New Workflow Profile", Description = "Create a workflow profile from a template", Href = "/policies", Icon = "WF" },
+        new() { Title = "Generate Report", Description = "Create a delivery or executive report", Href = "/reports", Icon = "GR" },
+        new() { Title = "Global Policies", Description = "View and manage orchestration policies", Href = "/policies", Icon = "GP" }
+    ];
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            _dashboard = await DashboardProjectionStore.GetCurrentAsync();
+            projection = await DashboardProjectionStore.GetCurrentAsync();
         }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
         {
-            _loadError = ex.Message;
+            loadError = ex.Message;
         }
     }
 }

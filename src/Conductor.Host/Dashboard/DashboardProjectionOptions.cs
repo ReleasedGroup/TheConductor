@@ -2,7 +2,7 @@ namespace Conductor.Host.Dashboard;
 
 public sealed class DashboardProjectionOptions
 {
-    public const string SectionName = "Conductor";
+    public const string SectionName = "DashboardProjection";
 
-    public string DashboardProjectionPath { get; set; } = "Data/dashboard-projection.json";
+    public string Path { get; set; } = "Data/dashboard-projection.json";
 }

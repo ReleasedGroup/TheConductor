@@ -1,4 +1,6 @@
 using Bunit;
+using Conductor.Core.Application.Dashboard;
+using Conductor.Core.Domain;
 using Conductor.Host.Components.Dashboard;
 using Conductor.Host.Components.Pages;
 using Conductor.Host.Components.Shared;
@@ -13,36 +15,38 @@ public sealed class DashboardComponentTests : BunitContext
     public void DashboardRendersProjectionData()
     {
         Services.AddSingleton<IDashboardProjectionStore>(
-            new StubDashboardProjectionStore(CreateProjection()));
+            new StaticDashboardProjectionStore(CreateProjection()));
 
-        var cut = Render<Home>();
+        IRenderedComponent<Home> dashboard = Render<Home>();
 
-        cut.WaitForAssertion(() => Assert.Contains("Healthy Repos", cut.Markup));
-        Assert.Contains("acme-portal", cut.Markup);
-        Assert.Contains("Needs Attention", cut.Markup);
-        Assert.Contains("Workspace prepared", cut.Markup);
+        dashboard.WaitForAssertion(() => Assert.Contains("Healthy Repos", dashboard.Markup));
+        Assert.Contains("acme-portal", dashboard.Markup);
+        Assert.Contains("Needs attention", dashboard.Markup);
+        Assert.Contains("billing-api", dashboard.Markup);
+        Assert.Contains("Workspace prepared", dashboard.Markup);
     }
 
     [Fact]
     public void StatusBadgeIncludesTextAndToneClass()
     {
-        var cut = Render<StatusBadge>(parameters => parameters
+        IRenderedComponent<StatusBadge> badge = Render<StatusBadge>(parameters => parameters
             .Add(component => component.Text, "Critical"));
 
-        var badge = cut.Find(".status-badge");
+        var element = badge.Find(".status-badge");
 
-        Assert.Contains("Critical", badge.TextContent);
-        Assert.Contains("status-critical", badge.GetAttribute("class"));
-        Assert.Equal("Status: Critical", badge.GetAttribute("aria-label"));
+        Assert.Contains("Critical", element.TextContent);
+        Assert.Contains("status-critical", element.GetAttribute("class"));
+        Assert.Equal("Status: Critical", element.GetAttribute("aria-label"));
     }
 
     [Fact]
     public void NeedsAttentionPanelRendersEmptyState()
     {
-        var cut = Render<NeedsAttentionPanel>(parameters => parameters
-            .Add(component => component.Items, Array.Empty<AttentionItem>()));
+        IRenderedComponent<NeedsAttentionPanel> panel = Render<NeedsAttentionPanel>(parameters => parameters
+            .Add(component => component.Items, Array.Empty<DashboardAttentionItem>()));
 
-        Assert.Contains("No repositories need attention.", cut.Markup);
+        Assert.Contains("All clear", panel.Markup);
+        Assert.Contains("No critical or warning items are active.", panel.Markup);
     }
 
     [Fact]
@@ -64,100 +68,54 @@ public sealed class DashboardComponentTests : BunitContext
             }
         };
 
-        var cut = Render<RepositoryTable>(parameters => parameters
+        IRenderedComponent<RepositoryTable> table = Render<RepositoryTable>(parameters => parameters
             .Add(component => component.Repositories, repositories));
 
-        Assert.Contains("billing-api", cut.Markup);
-        Assert.NotNull(cut.Find("td.danger-cell"));
-        Assert.Contains("status-warning", cut.Find(".status-badge").GetAttribute("class"));
+        Assert.Contains("billing-api", table.Markup);
+        Assert.NotNull(table.Find("td.danger-cell"));
+        Assert.Contains("status-warning", table.Find(".status-badge").GetAttribute("class"));
     }
 
-    private static DashboardProjection CreateProjection() => new()
+    private static DashboardProjection CreateProjection()
     {
-        OperatorName = "Nick",
-        DateScope = "Apr 29, 2026",
-        ProjectScope = "All Projects",
-        Metrics =
-        [
-            new DashboardMetric
-            {
-                Title = "Healthy Repos",
-                Value = "36 / 42",
-                Detail = "85% healthy",
-                Trend = "+8%",
-                Tone = "healthy",
-                Icon = "pulse"
-            }
-        ],
-        HealthBuckets =
-        [
-            new("acme-portal", "Now", HealthHeatmapStatus.Healthy, 99, "All checks completed.")
-        ],
-        Workload = new WorkloadProjection
+        return new DashboardProjection
         {
-            TotalActiveIssues = 10,
-            Slices =
+            CapturedAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
+            Metrics =
             [
-                new WorkloadSlice
+                new()
                 {
-                    Label = "In Progress",
-                    Count = 10,
-                    Percentage = "100%",
-                    Color = "#3b82f6"
+                    Key = "healthy-repositories",
+                    Label = "Healthy Repos",
+                    Value = "36 / 42",
+                    Detail = "85% healthy",
+                    TrendText = "Up 8%",
+                    TrendDirection = MetricTrendDirection.Positive,
+                    Tone = MetricTone.Healthy,
+                    Icon = "pulse"
+                }
+            ],
+            AttentionItems =
+            [
+                new()
+                {
+                    Severity = AlertSeverity.Critical,
+                    SourceName = "billing-api",
+                    Summary = "2 failed runs in the last 30 minutes",
+                    TargetHref = "/repositories/billing-api",
+                    TargetKind = "repository",
+                    CreatedAtUtc = DateTimeOffset.Parse("2026-04-29T01:58:00Z"),
+                    AgeLabel = "2m ago"
                 }
             ]
-        },
-        NeedsAttention =
-        [
-            new AttentionItem
-            {
-                Repository = "billing-api",
-                Severity = "Critical",
-                Summary = "2 failed runs in the last 30 minutes",
-                Age = "2m ago"
-            }
-        ],
-        Repositories =
-        [
-            new RepositoryRow
-            {
-                Project = "ACME Portal",
-                Repository = "acme-portal",
-                Health = "Healthy",
-                ActiveIssues = 9,
-                RunningAgents = 3,
-                FailedRuns = 0,
-                OpenPullRequests = 2,
-                LastActivity = "4m ago",
-                Sparkline = "__/\\_"
-            }
-        ],
-        Activity =
-        [
-            new ActivityEvent
-            {
-                Time = "09:14",
-                Repository = "acme-portal",
-                Reference = "#128",
-                Summary = "Workspace prepared",
-                Tone = "healthy"
-            }
-        ],
-        QuickActions =
-        [
-            new QuickAction
-            {
-                Title = "Import Repository",
-                Description = "Add a GitHub repository to orchestration",
-                Href = "/repositories",
-                Icon = "cloud"
-            }
-        ]
-    };
+        };
+    }
 
-    private sealed class StubDashboardProjectionStore(DashboardProjection projection) : IDashboardProjectionStore
+    private sealed class StaticDashboardProjectionStore(DashboardProjection projection) : IDashboardProjectionStore
     {
-        public ValueTask<DashboardProjection> GetCurrentAsync(CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(projection);
+        public Task<DashboardProjection> GetCurrentAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(projection);
+        }
     }
 }
