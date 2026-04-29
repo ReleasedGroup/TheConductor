@@ -71,13 +71,14 @@ public sealed class SqliteSecretStoreTests
     }
 
     [Fact]
-    public async Task ResolveAsync_Uses_Secret_Resolution_Request_Precedence()
+    public async Task ResolveAsync_Uses_Inherited_Scope_Precedence()
     {
         await using ConductorDbContext dbContext = await CreateDbContextAsync();
         DataProtectionSecretStore store = CreateStore(dbContext);
-        SymphonyInstanceId instanceId = SymphonyInstanceId.New();
-        RepositoryId repositoryId = RepositoryId.New();
         ProjectId projectId = ProjectId.New();
+        RepositoryId repositoryId = RepositoryId.New();
+        SymphonyInstanceId instanceId = SymphonyInstanceId.New();
+
         await store.CreateAsync(
             new CreateSecretRequest(
                 "Global GitHub token",
@@ -94,7 +95,7 @@ public sealed class SqliteSecretStoreTests
                 repositoryId.ToString(),
                 "ghp_repository_secret_value"),
             CancellationToken.None);
-        SecretDescriptor instanceDescriptor = await store.CreateAsync(
+        SecretDescriptor instanceSecret = await store.CreateAsync(
             new CreateSecretRequest(
                 "Instance GitHub token",
                 SecretType.GitHubToken,
@@ -113,8 +114,26 @@ public sealed class SqliteSecretStoreTests
             CancellationToken.None);
 
         Assert.NotNull(resolved);
-        Assert.Equal(instanceDescriptor.Id, resolved.SecretId);
+        Assert.Equal(instanceSecret.Id, resolved.SecretId);
         Assert.Equal("ghp_instance_secret_value", resolved.Value);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Returns_Null_When_Inheritance_Mode_Is_None()
+    {
+        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        DataProtectionSecretStore store = CreateStore(dbContext);
+
+        ResolvedSecret? resolved = await store.ResolveAsync(
+            new SecretResolutionRequest(
+                SecretType.OpenAiApiKey,
+                SymphonyInstanceId.New(),
+                RepositoryId.New(),
+                projectId: null,
+                CredentialInheritanceMode.None),
+            CancellationToken.None);
+
+        Assert.Null(resolved);
     }
 
     [Fact]

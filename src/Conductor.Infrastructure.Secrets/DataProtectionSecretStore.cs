@@ -81,7 +81,7 @@ public sealed class DataProtectionSecretStore(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        IReadOnlyList<SecretDescriptor> descriptors = await dbContext.SecretDescriptors
+        List<SecretDescriptor> descriptors = await dbContext.SecretDescriptors
             .AsNoTracking()
             .Where(secret => secret.SecretType == request.SecretType)
             .ToListAsync(cancellationToken);
@@ -92,9 +92,14 @@ public sealed class DataProtectionSecretStore(
             return null;
         }
 
-        return await ResolveAsync(
-            new SecretReference(resolvedDescriptor.Id, CredentialInheritanceMode.SpecificSecret),
-            cancellationToken);
+        EncryptedSecretValue encryptedValue = await dbContext.EncryptedSecretValues
+            .AsNoTracking()
+            .SingleOrDefaultAsync(secret => secret.SecretId == resolvedDescriptor.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Encrypted value for secret '{resolvedDescriptor.Id}' was not found.");
+
+        return new ResolvedSecret(
+            resolvedDescriptor.Id,
+            secretProtector.Unprotect(encryptedValue.ProtectedValue));
     }
 
     public async Task<IReadOnlyList<SecretDescriptor>> ListAsync(

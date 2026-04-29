@@ -11,88 +11,143 @@ namespace Conductor.Blazor.Tests;
 public sealed class DashboardSmokeTests
 {
     [Fact]
-    public void Home_Renders_Initial_Dashboard()
+    public void Home_Renders_Dashboard_Metrics_Active_Repositories_And_Live_Activity()
     {
         using BunitContext context = new();
-        context.Services.AddSingleton<IDashboardProjectionStore>(new StaticDashboardProjectionStore(new DashboardProjection
-        {
-            CapturedAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
-            Metrics =
+        RegisterHomeServices(
+            context,
+            new DashboardProjection
+            {
+                CapturedAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
+                Metrics =
+                [
+                    Metric("healthy-repositories", "Healthy Repos", "36 / 42"),
+                    Metric("active-agents", "Active Agents", "18"),
+                    Metric("blocked-issues", "Blocked Issues", "7"),
+                    Metric("open-pull-requests", "PRs Open", "23"),
+                    Metric("ai-spend-today", "AI Spend Today", "$128.40")
+                ],
+                AttentionItems =
+                [
+                    Attention(
+                        AlertSeverity.Critical,
+                        "billing-api",
+                        "2 failed runs in the last 30 minutes",
+                        "/repositories/billing-api",
+                        "repository"),
+                    Attention(
+                        AlertSeverity.Warning,
+                        "client-mobile",
+                        "Symphony instance is offline",
+                        "/instances/client-mobile",
+                        "instance")
+                ],
+                InstanceRuntimes =
+                [
+                    InstanceRuntime(
+                        "billing-api-primary",
+                        "Billing API primary",
+                        InstanceHealthStatus.Healthy,
+                        InstanceLifecycleStatus.Running)
+                ]
+            },
+            new ActiveRepositoryDashboard(
             [
-                Metric("healthy-repositories", "Healthy Repos", "36 / 42"),
-                Metric("active-agents", "Active Agents", "18"),
-                Metric("blocked-issues", "Blocked Issues", "7"),
-                Metric("open-pull-requests", "PRs Open", "23"),
-                Metric("ai-spend-today", "AI Spend Today", "$128.40")
-            ],
-            AttentionItems =
-            [
-                Attention(
-                    AlertSeverity.Critical,
-                    "billing-api",
-                    "2 failed runs in the last 30 minutes",
-                    "/repositories/billing-api",
-                    "repository"),
-                Attention(
-                    AlertSeverity.Warning,
-                    "client-mobile",
-                    "Symphony instance is offline",
-                    "/instances/client-mobile",
-                    "instance")
-            ],
-            InstanceRuntimes =
-            [
-                InstanceRuntime(
-                    "billing-api-primary",
-                    "Billing API primary",
-                    InstanceHealthStatus.Healthy,
-                    InstanceLifecycleStatus.Running)
-            ]
-        }));
+                new ActiveRepositoryDashboardRow(
+                    "ACME Portal",
+                    "releasedgroup/acme-portal",
+                    DashboardRepositoryHealth.Warning,
+                    9,
+                    3,
+                    2,
+                    4,
+                    DateTimeOffset.UtcNow.AddMinutes(-4)),
+            ]));
 
         IRenderedComponent<Home> dashboard = context.Render<Home>();
 
-        Assert.Contains("Conductor Dashboard", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Equal(5, dashboard.FindAll("[data-dashboard-metric]").Count);
-        Assert.Contains("Healthy Repos", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Active Agents", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Blocked Issues", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("PRs Open", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("AI Spend Today", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Live activity", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Tests failed and a continuation run started.", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Repository orchestration health", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Release Portal", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Symphony runtime", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Billing API primary", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("ReleasedGroup/billing-api", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("1.2.3", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("/config/billing-api/WORKFLOW.md", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Needs attention", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("billing-api", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Critical", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("href=\"/repositories/billing-api\"", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("href=\"/instances/client-mobile\"", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("Startup verification", dashboard.Markup, StringComparison.Ordinal);
-        Assert.Contains("/health/live", dashboard.Markup, StringComparison.Ordinal);
+        dashboard.WaitForAssertion(() =>
+        {
+            Assert.Contains("Conductor Dashboard", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Equal(5, dashboard.FindAll("[data-dashboard-metric]").Count);
+            Assert.Contains("Healthy Repos", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Active Agents", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Blocked Issues", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("PRs Open", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("AI Spend Today", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Live activity", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Tests failed and a continuation run started.", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Repository orchestration health", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Release Portal", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Symphony runtime", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Billing API primary", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("ReleasedGroup/billing-api", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("1.2.3", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("/config/billing-api/WORKFLOW.md", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Needs attention", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("billing-api", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("href=\"/repositories/billing-api\"", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("href=\"/instances/client-mobile\"", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Active Repositories", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("ACME Portal", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("releasedgroup/acme-portal", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Running Agents", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Failed Runs", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("Startup verification", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("/health/live", dashboard.Markup, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void Home_Renders_Empty_State_When_No_Repositories_Are_Persisted()
+    {
+        using BunitContext context = new();
+        RegisterHomeServices(context, DashboardProjection.Empty, new ActiveRepositoryDashboard([]));
+
+        IRenderedComponent<Home> dashboard = context.Render<Home>();
+
+        dashboard.WaitForAssertion(() =>
+        {
+            Assert.Contains("No active repositories yet", dashboard.Markup, StringComparison.Ordinal);
+            Assert.Contains("0 repositories", dashboard.Markup, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void Home_Renders_Error_State_When_Repository_Projection_Load_Fails()
+    {
+        using BunitContext context = new();
+        context.Services.AddSingleton<IDashboardProjectionStore>(
+            new StaticDashboardProjectionStore(DashboardProjection.Empty));
+        context.Services.AddSingleton<IActiveRepositoryDashboardQuery>(
+            new ThrowingActiveRepositoryDashboardQuery());
+
+        IRenderedComponent<Home> dashboard = context.Render<Home>();
+
+        dashboard.WaitForAssertion(() =>
+        {
+            Assert.Contains("Repository data is unavailable", dashboard.Markup, StringComparison.Ordinal);
+        });
     }
 
     [Fact]
     public void Home_Renders_Dashboard_Metric_Tiles_From_Projection()
     {
         using BunitContext context = new();
-        context.Services.AddSingleton<IDashboardProjectionStore>(new StaticDashboardProjectionStore(new DashboardProjection
-        {
-            CapturedAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
-            Metrics =
-            [
-                Metric("healthy-repositories", "Healthy Repos", "36 / 42"),
-                Metric("active-agents", "Active Agents", "18"),
-                Metric("blocked-issues", "Blocked Issues", "7"),
-                Metric("open-pull-requests", "PRs Open", "23"),
-                Metric("ai-spend-today", "AI Spend Today", "$128.40")
-            ]
-        }));
+        RegisterHomeServices(
+            context,
+            new DashboardProjection
+            {
+                CapturedAtUtc = DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
+                Metrics =
+                [
+                    Metric("healthy-repositories", "Healthy Repos", "36 / 42"),
+                    Metric("active-agents", "Active Agents", "18"),
+                    Metric("blocked-issues", "Blocked Issues", "7"),
+                    Metric("open-pull-requests", "PRs Open", "23"),
+                    Metric("ai-spend-today", "AI Spend Today", "$128.40")
+                ]
+            });
 
         IRenderedComponent<Home> dashboard = context.Render<Home>();
 
@@ -113,8 +168,7 @@ public sealed class DashboardSmokeTests
     public void Home_Renders_Startup_Verification_Cards()
     {
         using BunitContext context = new();
-        context.Services.AddSingleton<IDashboardProjectionStore>(
-            new StaticDashboardProjectionStore(DashboardProjection.Empty));
+        RegisterHomeServices(context, DashboardProjection.Empty);
 
         IRenderedComponent<Home> dashboard = context.Render<Home>();
 
@@ -131,8 +185,7 @@ public sealed class DashboardSmokeTests
     public void Home_Renders_Empty_State_When_No_Metrics_Exist()
     {
         using BunitContext context = new();
-        context.Services.AddSingleton<IDashboardProjectionStore>(
-            new StaticDashboardProjectionStore(DashboardProjection.Empty));
+        RegisterHomeServices(context, DashboardProjection.Empty);
 
         IRenderedComponent<Home> dashboard = context.Render<Home>();
 
@@ -194,6 +247,16 @@ public sealed class DashboardSmokeTests
         Assert.Contains("All clear", panel.Markup, StringComparison.Ordinal);
         Assert.Contains("No critical or warning items are active.", panel.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("release-notes", panel.Markup, StringComparison.Ordinal);
+    }
+
+    private static void RegisterHomeServices(
+        BunitContext context,
+        DashboardProjection projection,
+        ActiveRepositoryDashboard? activeRepositories = null)
+    {
+        context.Services.AddSingleton<IDashboardProjectionStore>(new StaticDashboardProjectionStore(projection));
+        context.Services.AddSingleton<IActiveRepositoryDashboardQuery>(
+            new StubActiveRepositoryDashboardQuery(activeRepositories ?? new ActiveRepositoryDashboard([])));
     }
 
     private static DashboardMetric Metric(string key, string label, string value)
@@ -281,5 +344,24 @@ public sealed class DashboardSmokeTests
         {
             return Task.FromResult(projection);
         }
+    }
+
+    private sealed class StubActiveRepositoryDashboardQuery : IActiveRepositoryDashboardQuery
+    {
+        private readonly ActiveRepositoryDashboard dashboard;
+
+        public StubActiveRepositoryDashboardQuery(ActiveRepositoryDashboard dashboard)
+        {
+            this.dashboard = dashboard;
+        }
+
+        public Task<ActiveRepositoryDashboard> LoadAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(dashboard);
+    }
+
+    private sealed class ThrowingActiveRepositoryDashboardQuery : IActiveRepositoryDashboardQuery
+    {
+        public Task<ActiveRepositoryDashboard> LoadAsync(CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Projection failed.");
     }
 }
