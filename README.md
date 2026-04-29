@@ -24,3 +24,5 @@ dotnet test Conductor.slnx --no-build
 ```powershell
 dotnet run --project src/Conductor.Host/Conductor.Host.csproj
 ```
+
+The root route (`/`) serves the placeholder dashboard for local startup checks. The same startup baseline also exposes `/health/live` and `/health/ready`.
