@@ -45,7 +45,7 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
     }
 
     [Fact]
-    public async Task HomePageServesDashboard()
+    public async Task HomePageServesDashboardWithLiveActivity()
     {
         using HttpClient client = CreateClient();
 
@@ -53,6 +53,8 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
 
         Assert.Contains("Conductor Dashboard", content);
         Assert.Contains("No dashboard metrics are available yet.", content);
+        Assert.Contains("Live activity", content);
+        Assert.Contains("Tests failed and a continuation run started.", content);
         Assert.Contains("Startup verification", content);
         Assert.Contains("/health/ready", content);
     }
