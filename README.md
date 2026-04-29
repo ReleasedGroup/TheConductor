@@ -1,11 +1,21 @@
-# The Conductor
+# Conductor
 
-Conductor is the fleet control layer above Symphony. It supervises many Symphony instances, collects operational state, and presents portfolio-level delivery visibility.
+Conductor is the fleet control layer above Symphony. It is being built as a .NET 10 modular monolith with a thin host, a core domain/application layer, and infrastructure adapters for external systems.
 
-## Development Baseline
+## Solution Layout
 
-This repository targets .NET 10 and uses solution-wide MSBuild defaults from `Directory.Build.props`.
+- `Conductor.slnx` is the .NET solution entry point.
+- `src/Conductor.Core` contains domain types, value objects, and infrastructure-facing contracts.
+- `src/Conductor.Infrastructure.*` projects contain adapter boundaries for GitHub, Symphony HTTP, runners, secrets, reporting, and notifications.
+- `tests/Conductor.Core.Tests` contains focused validation for the initial core and infrastructure skeleton.
 
-Package versions are managed centrally in `Directory.Packages.props`. Project files should reference packages without inline `Version` attributes unless a local exception is deliberately required.
+The SQLite persistence project and Blazor host are tracked separately in Sprint 0 issues.
 
-The planned host configuration starts in `src/Conductor.Host/appsettings.json`. It defines local SQLite, instance, and Symphony release cache paths without storing credentials.
+## Build And Test
+
+```powershell
+dotnet restore Conductor.slnx
+dotnet build Conductor.slnx --no-restore --warnaserror
+dotnet test Conductor.slnx --no-build
+```
+

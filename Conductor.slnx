@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Conductor.Core/Conductor.Core.csproj" />
+    <Project Path="src/Conductor.Infrastructure.GitHub/Conductor.Infrastructure.GitHub.csproj" />
+    <Project Path="src/Conductor.Infrastructure.Notifications/Conductor.Infrastructure.Notifications.csproj" />
+    <Project Path="src/Conductor.Infrastructure.Reporting/Conductor.Infrastructure.Reporting.csproj" />
+    <Project Path="src/Conductor.Infrastructure.Runners.Docker/Conductor.Infrastructure.Runners.Docker.csproj" />
+    <Project Path="src/Conductor.Infrastructure.Runners.Local/Conductor.Infrastructure.Runners.Local.csproj" />
+    <Project Path="src/Conductor.Infrastructure.Secrets/Conductor.Infrastructure.Secrets.csproj" />
+    <Project Path="src/Conductor.Infrastructure.Symphony/Conductor.Infrastructure.Symphony.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Conductor.Core.Tests/Conductor.Core.Tests.csproj" />
+  </Folder>
+</Solution>
