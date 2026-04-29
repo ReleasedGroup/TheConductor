@@ -1,0 +1,13 @@
+{
+  "issueIdentifier": "issue-42",
+  "status": "running",
+  "branchName": "symphony/42",
+  "latestActivityUtc": "2026-04-29T00:00:00Z",
+  "timeline": [
+    {
+      "kind": "session_started",
+      "message": "Session started.",
+      "occurredAtUtc": "2026-04-29T00:00:00Z"
+    }
+  ]
+}
