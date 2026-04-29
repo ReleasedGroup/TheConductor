@@ -1,23 +1,5 @@
 @inherits LayoutComponentBase
 
-<div class="app-shell">
-    <aside class="side-nav" aria-label="Primary">
-        <a class="brand" href="/">
-            <span class="brand-mark" aria-hidden="true">C</span>
-            <span>Conductor</span>
-        </a>
-        <nav>
-            <NavLink href="/" Match="NavLinkMatch.All">Dashboard</NavLink>
-            <NavLink href="/projects">Projects</NavLink>
-            <NavLink href="/repositories">Repositories</NavLink>
-            <NavLink href="/instances">Instances</NavLink>
-            <NavLink href="/settings/workflows">Workflows</NavLink>
-            <NavLink href="/settings/secrets">Secrets</NavLink>
-            <NavLink href="/reports">Reports</NavLink>
-        </nav>
-    </aside>
-
-    <main class="main-panel">
-        @Body
-    </main>
-</div>
+<AppShell>
+    @Body
+</AppShell>
