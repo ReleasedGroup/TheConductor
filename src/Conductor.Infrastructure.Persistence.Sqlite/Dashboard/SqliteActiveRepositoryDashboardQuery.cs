@@ -1,7 +1,14 @@
 using Conductor.Core.Application.Dashboard;
 using Conductor.Core.Domain;
-using Conductor.Infrastructure.Persistence.Sqlite.Schema;
+using Conductor.Core.Domain.Ids;
+using Conductor.Core.Domain.Issues;
+using Conductor.Core.Domain.Projects;
+using Conductor.Core.Domain.Repositories;
+using Conductor.Core.Domain.Runs;
+using Conductor.Core.Domain.Snapshots;
+using Conductor.Core.Domain.Symphony;
 using Microsoft.EntityFrameworkCore;
+using DomainEvent = Conductor.Core.Domain.Events.Event;
 
 namespace Conductor.Infrastructure.Persistence.Sqlite.Dashboard;
 
@@ -18,23 +25,11 @@ public sealed class SqliteActiveRepositoryDashboardQuery : IActiveRepositoryDash
 
     public async Task<ActiveRepositoryDashboard> LoadAsync(CancellationToken cancellationToken = default)
     {
-        List<RepositoryProjection> repositories = await dbContext
-            .Set<RepositoryRecord>()
+        List<Repository> repositories = await dbContext.Repositories
             .AsNoTracking()
-            .GroupJoin(
-                dbContext.Set<ProjectRecord>().AsNoTracking(),
-                repository => repository.ProjectId,
-                project => project.Id,
-                (repository, projects) => new { repository, projects })
-            .SelectMany(
-                joined => joined.projects.DefaultIfEmpty(),
-                (joined, project) => new RepositoryProjection(
-                    joined.repository.Id,
-                    project == null ? UnassignedProjectName : project.Name,
-                    joined.repository.Owner + "/" + joined.repository.Name,
-                    joined.repository.OpenIssueCount,
-                    joined.repository.PullRequestCount,
-                    joined.repository.UpdatedAtUtc))
+            .Where(repository => !repository.IsArchived)
+            .OrderBy(repository => repository.Owner)
+            .ThenBy(repository => repository.Name)
             .ToListAsync(cancellationToken);
 
         if (repositories.Count == 0)
@@ -42,18 +37,21 @@ public sealed class SqliteActiveRepositoryDashboardQuery : IActiveRepositoryDash
             return new ActiveRepositoryDashboard([]);
         }
 
-        string[] repositoryIds = [.. repositories.Select(repository => repository.Id)];
+        RepositoryId[] repositoryIds = [.. repositories.Select(repository => repository.Id)];
 
-        Dictionary<string, InstanceAggregate> instancesByRepository = await LoadInstanceAggregatesAsync(
+        Dictionary<ProjectId, Project> projectsById = await LoadProjectsAsync(
+            repositories.Select(repository => repository.ProjectId),
+            cancellationToken);
+        Dictionary<RepositoryId, InstanceAggregate> instancesByRepository = await LoadInstanceAggregatesAsync(
             repositoryIds,
             cancellationToken);
-        Dictionary<string, IssueAggregate> issuesByRepository = await LoadIssueAggregatesAsync(
+        Dictionary<RepositoryId, IssueAggregate> issuesByRepository = await LoadIssueAggregatesAsync(
             repositoryIds,
             cancellationToken);
-        Dictionary<string, RunAggregate> runsByRepository = await LoadRunAggregatesAsync(
+        Dictionary<RepositoryId, RunAggregate> runsByRepository = await LoadRunAggregatesAsync(
             repositoryIds,
             cancellationToken);
-        Dictionary<string, EventAggregate> eventsByRepository = await LoadEventAggregatesAsync(
+        Dictionary<RepositoryId, EventAggregate> eventsByRepository = await LoadEventAggregatesAsync(
             repositoryIds,
             cancellationToken);
 
@@ -62,26 +60,32 @@ public sealed class SqliteActiveRepositoryDashboardQuery : IActiveRepositoryDash
             .. repositories
                 .Select(repository =>
                 {
+                    Project? project = null;
+                    if (repository.ProjectId is { } projectId)
+                    {
+                        projectsById.TryGetValue(projectId, out project);
+                    }
+
                     instancesByRepository.TryGetValue(repository.Id, out InstanceAggregate? instanceAggregate);
                     issuesByRepository.TryGetValue(repository.Id, out IssueAggregate? issueAggregate);
                     runsByRepository.TryGetValue(repository.Id, out RunAggregate? runAggregate);
                     eventsByRepository.TryGetValue(repository.Id, out EventAggregate? eventAggregate);
 
                     DateTimeOffset? lastActivityAtUtc = Latest(
-                        repository.UpdatedAtUtc,
+                        repository.LastSyncedAtUtc,
                         instanceAggregate?.LastActivityAtUtc,
                         issueAggregate?.LastActivityAtUtc,
                         runAggregate?.LastActivityAtUtc,
                         eventAggregate?.LastActivityAtUtc);
 
                     return new ActiveRepositoryDashboardRow(
-                        repository.ProjectName,
-                        repository.RepositoryFullName,
+                        project?.Name ?? UnassignedProjectName,
+                        repository.FullName.Value,
                         instanceAggregate?.Health ?? DashboardRepositoryHealth.Unknown,
-                        issueAggregate?.ActiveIssueCount ?? repository.OpenIssueCount,
+                        issueAggregate?.ActiveIssueCount ?? 0,
                         instanceAggregate?.RunningAgentCount ?? 0,
                         runAggregate?.FailedRunCount ?? 0,
-                        repository.OpenPullRequestCount,
+                        runAggregate?.OpenPullRequestCount ?? 0,
                         lastActivityAtUtc);
                 })
                 .OrderBy(row => HealthSortOrder(row.Health))
@@ -92,146 +96,171 @@ public sealed class SqliteActiveRepositoryDashboardQuery : IActiveRepositoryDash
         return new ActiveRepositoryDashboard(rows);
     }
 
-    private async Task<Dictionary<string, InstanceAggregate>> LoadInstanceAggregatesAsync(
-        string[] repositoryIds,
+    private async Task<Dictionary<ProjectId, Project>> LoadProjectsAsync(
+        IEnumerable<ProjectId?> projectIds,
         CancellationToken cancellationToken)
     {
-        var instances = await dbContext
-            .Set<SymphonyInstanceRecord>()
+        ProjectId[] ids =
+        [
+            .. projectIds
+                .Where(projectId => projectId.HasValue)
+                .Select(projectId => projectId!.Value)
+                .Distinct(),
+        ];
+
+        if (ids.Length == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Projects
             .AsNoTracking()
-            .Where(instance => repositoryIds.Contains(instance.RepositoryId))
-            .Select(instance => new
-            {
-                instance.RepositoryId,
-                instance.Status,
-                instance.HealthStatus,
-                instance.LastSeenAtUtc,
-                instance.UpdatedAtUtc,
-            })
+            .Where(project => ids.Contains(project.Id))
+            .ToDictionaryAsync(project => project.Id, cancellationToken);
+    }
+
+    private async Task<Dictionary<RepositoryId, InstanceAggregate>> LoadInstanceAggregatesAsync(
+        RepositoryId[] repositoryIds,
+        CancellationToken cancellationToken)
+    {
+        List<SymphonyInstance> instances = await dbContext.SymphonyInstances
+            .AsNoTracking()
+            .Where(instance => repositoryIds.Contains(instance.RepositoryId)
+                && instance.LifecycleStatus != InstanceLifecycleStatus.Destroyed)
             .ToListAsync(cancellationToken);
 
+        if (instances.Count == 0)
+        {
+            return [];
+        }
+
+        Dictionary<SymphonyInstanceId, DateTimeOffset> latestSnapshotByInstanceId =
+            await LoadLatestSnapshotTimesByInstanceAsync(
+                [.. instances.Select(instance => instance.Id)],
+                cancellationToken);
+
         return instances
-            .GroupBy(instance => instance.RepositoryId, StringComparer.Ordinal)
+            .GroupBy(instance => instance.RepositoryId)
             .ToDictionary(
                 group => group.Key,
                 group => new InstanceAggregate(
                     ComputeRepositoryHealth(group.Select(instance => instance.HealthStatus)),
-                    group.Count(instance => string.Equals(instance.Status, InstanceLifecycleStatus.Running.ToString(), StringComparison.Ordinal)),
-                    Latest(group.SelectMany(instance => new DateTimeOffset?[] { instance.LastSeenAtUtc, instance.UpdatedAtUtc }))),
-                StringComparer.Ordinal);
+                    group.Count(instance => instance.LifecycleStatus == InstanceLifecycleStatus.Running),
+                    Latest(group.Select(instance => Latest(
+                        instance.LastSeenAtUtc,
+                        instance.LastHealthCheckAtUtc,
+                        instance.LastStartedAtUtc,
+                        instance.CreatedAtUtc,
+                        latestSnapshotByInstanceId.TryGetValue(instance.Id, out DateTimeOffset capturedAtUtc)
+                            ? capturedAtUtc
+                            : null)))));
     }
 
-    private async Task<Dictionary<string, IssueAggregate>> LoadIssueAggregatesAsync(
-        string[] repositoryIds,
+    private async Task<Dictionary<RepositoryId, IssueAggregate>> LoadIssueAggregatesAsync(
+        RepositoryId[] repositoryIds,
         CancellationToken cancellationToken)
     {
-        var issues = await dbContext
-            .Set<TrackedIssueRecord>()
+        List<TrackedIssue> issues = await dbContext.TrackedIssues
             .AsNoTracking()
             .Where(issue => repositoryIds.Contains(issue.RepositoryId)
-                && issue.SymphonyStatus != SymphonyIssueStatus.Succeeded.ToString())
-            .Select(issue => new
-            {
-                issue.RepositoryId,
-                issue.UpdatedAtUtc,
-            })
+                && issue.State == TrackedIssueState.Open
+                && issue.SymphonyStatus != SymphonyIssueStatus.Succeeded)
             .ToListAsync(cancellationToken);
 
-        List<IssueAggregate> issueAggregates =
-        [
-            .. issues
-                .GroupBy(issue => issue.RepositoryId, StringComparer.Ordinal)
-                .Select(group => new IssueAggregate(
+        return issues
+            .GroupBy(issue => issue.RepositoryId)
+            .ToDictionary(
+                group => group.Key,
+                group => new IssueAggregate(
                     group.Key,
                     group.Count(),
-                    group.Max(issue => issue.UpdatedAtUtc))),
-        ];
-
-        return issueAggregates.ToDictionary(aggregate => aggregate.RepositoryId, StringComparer.Ordinal);
+                    group.Max(issue => issue.LastActivityAtUtc)));
     }
 
-    private async Task<Dictionary<string, RunAggregate>> LoadRunAggregatesAsync(
-        string[] repositoryIds,
+    private async Task<Dictionary<RepositoryId, RunAggregate>> LoadRunAggregatesAsync(
+        RepositoryId[] repositoryIds,
         CancellationToken cancellationToken)
     {
-        var runs = await dbContext
-            .Set<RunRecord>()
+        List<Run> runs = await dbContext.Runs
             .AsNoTracking()
             .Where(run => repositoryIds.Contains(run.RepositoryId))
-            .Select(run => new
-            {
-                run.RepositoryId,
-                run.Status,
-                run.StartedAtUtc,
-                run.CompletedAtUtc,
-            })
             .ToListAsync(cancellationToken);
 
-        List<RunAggregate> runAggregates =
-        [
-            .. runs
-                .GroupBy(run => run.RepositoryId, StringComparer.Ordinal)
-                .Select(group => new RunAggregate(
+        return runs
+            .GroupBy(run => run.RepositoryId)
+            .ToDictionary(
+                group => group.Key,
+                group => new RunAggregate(
                     group.Key,
-                    group.Count(run => run.Status == RunStatus.Failed.ToString()),
-                    Latest(group.SelectMany(run => new DateTimeOffset?[] { run.StartedAtUtc, run.CompletedAtUtc })))),
-        ];
-
-        return runAggregates.ToDictionary(aggregate => aggregate.RepositoryId, StringComparer.Ordinal);
+                    group.Count(run => run.Status == RunStatus.Failed),
+                    group
+                        .Where(run => run.PullRequestUrl is not null)
+                        .Select(run => run.PullRequestUrl!.AbsoluteUri)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Count(),
+                    Latest(group.Select(run => Latest(run.StartedAtUtc, run.FinishedAtUtc)))));
     }
 
-    private async Task<Dictionary<string, EventAggregate>> LoadEventAggregatesAsync(
-        string[] repositoryIds,
+    private async Task<Dictionary<RepositoryId, EventAggregate>> LoadEventAggregatesAsync(
+        RepositoryId[] repositoryIds,
         CancellationToken cancellationToken)
     {
-        var events = await dbContext
-            .Set<EventRecord>()
+        List<DomainEvent> events = await dbContext.Events
             .AsNoTracking()
-            .Where(eventRecord => eventRecord.RepositoryId != null && repositoryIds.Contains(eventRecord.RepositoryId!))
-            .Select(eventRecord => new
-            {
-                RepositoryId = eventRecord.RepositoryId!,
-                eventRecord.OccurredAtUtc,
-            })
+            .Where(eventRecord => eventRecord.RepositoryId.HasValue
+                && repositoryIds.Contains(eventRecord.RepositoryId.Value))
             .ToListAsync(cancellationToken);
 
-        List<EventAggregate> eventAggregates =
-        [
-            .. events
-                .GroupBy(eventRecord => eventRecord.RepositoryId, StringComparer.Ordinal)
-                .Select(group => new EventAggregate(
+        return events
+            .GroupBy(eventRecord => eventRecord.RepositoryId!.Value)
+            .ToDictionary(
+                group => group.Key,
+                group => new EventAggregate(
                     group.Key,
-                    group.Max(eventRecord => eventRecord.OccurredAtUtc))),
-        ];
-
-        return eventAggregates.ToDictionary(aggregate => aggregate.RepositoryId, StringComparer.Ordinal);
+                    group.Max(eventRecord => eventRecord.OccurredAtUtc)));
     }
 
-    private static DashboardRepositoryHealth ComputeRepositoryHealth(IEnumerable<string> healthStatuses)
+    private async Task<Dictionary<SymphonyInstanceId, DateTimeOffset>> LoadLatestSnapshotTimesByInstanceAsync(
+        SymphonyInstanceId[] instanceIds,
+        CancellationToken cancellationToken)
     {
-        string[] statuses = [.. healthStatuses];
+        List<InstanceSnapshot> snapshots = await dbContext.InstanceSnapshots
+            .AsNoTracking()
+            .Where(snapshot => instanceIds.Contains(snapshot.SymphonyInstanceId))
+            .ToListAsync(cancellationToken);
+
+        return snapshots
+            .GroupBy(snapshot => snapshot.SymphonyInstanceId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Max(snapshot => snapshot.CapturedAtUtc));
+    }
+
+    private static DashboardRepositoryHealth ComputeRepositoryHealth(IEnumerable<InstanceHealthStatus> healthStatuses)
+    {
+        InstanceHealthStatus[] statuses = [.. healthStatuses];
 
         if (statuses.Length == 0)
         {
             return DashboardRepositoryHealth.Unknown;
         }
 
-        if (statuses.Contains(InstanceHealthStatus.Critical.ToString(), StringComparer.Ordinal))
+        if (statuses.Contains(InstanceHealthStatus.Critical))
         {
             return DashboardRepositoryHealth.Critical;
         }
 
-        if (statuses.Contains(InstanceHealthStatus.Warning.ToString(), StringComparer.Ordinal))
+        if (statuses.Contains(InstanceHealthStatus.Warning))
         {
             return DashboardRepositoryHealth.Warning;
         }
 
-        if (statuses.Contains(InstanceHealthStatus.Offline.ToString(), StringComparer.Ordinal))
+        if (statuses.Contains(InstanceHealthStatus.Offline))
         {
             return DashboardRepositoryHealth.Offline;
         }
 
-        if (statuses.All(status => string.Equals(status, InstanceHealthStatus.Healthy.ToString(), StringComparison.Ordinal)))
+        if (statuses.All(status => status == InstanceHealthStatus.Healthy))
         {
             return DashboardRepositoryHealth.Healthy;
         }
@@ -268,28 +297,21 @@ public sealed class SqliteActiveRepositoryDashboardQuery : IActiveRepositoryDash
         return latest;
     }
 
-    private sealed record RepositoryProjection(
-        string Id,
-        string ProjectName,
-        string RepositoryFullName,
-        int OpenIssueCount,
-        int OpenPullRequestCount,
-        DateTimeOffset UpdatedAtUtc);
-
     private sealed record InstanceAggregate(
         DashboardRepositoryHealth Health,
         int RunningAgentCount,
         DateTimeOffset? LastActivityAtUtc);
 
     private sealed record IssueAggregate(
-        string RepositoryId,
+        RepositoryId RepositoryId,
         int ActiveIssueCount,
         DateTimeOffset LastActivityAtUtc);
 
     private sealed record RunAggregate(
-        string RepositoryId,
+        RepositoryId RepositoryId,
         int FailedRunCount,
+        int OpenPullRequestCount,
         DateTimeOffset? LastActivityAtUtc);
 
-    private sealed record EventAggregate(string RepositoryId, DateTimeOffset LastActivityAtUtc);
+    private sealed record EventAggregate(RepositoryId RepositoryId, DateTimeOffset LastActivityAtUtc);
 }
