@@ -79,3 +79,35 @@ Responses:
 - `200 OK` with the updated assignment summary.
 - `400 Bad Request` with validation errors when modes, secret IDs, types, or scopes are invalid.
 - `404 Not Found` when the Symphony instance does not exist.
+
+## Repository Import
+
+`POST /api/repos/import` imports a GitHub repository record and can create an optional Symphony instance shell.
+
+Request:
+
+```json
+{
+  "repositoryFullName": "ReleasedGroup/TheConductor",
+  "defaultBranch": "main",
+  "visibility": "Private",
+  "createSymphonyInstance": true,
+  "instanceBaseUrl": "http://localhost:8080/",
+  "port": 8080,
+  "releaseTag": "latest",
+  "gitHubCredentialInheritanceMode": "InheritDefault",
+  "openAiCredentialInheritanceMode": "InheritDefault"
+}
+```
+
+Behavior:
+
+- Validates `owner/name` repository identity and derives GitHub clone/web URLs when explicit URLs are not provided.
+- Creates or updates the repository registry record.
+- Creates a `NotProvisioned` Symphony instance shell when orchestration is requested.
+- Records an audit event for the import.
+
+Responses:
+
+- `201 Created` with repository and optional instance identifiers.
+- `400 Bad Request` with validation errors when repository identity, instance URL, port, or specific secret references are invalid.
