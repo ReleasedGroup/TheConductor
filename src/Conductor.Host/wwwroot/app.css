@@ -318,7 +318,6 @@ h1:focus-visible,
   margin: 0 auto;
 }
 
-.instances-page {
 .dashboard,
 .instances-page,
 .repositories-page,
@@ -357,12 +356,6 @@ h1:focus-visible,
 .page-heading p {
   margin-top: 8px;
   color: #c4d0df;
-.eyebrow {
-  margin: 0 0 8px;
-  color: #6fb7ff;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
 }
 
 .dashboard-summary {
@@ -371,7 +364,7 @@ h1:focus-visible,
 }
 
 .eyebrow {
-  margin-bottom: 6px;
+  margin: 0 0 8px;
   color: #8fbaff;
   font-size: 12px;
   font-weight: 800;
@@ -1212,6 +1205,8 @@ td {
 .quick-action span span {
   margin-top: 4px;
   color: var(--muted);
+}
+
 .repository-table-wrap {
   overflow-x: auto;
 }
