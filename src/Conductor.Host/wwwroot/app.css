@@ -181,6 +181,161 @@ h2 {
   color: #dbe6ee;
 }
 
+.health-heatmap {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid #2b3138;
+  border-radius: 8px;
+  background: #151a1f;
+}
+
+.health-heatmap-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.health-heatmap-header p:not(.eyebrow) {
+  margin-bottom: 0;
+  color: #aeb9c5;
+}
+
+.heatmap-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.heatmap-legend-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid #2b3138;
+  border-radius: 6px;
+  background: #1b2228;
+  color: #dbe6ee;
+  font-size: 0.85rem;
+}
+
+.heatmap-legend-item strong {
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+.heatmap-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.heatmap-table-wrap {
+  overflow-x: auto;
+}
+
+.heatmap-grid {
+  width: 100%;
+  min-width: 720px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 6px;
+}
+
+.heatmap-grid th {
+  color: #aeb9c5;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.heatmap-grid thead th:not(:first-child) {
+  text-align: center;
+}
+
+.heatmap-grid tbody th {
+  width: 180px;
+  padding-right: 10px;
+  color: #e6edf3;
+}
+
+.heatmap-grid td {
+  padding: 0;
+}
+
+.heatmap-cell {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-width: 64px;
+  min-height: 54px;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.heatmap-cell-status {
+  color: currentColor;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.heatmap-cell-score {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.heatmap-cell--healthy {
+  border-color: #2d6f5e;
+  background: #12382d;
+  color: #9ee7d7;
+}
+
+.heatmap-cell--warning {
+  border-color: #8a6823;
+  background: #3d3015;
+  color: #f2c14e;
+}
+
+.heatmap-cell--critical {
+  border-color: #904247;
+  background: #452022;
+  color: #ffb4ab;
+}
+
+.heatmap-cell--offline {
+  border-color: #53606d;
+  background: #272d34;
+  color: #c7d0d9;
+}
+
+.heatmap-cell-empty {
+  border-color: #2b3138;
+  background: #151a1f;
+  color: #74808d;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .startup-panel {
   display: grid;
   gap: 18px;
@@ -261,6 +416,14 @@ h2 {
   .activity-panel,
   .startup-panel dl {
     grid-template-columns: 1fr;
+  }
+
+  .health-heatmap-header {
+    display: grid;
+  }
+
+  .heatmap-grid {
+    min-width: 640px;
   }
 
   .dashboard-header {
