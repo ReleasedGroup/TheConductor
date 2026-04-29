@@ -5,11 +5,13 @@ using Conductor.Core.Application.Queries;
 using Conductor.Core.Application.Repositories;
 using Conductor.Core.Application.Secrets;
 using Conductor.Core.Application.Snapshots;
+using Conductor.Core.Application.Workflows;
 using Conductor.Infrastructure.Persistence.Sqlite.Dashboard;
 using Conductor.Infrastructure.Persistence.Sqlite.Instances;
 using Conductor.Infrastructure.Persistence.Sqlite.Queries;
 using Conductor.Infrastructure.Persistence.Sqlite.Repositories;
 using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
+using Conductor.Infrastructure.Persistence.Sqlite.Workflows;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,6 +56,7 @@ public static class SqlitePersistenceServiceCollectionExtensions
         services.AddScoped<IInstanceCredentialAssignmentService, SqliteInstanceCredentialAssignmentService>();
         services.AddScoped<IInstanceCollectionStore, SqliteInstanceCollectionStore>();
         services.AddScoped<IInstanceSnapshotStore, SqliteInstanceSnapshotStore>();
+        services.AddScoped<IWorkflowProfileService, SqliteWorkflowProfileService>();
         services.TryAddSingleton(TimeProvider.System);
 
         return services;

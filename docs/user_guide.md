@@ -28,4 +28,14 @@ When a project is selected during import, the repository is linked immediately a
 
 The page can also create a first Symphony instance shell in `NotProvisioned` state. The shell captures execution mode, instance URL, port, release selector, and credential inheritance choices so later provisioning work can start from a validated record.
 
+If workflow profiles exist, choose one while creating the instance shell. Conductor stores that profile reference on the instance so later workflow generation can render the correct `WORKFLOW.md` source.
+
 Imported repositories appear in the managed repository registry with project, visibility, default branch, archive state, orchestration eligibility, instance counts, last sync, and latest health metadata. Open a repository row to review its detail page, including clone and web URLs, sync metadata, orchestration status, and active Symphony instances attached to that repository.
+
+## Workflow Profiles
+
+Use the Workflows page to create and edit reusable `WORKFLOW.md` profiles. Each profile stores a name, optional description, raw Markdown source, default flag, revision number, and created/updated timestamps.
+
+Mark one profile as the default when it should be the standard choice for new Symphony instance shells. Setting a profile as default clears the previous default profile.
+
+The editor shows the current source beside the form before save. Saving a profile validates required fields and preserves an audit event for create and update operations.
