@@ -48,6 +48,8 @@ public sealed class ConductorDbContext(DbContextOptions<ConductorDbContext> opti
 
     public DbSet<SecretDescriptor> SecretDescriptors => Set<SecretDescriptor>();
 
+    public DbSet<EncryptedSecretValue> EncryptedSecretValues => Set<EncryptedSecretValue>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasAnnotation("Relational:MaxIdentifierLength", 64);
