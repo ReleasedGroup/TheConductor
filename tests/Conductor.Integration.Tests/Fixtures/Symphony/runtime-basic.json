@@ -1,0 +1,13 @@
+{
+  "applicationName": "Symphony",
+  "version": "1.2.3",
+  "instanceId": "symphony-local-1",
+  "workflow": {
+    "owner": "ReleasedGroup",
+    "repository": "TheConductor",
+    "sourcePath": "/config/WORKFLOW.md"
+  },
+  "persistence": {
+    "provider": "sqlite"
+  }
+}
