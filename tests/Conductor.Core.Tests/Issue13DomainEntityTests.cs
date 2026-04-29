@@ -33,7 +33,7 @@ public sealed class Issue13DomainEntityTests
             downloadedAt,
             "  sha256:abc123  ");
 
-        Assert.Equal("v1.2.3", artifact.ReleaseTag);
+        Assert.Equal("v1.2.3", artifact.ReleaseTag.Value);
         Assert.Equal("symphony-win-x64.zip", artifact.AssetName);
         Assert.Equal(downloadedAt, artifact.DownloadedAtUtc);
         Assert.Equal("sha256:abc123", artifact.Checksum);

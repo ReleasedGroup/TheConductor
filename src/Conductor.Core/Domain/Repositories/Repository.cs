@@ -8,8 +8,7 @@ public sealed class Repository
     public Repository(
         RepositoryId id,
         RepositoryProvider provider,
-        string owner,
-        string name,
+        GitHubRepositoryFullName fullName,
         string defaultBranch,
         Uri cloneUrl,
         Uri webUrl,
@@ -22,8 +21,7 @@ public sealed class Repository
     {
         Id = new RepositoryId(Guard.NotEmpty(id.Value, nameof(id)));
         Provider = provider;
-        Owner = Guard.NotWhiteSpace(owner, nameof(owner));
-        Name = Guard.NotWhiteSpace(name, nameof(name));
+        FullName = fullName ?? throw new ArgumentNullException(nameof(fullName));
         DefaultBranch = Guard.NotWhiteSpace(defaultBranch, nameof(defaultBranch));
         CloneUrl = Guard.AbsoluteUri(cloneUrl, nameof(cloneUrl));
         WebUrl = Guard.AbsoluteUri(webUrl, nameof(webUrl));
@@ -37,15 +35,92 @@ public sealed class Repository
         ValidateOrchestrationStatus();
     }
 
+    public Repository(
+        RepositoryId id,
+        RepositoryProvider provider,
+        string owner,
+        string name,
+        string defaultBranch,
+        Uri cloneUrl,
+        Uri webUrl,
+        RepositoryVisibility visibility,
+        bool isArchived,
+        ProjectId? projectId,
+        DateTimeOffset? lastSyncedAtUtc,
+        RepositoryOrchestrationStatus orchestrationStatus,
+        string? orchestrationStatusReason)
+        : this(
+            id,
+            provider,
+            new GitHubRepositoryFullName(owner, name),
+            defaultBranch,
+            cloneUrl,
+            webUrl,
+            visibility,
+            isArchived,
+            projectId,
+            lastSyncedAtUtc,
+            orchestrationStatus,
+            orchestrationStatusReason)
+    {
+    }
+
+    public Repository(
+        RepositoryId id,
+        RepositoryProvider provider,
+        string owner,
+        string name,
+        string defaultBranch,
+        Uri cloneUrl,
+        Uri webUrl,
+        bool isArchived,
+        ProjectId? projectId)
+        : this(
+            id,
+            provider,
+            new GitHubRepositoryFullName(owner, name),
+            defaultBranch,
+            cloneUrl,
+            webUrl,
+            isArchived,
+            projectId)
+    {
+    }
+
+    public Repository(
+        RepositoryId id,
+        RepositoryProvider provider,
+        GitHubRepositoryFullName fullName,
+        string defaultBranch,
+        Uri cloneUrl,
+        Uri webUrl,
+        bool isArchived,
+        ProjectId? projectId)
+        : this(
+            id,
+            provider,
+            fullName,
+            defaultBranch,
+            cloneUrl,
+            webUrl,
+            RepositoryVisibility.Public,
+            isArchived,
+            projectId,
+            lastSyncedAtUtc: null,
+            isArchived ? RepositoryOrchestrationStatus.Ineligible : RepositoryOrchestrationStatus.Eligible,
+            isArchived ? "Archived repositories cannot be orchestrated." : null)
+    {
+    }
+
     public RepositoryId Id { get; }
 
     public RepositoryProvider Provider { get; }
 
-    public string Owner { get; }
+    public string Owner => FullName.Owner;
 
-    public string Name { get; }
+    public string Name => FullName.Name;
 
-    public string FullName => $"{Owner}/{Name}";
+    public GitHubRepositoryFullName FullName { get; }
 
     public string DefaultBranch { get; private set; }
 

@@ -5,4 +5,8 @@
     <ProjectReference Include="..\Conductor.Infrastructure.Persistence.Sqlite\Conductor.Infrastructure.Persistence.Sqlite.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="Data\dashboard-projection.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
