@@ -17,6 +17,7 @@ Conductor is the fleet control layer above Symphony. It is being built as a .NET
 dotnet restore Conductor.slnx
 dotnet build Conductor.slnx --no-restore --warnaserror
 dotnet test Conductor.slnx --no-build
+dotnet format Conductor.slnx --no-restore --verify-no-changes
 ```
 
 ## Run Locally
