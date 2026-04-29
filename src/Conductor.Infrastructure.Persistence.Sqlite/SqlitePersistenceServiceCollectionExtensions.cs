@@ -1,3 +1,5 @@
+using Conductor.Core.Application.Dashboard;
+using Conductor.Infrastructure.Persistence.Sqlite.Dashboard;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +16,7 @@ public static class SqlitePersistenceServiceCollectionExtensions
             ?? SqlitePersistenceOptions.DefaultConnectionString;
 
         services.AddSingleton<SqliteConnectionPragmaInterceptor>();
+        services.AddScoped<IActiveRepositoryDashboardQuery, SqliteActiveRepositoryDashboardQuery>();
 
         services.AddDbContext<ConductorDbContext>((serviceProvider, options) =>
         {
