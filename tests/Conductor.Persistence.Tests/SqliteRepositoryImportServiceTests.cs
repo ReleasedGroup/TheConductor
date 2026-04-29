@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Conductor.Core.Application.Repositories;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Auditing;
@@ -54,6 +55,20 @@ public sealed class SqliteRepositoryImportServiceTests
         Assert.Equal(CredentialInheritanceMode.None, instance.GitHubCredentialInheritanceMode);
         Assert.Equal("ImportRepository", auditEvent.Action);
         Assert.Equal("nick", auditEvent.ActorUserId);
+        Assert.Equal("Repository", auditEvent.TargetResourceType);
+        Assert.Equal(repository.Id.ToString(), auditEvent.TargetResourceId);
+        Assert.Equal(importedAtUtc, auditEvent.OccurredAtUtc);
+        Assert.Equal(AuditEventOutcome.Succeeded, auditEvent.Outcome);
+        Assert.Equal("Imported repository ReleasedGroup/TheConductor.", auditEvent.Message);
+
+        using JsonDocument auditMetadata = JsonDocument.Parse(auditEvent.MetadataJson!);
+        JsonElement metadata = auditMetadata.RootElement;
+
+        Assert.Equal("ReleasedGroup/TheConductor", metadata.GetProperty("repositoryFullName").GetString());
+        Assert.True(metadata.GetProperty("createdRepository").GetBoolean());
+        Assert.True(metadata.GetProperty("createSymphonyInstance").GetBoolean());
+        Assert.True(metadata.GetProperty("createdSymphonyInstance").GetBoolean());
+        Assert.Equal(instance.Id.ToString(), metadata.GetProperty("symphonyInstanceId").GetString());
     }
 
     [Fact]
