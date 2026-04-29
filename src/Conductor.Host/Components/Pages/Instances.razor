@@ -1,7 +1,9 @@
 @page "/instances"
 @rendermode InteractiveServer
+@using Conductor.Core.Abstractions.Secrets
 @using Conductor.Core.Application.Instances
 @using Conductor.Core.Application.Queries
+@using Conductor.Core.Application.Secrets
 @using Conductor.Core.Domain
 @using Conductor.Core.Domain.Ids
 @using Conductor.Core.Domain.Secrets
@@ -184,7 +186,7 @@
                                                         @bind="form.GitHubSecretId"
                                                         disabled="@IsSavingCredentials(instance.Id)">
                                                         <option value="">Select GitHub token</option>
-                                                        @foreach (SecretDescriptorProjection secret in GetCompatibleSecrets(gitHubSecrets, instance))
+                                                        @foreach (SecretDescriptorView secret in GetCompatibleSecrets(gitHubSecrets, instance))
                                                         {
                                                             <option value="@secret.Id.ToString()">@FormatSecretOption(secret)</option>
                                                         }
@@ -208,7 +210,7 @@
                                                         @bind="form.OpenAiSecretId"
                                                         disabled="@IsSavingCredentials(instance.Id)">
                                                         <option value="">Select OpenAI key</option>
-                                                        @foreach (SecretDescriptorProjection secret in GetCompatibleSecrets(openAiSecrets, instance))
+                                                        @foreach (SecretDescriptorView secret in GetCompatibleSecrets(openAiSecrets, instance))
                                                         {
                                                             <option value="@secret.Id.ToString()">@FormatSecretOption(secret)</option>
                                                         }
@@ -240,8 +242,8 @@
     ];
 
     private IReadOnlyList<InstanceSummaryProjection> instances = [];
-    private IReadOnlyList<SecretDescriptorProjection> gitHubSecrets = [];
-    private IReadOnlyList<SecretDescriptorProjection> openAiSecrets = [];
+    private IReadOnlyList<SecretDescriptorView> gitHubSecrets = [];
+    private IReadOnlyList<SecretDescriptorView> openAiSecrets = [];
     private readonly Dictionary<SymphonyInstanceId, CredentialAssignmentForm> credentialForms = [];
     private readonly List<string> validationMessages = [];
     private readonly List<string> credentialValidationMessages = [];
@@ -342,8 +344,8 @@
         try
         {
             instances = await InstanceSummaryQueryService.ListInstanceSummariesAsync(new InstanceSummaryQuery());
-            IReadOnlyList<SecretDescriptorProjection> secrets =
-                await SecretDescriptorQueryService.ListSecretDescriptorsAsync(new SecretDescriptorQuery());
+            IReadOnlyList<SecretDescriptorView> secrets =
+                await SecretDescriptorQueryService.ListAsync(new SecretQuery());
             gitHubSecrets = secrets
                 .Where(secret => secret.SecretType == SecretType.GitHubToken)
                 .ToArray();
@@ -390,15 +392,15 @@
             : new CredentialAssignmentSelection(inheritanceMode);
     }
 
-    private static IEnumerable<SecretDescriptorProjection> GetCompatibleSecrets(
-        IEnumerable<SecretDescriptorProjection> secrets,
+    private static IEnumerable<SecretDescriptorView> GetCompatibleSecrets(
+        IEnumerable<SecretDescriptorView> secrets,
         InstanceSummaryProjection instance)
     {
         return secrets.Where(secret => IsCompatibleScope(secret, instance));
     }
 
     private static bool IsCompatibleScope(
-        SecretDescriptorProjection secret,
+        SecretDescriptorView secret,
         InstanceSummaryProjection instance)
     {
         return secret.ScopeType switch
@@ -454,8 +456,8 @@
         _ => mode,
     };
 
-    private static string FormatSecretOption(SecretDescriptorProjection secret) =>
-        $"{secret.Name} ({secret.ScopeType})";
+    private static string FormatSecretOption(SecretDescriptorView secret) =>
+        $"{secret.Name} ({secret.ScopeLabel})";
 
     private string FindInstanceDisplayName(SymphonyInstanceId instanceId) =>
         instances.FirstOrDefault(instance => instance.Id == instanceId)?.DisplayName ?? instanceId.ToString();

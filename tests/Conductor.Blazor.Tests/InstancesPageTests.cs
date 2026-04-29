@@ -1,6 +1,8 @@
 using Bunit;
+using Conductor.Core.Abstractions.Secrets;
 using Conductor.Core.Application.Instances;
 using Conductor.Core.Application.Queries;
+using Conductor.Core.Application.Secrets;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
 using Conductor.Core.Domain.Secrets;
@@ -175,28 +177,28 @@ public sealed class InstancesPageTests
         public static readonly SecretId GitHubSecretId = SecretId.New();
         public static readonly SecretId OpenAiSecretId = SecretId.New();
 
-        public Task<IReadOnlyList<SecretDescriptorProjection>> ListSecretDescriptorsAsync(
-            SecretDescriptorQuery query,
+        public Task<IReadOnlyList<SecretDescriptorView>> ListAsync(
+            SecretQuery query,
             CancellationToken cancellationToken = default)
         {
-            IReadOnlyList<SecretDescriptorProjection> descriptors =
+            IReadOnlyList<SecretDescriptorView> descriptors =
             [
-                new SecretDescriptorProjection(
+                SecretDescriptorView.FromDescriptor(new SecretDescriptor(
                     GitHubSecretId,
                     "Repository GitHub token",
                     SecretType.GitHubToken,
                     SecretScopeType.Repository,
                     StaticInstanceSummaryQueryService.RepositoryId.ToString(),
                     DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
-                    null),
-                new SecretDescriptorProjection(
+                    null)),
+                SecretDescriptorView.FromDescriptor(new SecretDescriptor(
                     OpenAiSecretId,
                     "Instance OpenAI key",
                     SecretType.OpenAiApiKey,
                     SecretScopeType.SymphonyInstance,
                     StaticInstanceSummaryQueryService.InstanceId.ToString(),
                     DateTimeOffset.Parse("2026-04-29T00:00:00Z"),
-                    null),
+                    null)),
             ];
 
             return Task.FromResult(descriptors);

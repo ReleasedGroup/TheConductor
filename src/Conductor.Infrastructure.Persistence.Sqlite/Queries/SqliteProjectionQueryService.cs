@@ -15,8 +15,7 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Queries;
 public sealed class SqliteProjectionQueryService :
     IDashboardQueryService,
     IRepositoryListQueryService,
-    IInstanceSummaryQueryService,
-    ISecretDescriptorQueryService
+    IInstanceSummaryQueryService
 {
     private readonly ConductorDbContext dbContext;
 
@@ -237,37 +236,6 @@ public sealed class SqliteProjectionQueryService :
             .OrderBy(instance => instance.RepositoryFullName)
             .ThenBy(instance => instance.DisplayName)
             .ToArray();
-    }
-
-    public async Task<IReadOnlyList<SecretDescriptorProjection>> ListSecretDescriptorsAsync(
-        SecretDescriptorQuery query,
-        CancellationToken cancellationToken = default)
-    {
-        IQueryable<SecretDescriptor> descriptors = dbContext.SecretDescriptors.AsNoTracking();
-
-        if (query.SecretType is { } secretType)
-        {
-            descriptors = descriptors.Where(descriptor => descriptor.SecretType == secretType);
-        }
-
-        if (query.ScopeType is { } scopeType)
-        {
-            descriptors = descriptors.Where(descriptor => descriptor.ScopeType == scopeType);
-        }
-
-        return await descriptors
-            .OrderBy(descriptor => descriptor.SecretType)
-            .ThenBy(descriptor => descriptor.ScopeType)
-            .ThenBy(descriptor => descriptor.Name)
-            .Select(descriptor => new SecretDescriptorProjection(
-                descriptor.Id,
-                descriptor.Name,
-                descriptor.SecretType,
-                descriptor.ScopeType,
-                descriptor.ScopeId,
-                descriptor.CreatedAtUtc,
-                descriptor.RotatedAtUtc))
-            .ToArrayAsync(cancellationToken);
     }
 
     private async Task<Dictionary<ProjectId, Project>> LoadProjectsAsync(
