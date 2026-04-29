@@ -8,7 +8,7 @@ The solution includes the Sprint 0 test skeletons from `docs/technical.md`:
 
 | Project | Purpose |
 | --- | --- |
-| `tests/Conductor.Core.Tests` | Unit tests for domain rules, application services, workflow generation, release selection, secret behavior, and alert logic. |
+| `tests/Conductor.Core.Tests` | Unit tests for domain rules, application services, workflow generation, release selection, secret behavior, redaction, and alert logic. |
 | `tests/Conductor.Persistence.Tests` | SQLite persistence tests for migrations, repositories, query projections, retention, secret value storage, and audit writes. |
 | `tests/Conductor.Api.Tests` | Minimal API tests using `WebApplicationFactory` for endpoint behavior, authorization, and validation responses. |
 | `tests/Conductor.Blazor.Tests` | bUnit component tests for dashboard UI, shared loading/empty/error/success states, status badges, forms, and secret-safe rendering. |

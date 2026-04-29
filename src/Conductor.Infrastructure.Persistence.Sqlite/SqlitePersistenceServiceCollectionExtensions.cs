@@ -2,6 +2,7 @@ using Conductor.Core.Application.Dashboard;
 using Conductor.Core.Application.InstanceCollection;
 using Conductor.Core.Application.Instances;
 using Conductor.Core.Application.Queries;
+using Conductor.Core.Application.Repositories;
 using Conductor.Core.Application.Secrets;
 using Conductor.Core.Application.Snapshots;
 using Conductor.Infrastructure.Persistence.Sqlite.Dashboard;
@@ -43,6 +44,9 @@ public static class SqlitePersistenceServiceCollectionExtensions
             provider.GetRequiredService<SqliteProjectionQueryService>());
         services.AddScoped<IRepositoryListQueryService>(provider =>
             provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<IProjectListQueryService>(provider =>
+            provider.GetRequiredService<SqliteProjectionQueryService>());
+        services.AddScoped<IRepositoryImportService, SqliteRepositoryImportService>();
         services.AddScoped<IInstanceSummaryQueryService>(provider =>
             provider.GetRequiredService<SqliteProjectionQueryService>());
         services.AddScoped<ISecretDescriptorQueryService, SqliteSecretDescriptorQueryService>();
