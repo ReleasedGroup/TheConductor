@@ -1,0 +1,17 @@
+<span class="@CssClass" aria-label="@AriaLabel">
+    @Text
+</span>
+
+@code {
+    [Parameter]
+    public string Text { get; set; } = "Unknown";
+
+    [Parameter]
+    public string? Tone { get; set; }
+
+    private string NormalizedTone => (Tone ?? Text).Trim().ToLowerInvariant().Replace(" ", "-");
+
+    private string CssClass => $"status-badge status-{NormalizedTone}";
+
+    private string AriaLabel => $"Status: {Text}";
+}

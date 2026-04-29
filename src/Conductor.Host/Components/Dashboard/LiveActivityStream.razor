@@ -1,0 +1,32 @@
+<section class="panel activity-panel" aria-labelledby="activity-title">
+    <div class="panel-heading">
+        <h2 id="activity-title">Live Activity</h2>
+        <a href="/runs">View all</a>
+    </div>
+
+    @if (Events.Count == 0)
+    {
+        <p class="empty-state">No recent activity has been collected.</p>
+    }
+    else
+    {
+        <ol class="activity-list">
+            @foreach (var activity in Events)
+            {
+                <li>
+                    <span class="@($"activity-icon tone-{activity.Tone}")" aria-hidden="true"></span>
+                    <time>@activity.Time</time>
+                    <div>
+                        <strong>@activity.Repository <span>@activity.Reference</span></strong>
+                        <p>@activity.Summary</p>
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ActivityEvent> Events { get; set; } = [];
+}

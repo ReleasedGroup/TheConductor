@@ -1,0 +1,17 @@
+<section class="quick-actions" aria-label="Quick actions">
+    @foreach (var action in Actions)
+    {
+        <a class="quick-action" href="@action.Href">
+            <span aria-hidden="true">@action.Icon</span>
+            <span>
+                <strong>@action.Title</strong>
+                <span>@action.Description</span>
+            </span>
+        </a>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<QuickAction> Actions { get; set; } = [];
+}

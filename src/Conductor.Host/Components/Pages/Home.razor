@@ -1,0 +1,68 @@
+@page "/"
+@inject IDashboardProjectionStore DashboardProjectionStore
+
+<PageTitle>Dashboard | Conductor</PageTitle>
+
+@if (_loadError is not null)
+{
+    <section class="state-panel" role="alert">
+        <p class="eyebrow">Dashboard unavailable</p>
+        <h1>Projection data could not be loaded.</h1>
+        <p>@_loadError</p>
+    </section>
+}
+else if (_dashboard is null)
+{
+    <section class="state-panel" aria-busy="true">
+        <p class="eyebrow">Loading</p>
+        <h1>Dashboard projection is loading.</h1>
+    </section>
+}
+else
+{
+    <section class="dashboard-page" aria-labelledby="dashboard-title">
+        <div class="page-heading">
+            <div>
+                <h1 id="dashboard-title">Dashboard</h1>
+                <p>Good morning, @_dashboard.OperatorName. Here is what is happening across your software orchestra.</p>
+            </div>
+            <div class="scope-controls" aria-label="Dashboard filters">
+                <button type="button" class="filter-button" aria-label="Date scope">@_dashboard.DateScope</button>
+                <button type="button" class="filter-button" aria-label="Project scope">@_dashboard.ProjectScope</button>
+            </div>
+        </div>
+
+        <div class="metric-grid" aria-label="Fleet metrics">
+            @foreach (var metric in _dashboard.Metrics)
+            {
+                <MetricTile Metric="metric" />
+            }
+        </div>
+
+        <div class="dashboard-grid">
+            <HealthHeatmap Rows="_dashboard.HealthRows" />
+            <WorkloadDonut Workload="_dashboard.Workload" />
+            <NeedsAttentionPanel Items="_dashboard.NeedsAttention" />
+            <RepositoryTable Repositories="_dashboard.Repositories" />
+            <QuickActions Actions="_dashboard.QuickActions" />
+            <LiveActivityStream Events="_dashboard.Activity" />
+        </div>
+    </section>
+}
+
+@code {
+    private DashboardProjection? _dashboard;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _dashboard = await DashboardProjectionStore.GetCurrentAsync();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        {
+            _loadError = ex.Message;
+        }
+    }
+}

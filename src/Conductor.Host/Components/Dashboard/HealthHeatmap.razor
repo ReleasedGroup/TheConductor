@@ -1,0 +1,44 @@
+<section class="panel heatmap-panel" aria-labelledby="health-title">
+    <div class="panel-heading">
+        <h2 id="health-title">Orchestration Health</h2>
+    </div>
+
+    <div class="heatmap" role="table" aria-label="Repository health by recent time bucket">
+        @foreach (var row in Rows)
+        {
+            <div class="heatmap-row" role="row">
+                <span class="heatmap-label" role="rowheader">@row.Repository</span>
+                <span class="heatmap-buckets">
+                    @foreach (var bucket in row.Buckets)
+                    {
+                        <span class="@($"heatmap-cell status-{Normalize(bucket)}")" title="@($"{row.Repository}: {bucket}")" aria-label="@($"{row.Repository} {bucket}")"></span>
+                    }
+                </span>
+            </div>
+        }
+    </div>
+
+    <div class="heatmap-axis" aria-hidden="true">
+        <span>24h ago</span>
+        <span>18h ago</span>
+        <span>12h ago</span>
+        <span>6h ago</span>
+        <span>Now</span>
+    </div>
+
+    <div class="legend" aria-label="Health legend">
+        @foreach (var status in LegendStatuses)
+        {
+            <span><span class="@($"legend-swatch status-{Normalize(status)}")" aria-hidden="true"></span>@status</span>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<HealthHeatmapRow> Rows { get; set; } = [];
+
+    private static readonly string[] LegendStatuses = ["Healthy", "Warning", "Critical", "Offline"];
+
+    private static string Normalize(string value) => value.Trim().ToLowerInvariant().Replace(" ", "-");
+}

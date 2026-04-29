@@ -1,0 +1,59 @@
+<aside class="side-nav" aria-label="Primary">
+    <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">C</span>
+        <span>
+            <span class="brand-name">Conductor</span>
+            <span class="brand-subtitle">Software Delivery Control Surface</span>
+        </span>
+    </a>
+
+    <nav class="nav-list">
+        @foreach (var item in NavigationItems)
+        {
+            <NavLink href="@item.Href" class="nav-link" Match="@item.Match">
+                <span aria-hidden="true">@item.Icon</span>
+                <span>@item.Label</span>
+            </NavLink>
+        }
+    </nav>
+
+    <section class="favorites" aria-labelledby="favorites-heading">
+        <h2 id="favorites-heading">Favorites</h2>
+        @foreach (var favorite in Favorites)
+        {
+            <a href="/repositories" class="favorite-link">
+                <span aria-hidden="true">*</span>
+                <span>@favorite</span>
+            </a>
+        }
+    </section>
+
+    <div class="version">Conductor v0.1.0</div>
+</aside>
+
+@code {
+    private static readonly NavigationItem[] NavigationItems =
+    [
+        new("Dashboard", "/", "D", NavLinkMatch.All),
+        new("Projects", "/projects", "P", NavLinkMatch.Prefix),
+        new("Repositories", "/repositories", "R", NavLinkMatch.Prefix),
+        new("Runs", "/runs", "N", NavLinkMatch.Prefix),
+        new("Pull Requests", "/pull-requests", "PR", NavLinkMatch.Prefix),
+        new("Issues", "/issues", "I", NavLinkMatch.Prefix),
+        new("Reports", "/reports", "B", NavLinkMatch.Prefix),
+        new("Policies", "/policies", "G", NavLinkMatch.Prefix),
+        new("Infrastructure", "/infrastructure", "S", NavLinkMatch.Prefix),
+        new("Alerts", "/alerts", "A", NavLinkMatch.Prefix),
+        new("Settings", "/settings", "T", NavLinkMatch.Prefix)
+    ];
+
+    private static readonly string[] Favorites =
+    [
+        "acme-portal",
+        "billing-api",
+        "client-mobile",
+        "crm-sync"
+    ];
+
+    private sealed record NavigationItem(string Label, string Href, string Icon, NavLinkMatch Match);
+}

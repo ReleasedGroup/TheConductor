@@ -1,0 +1,37 @@
+<section class="panel attention-panel" aria-labelledby="attention-title">
+    <div class="panel-heading">
+        <h2 id="attention-title">Needs Attention <span>@Items.Count</span></h2>
+        <a href="/alerts">View all</a>
+    </div>
+
+    @if (Items.Count == 0)
+    {
+        <p class="empty-state">No repositories need attention.</p>
+    }
+    else
+    {
+        <ul class="attention-list">
+            @foreach (var item in Items)
+            {
+                <li>
+                    <span class="@($"attention-icon status-{Normalize(item.Severity)}")" aria-hidden="true">!</span>
+                    <div>
+                        <div class="attention-title">
+                            <strong>@item.Repository</strong>
+                            <StatusBadge Text="@item.Severity" />
+                        </div>
+                        <p>@item.Summary</p>
+                    </div>
+                    <time>@item.Age</time>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<AttentionItem> Items { get; set; } = [];
+
+    private static string Normalize(string value) => value.Trim().ToLowerInvariant().Replace(" ", "-");
+}

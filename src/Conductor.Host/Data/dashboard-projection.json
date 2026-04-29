@@ -1,0 +1,117 @@
+{
+  "generatedAtUtc": "2026-04-29T00:00:00Z",
+  "operatorName": "Nick",
+  "dateScope": "Apr 29, 2026",
+  "projectScope": "All Projects",
+  "metrics": [
+    {
+      "title": "Healthy Repos",
+      "value": "36 / 42",
+      "detail": "85% healthy",
+      "trend": "+8%",
+      "tone": "healthy",
+      "icon": "pulse"
+    },
+    {
+      "title": "Active Agents",
+      "value": "18",
+      "detail": "3 from yesterday",
+      "trend": "+3",
+      "tone": "active",
+      "icon": "team"
+    },
+    {
+      "title": "Blocked Issues",
+      "value": "7",
+      "detail": "2 from yesterday",
+      "trend": "+2",
+      "tone": "warning",
+      "icon": "alert"
+    },
+    {
+      "title": "PRs Open",
+      "value": "23",
+      "detail": "1 from yesterday",
+      "trend": "-1",
+      "tone": "review",
+      "icon": "pr"
+    },
+    {
+      "title": "AI Spend Today",
+      "value": "$128.40",
+      "detail": "Est. weekly $842.12",
+      "trend": "",
+      "tone": "cost",
+      "icon": "$"
+    }
+  ],
+  "healthRows": [
+    {
+      "repository": "acme-portal",
+      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Offline"]
+    },
+    {
+      "repository": "billing-api",
+      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Warning", "Warning", "Healthy", "Healthy", "Offline"]
+    },
+    {
+      "repository": "client-mobile",
+      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Warning", "Healthy", "Critical", "Critical", "Critical", "Healthy", "Offline"]
+    },
+    {
+      "repository": "crm-sync",
+      "buckets": ["Healthy", "Healthy", "Warning", "Warning", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Offline"]
+    },
+    {
+      "repository": "data-pipeline",
+      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Warning", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Critical", "Critical", "Offline"]
+    },
+    {
+      "repository": "internal-tools",
+      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Critical", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Critical", "Critical", "Offline"]
+    },
+    {
+      "repository": "marketing-site",
+      "buckets": ["Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Healthy", "Critical", "Critical", "Offline"]
+    }
+  ],
+  "workload": {
+    "totalActiveIssues": 138,
+    "slices": [
+      { "label": "In Progress", "count": 78, "percentage": "57%", "color": "#3b82f6" },
+      { "label": "Queued", "count": 22, "percentage": "16%", "color": "#2563eb" },
+      { "label": "Retrying", "count": 11, "percentage": "8%", "color": "#facc15" },
+      { "label": "Blocked", "count": 7, "percentage": "5%", "color": "#ef4444" },
+      { "label": "Done", "count": 20, "percentage": "14%", "color": "#22c55e" }
+    ]
+  },
+  "needsAttention": [
+    { "repository": "billing-api", "severity": "Critical", "summary": "2 failed runs in the last 30 minutes", "age": "2m ago" },
+    { "repository": "client-mobile", "severity": "Warning", "summary": "Symphony instance is offline", "age": "8m ago" },
+    { "repository": "acme-portal", "severity": "Warning", "summary": "PR #128 waiting for review (3 days)", "age": "15m ago" },
+    { "repository": "crm-sync", "severity": "Warning", "summary": "Issue #44 blocked by Todo items", "age": "32m ago" },
+    { "repository": "data-pipeline", "severity": "Critical", "summary": "High failure rate (60%)", "age": "1h ago" }
+  ],
+  "repositories": [
+    { "project": "ACME Portal", "repository": "acme-portal", "health": "Healthy", "activeIssues": 9, "runningAgents": 3, "failedRuns": 0, "openPullRequests": 2, "lastActivity": "4m ago", "sparkline": "___/\\_/\\_" },
+    { "project": "Billing Engine", "repository": "billing-api", "health": "Warning", "activeIssues": 14, "runningAgents": 5, "failedRuns": 2, "openPullRequests": 1, "lastActivity": "1m ago", "sparkline": "_/\\/\\_/_" },
+    { "project": "Mobile App", "repository": "client-mobile", "health": "Offline", "activeIssues": 0, "runningAgents": 0, "failedRuns": 0, "openPullRequests": 0, "lastActivity": "2h ago", "sparkline": "________" },
+    { "project": "CRM Sync", "repository": "crm-sync", "health": "Healthy", "activeIssues": 7, "runningAgents": 2, "failedRuns": 0, "openPullRequests": 1, "lastActivity": "6m ago", "sparkline": "__/\\_/\\_" },
+    { "project": "Data Pipeline", "repository": "data-pipeline", "health": "Warning", "activeIssues": 11, "runningAgents": 3, "failedRuns": 3, "openPullRequests": 2, "lastActivity": "3m ago", "sparkline": "_/\\/\\_/\\/" },
+    { "project": "Internal Tools", "repository": "internal-tools", "health": "Healthy", "activeIssues": 4, "runningAgents": 1, "failedRuns": 0, "openPullRequests": 0, "lastActivity": "10m ago", "sparkline": "__/\\____" },
+    { "project": "Marketing Site", "repository": "marketing-site", "health": "Healthy", "activeIssues": 3, "runningAgents": 1, "failedRuns": 0, "openPullRequests": 1, "lastActivity": "12m ago", "sparkline": "_/\\__/\\_" }
+  ],
+  "activity": [
+    { "time": "09:18", "repository": "crm-sync", "reference": "#44", "summary": "Pull request opened", "tone": "review" },
+    { "time": "09:16", "repository": "billing-api", "reference": "#77", "summary": "Tests failed, continuation started", "tone": "critical" },
+    { "time": "09:14", "repository": "acme-portal", "reference": "#128", "summary": "Workspace prepared", "tone": "healthy" },
+    { "time": "09:12", "repository": "data-pipeline", "reference": "#102", "summary": "Run completed successfully", "tone": "healthy" },
+    { "time": "09:10", "repository": "internal-tools", "reference": "#58", "summary": "Issue discovered", "tone": "active" }
+  ],
+  "quickActions": [
+    { "title": "Import Repository", "description": "Add a GitHub repository to orchestration", "href": "/repositories", "icon": "cloud" },
+    { "title": "New Workflow Profile", "description": "Create a workflow profile from a template", "href": "/policies", "icon": "doc" },
+    { "title": "Generate Report", "description": "Create a delivery or executive report", "href": "/reports", "icon": "chart" },
+    { "title": "Global Policies", "description": "View and manage orchestration policies", "href": "/policies", "icon": "shield" }
+  ]
+}

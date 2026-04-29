@@ -1,0 +1,53 @@
+<section class="panel repository-panel" aria-labelledby="repositories-title">
+    <div class="panel-heading">
+        <h2 id="repositories-title">Active Repositories</h2>
+    </div>
+
+    @if (Repositories.Count == 0)
+    {
+        <p class="empty-state">No active repositories match the current dashboard scope.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Project</th>
+                        <th scope="col">Repository</th>
+                        <th scope="col">Health</th>
+                        <th scope="col">Active Issues</th>
+                        <th scope="col">Running Agents</th>
+                        <th scope="col">Failed Runs</th>
+                        <th scope="col">PRs Open</th>
+                        <th scope="col">Last Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var repository in Repositories)
+                    {
+                        <tr>
+                            <td>@repository.Project</td>
+                            <td><a href="/repositories">@repository.Repository</a></td>
+                            <td><StatusBadge Text="@repository.Health" /></td>
+                            <td>@repository.ActiveIssues</td>
+                            <td>@repository.RunningAgents</td>
+                            <td class="@(repository.FailedRuns > 0 ? "danger-cell" : null)">@repository.FailedRuns</td>
+                            <td>@repository.OpenPullRequests</td>
+                            <td>
+                                <span>@repository.LastActivity</span>
+                                <span class="sparkline" aria-label="@($"{repository.Repository} activity sparkline")">@repository.Sparkline</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <a class="panel-link" href="/repositories">View all repositories -></a>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<RepositoryRow> Repositories { get; set; } = [];
+}

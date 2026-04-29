@@ -1,0 +1,13 @@
+<article class="@($"metric-tile tone-{Metric.Tone}")">
+    <div class="metric-icon" aria-hidden="true">@Metric.Icon</div>
+    <div>
+        <h2>@Metric.Title</h2>
+        <p class="metric-value">@Metric.Value</p>
+        <p class="metric-detail">@Metric.Detail <span>@Metric.Trend</span></p>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public DashboardMetric Metric { get; set; } = new();
+}
