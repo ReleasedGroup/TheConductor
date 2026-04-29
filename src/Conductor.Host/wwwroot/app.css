@@ -1044,7 +1044,7 @@ h2 {
 
 .instances-table {
   width: 100%;
-  min-width: 780px;
+  min-width: 1120px;
   border-collapse: collapse;
 }
 
@@ -1078,6 +1078,81 @@ h2 {
   color: #9cc2ff;
   font-size: 0.84rem;
   overflow-wrap: anywhere;
+}
+
+.credential-summary {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.credential-summary div {
+  display: grid;
+  gap: 3px;
+}
+
+.credential-summary dt {
+  color: #74808d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.credential-summary dd {
+  margin: 0;
+  color: #dbe6ee;
+  font-size: 0.85rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.credential-form {
+  display: grid;
+  gap: 8px;
+  min-width: 300px;
+}
+
+.credential-form-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.9fr) minmax(150px, 1.1fr);
+  gap: 8px;
+}
+
+.credential-form select {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid #3b4652;
+  border-radius: 6px;
+  background: #111417;
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.credential-form button {
+  width: fit-content;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #2d6f5e;
+  border-radius: 6px;
+  background: #1f7665;
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.credential-form button:hover:not(:disabled),
+.credential-form button:focus-visible {
+  background: #259078;
+}
+
+.credential-form button:disabled,
+.credential-form select:disabled {
+  cursor: not-allowed;
+  opacity: 0.66;
 }
 
 .ui-state {
@@ -1234,6 +1309,7 @@ h2 {
   .dashboard-body,
   .activity-panel,
   .registration-form,
+  .credential-form-row,
   .form-fields,
   .live-activity-header,
   .startup-panel dl {

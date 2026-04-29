@@ -3,8 +3,12 @@
 @using Conductor.Core.Application.Instances
 @using Conductor.Core.Application.Queries
 @using Conductor.Core.Domain
+@using Conductor.Core.Domain.Ids
+@using Conductor.Core.Domain.Secrets
 @inject IManualInstanceRegistrationService RegistrationService
+@inject IInstanceCredentialAssignmentService CredentialAssignmentService
 @inject IInstanceSummaryQueryService InstanceSummaryQueryService
+@inject ISecretDescriptorQueryService SecretDescriptorQueryService
 
 <PageTitle>Instances - Conductor</PageTitle>
 
@@ -90,6 +94,26 @@
                 Title="Loading instances"
                 Message="Reading persisted Symphony registrations." />
         }
+        else if (credentialValidationMessages.Count > 0)
+        {
+            <ErrorState
+                Title="Credentials were not updated."
+                Message="Review the validation result and retry."
+                Detail="@string.Join(" ", credentialValidationMessages)" />
+        }
+        else if (credentialError is not null)
+        {
+            <ErrorState
+                Title="Credentials were not updated."
+                Message="The assignment request did not complete."
+                Detail="@credentialError" />
+        }
+        else if (credentialSuccess is not null)
+        {
+            <SuccessState
+                Title="Credentials updated"
+                Message="@credentialSuccess" />
+        }
         else if (instances.Count == 0)
         {
             <EmptyState
@@ -107,6 +131,8 @@
                             <th scope="col">Health</th>
                             <th scope="col">Runtime</th>
                             <th scope="col">Last seen</th>
+                            <th scope="col">Credentials</th>
+                            <th scope="col">Assignment</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -125,6 +151,76 @@
                                 </td>
                                 <td>@instance.LifecycleStatus</td>
                                 <td>@FormatTimestamp(instance.LastSeenAtUtc)</td>
+                                <td>
+                                    <dl class="credential-summary">
+                                        <div>
+                                            <dt>GitHub</dt>
+                                            <dd>@FormatCredential(instance.GitHubCredentialInheritanceMode, instance.GitHubCredentialName, instance.GitHubCredentialSecretId)</dd>
+                                        </div>
+                                        <div>
+                                            <dt>OpenAI</dt>
+                                            <dd>@FormatCredential(instance.OpenAiCredentialInheritanceMode, instance.OpenAiCredentialName, instance.OpenAiCredentialSecretId)</dd>
+                                        </div>
+                                    </dl>
+                                </td>
+                                <td>
+                                    @if (credentialForms.TryGetValue(instance.Id, out CredentialAssignmentForm? form))
+                                    {
+                                        <form class="credential-form" @onsubmit="@(() => AssignCredentialsAsync(instance.Id))" @onsubmit:preventDefault>
+                                            <div class="credential-form-row">
+                                                <select
+                                                    aria-label="@($"GitHub credential mode for {instance.DisplayName}")"
+                                                    @bind="form.GitHubMode"
+                                                    disabled="@IsSavingCredentials(instance.Id)">
+                                                    @foreach (string mode in CredentialModeOptions)
+                                                    {
+                                                        <option value="@mode">@FormatCredentialMode(mode)</option>
+                                                    }
+                                                </select>
+                                                @if (form.GitHubMode == CredentialInheritanceMode.SpecificSecret.ToString())
+                                                {
+                                                    <select
+                                                        aria-label="@($"GitHub secret for {instance.DisplayName}")"
+                                                        @bind="form.GitHubSecretId"
+                                                        disabled="@IsSavingCredentials(instance.Id)">
+                                                        <option value="">Select GitHub token</option>
+                                                        @foreach (SecretDescriptorProjection secret in GetCompatibleSecrets(gitHubSecrets, instance))
+                                                        {
+                                                            <option value="@secret.Id.ToString()">@FormatSecretOption(secret)</option>
+                                                        }
+                                                    </select>
+                                                }
+                                            </div>
+                                            <div class="credential-form-row">
+                                                <select
+                                                    aria-label="@($"OpenAI credential mode for {instance.DisplayName}")"
+                                                    @bind="form.OpenAiMode"
+                                                    disabled="@IsSavingCredentials(instance.Id)">
+                                                    @foreach (string mode in CredentialModeOptions)
+                                                    {
+                                                        <option value="@mode">@FormatCredentialMode(mode)</option>
+                                                    }
+                                                </select>
+                                                @if (form.OpenAiMode == CredentialInheritanceMode.SpecificSecret.ToString())
+                                                {
+                                                    <select
+                                                        aria-label="@($"OpenAI secret for {instance.DisplayName}")"
+                                                        @bind="form.OpenAiSecretId"
+                                                        disabled="@IsSavingCredentials(instance.Id)">
+                                                        <option value="">Select OpenAI key</option>
+                                                        @foreach (SecretDescriptorProjection secret in GetCompatibleSecrets(openAiSecrets, instance))
+                                                        {
+                                                            <option value="@secret.Id.ToString()">@FormatSecretOption(secret)</option>
+                                                        }
+                                                    </select>
+                                                }
+                                            </div>
+                                            <button type="submit" disabled="@IsSavingCredentials(instance.Id)">
+                                                @(IsSavingCredentials(instance.Id) ? "Saving" : "Save")
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -136,13 +232,27 @@
 
 @code {
     private readonly RegistrationForm registrationForm = new();
+    private static readonly string[] CredentialModeOptions =
+    [
+        CredentialInheritanceMode.InheritDefault.ToString(),
+        CredentialInheritanceMode.SpecificSecret.ToString(),
+        CredentialInheritanceMode.None.ToString(),
+    ];
+
     private IReadOnlyList<InstanceSummaryProjection> instances = [];
+    private IReadOnlyList<SecretDescriptorProjection> gitHubSecrets = [];
+    private IReadOnlyList<SecretDescriptorProjection> openAiSecrets = [];
+    private readonly Dictionary<SymphonyInstanceId, CredentialAssignmentForm> credentialForms = [];
     private readonly List<string> validationMessages = [];
+    private readonly List<string> credentialValidationMessages = [];
     private ManualInstanceRegistrationResult? registeredInstance;
     private string? registrationError;
+    private string? credentialError;
+    private string? credentialSuccess;
     private string? loadError;
     private bool isLoading = true;
     private bool isSubmitting;
+    private SymphonyInstanceId? savingCredentialInstanceId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -183,6 +293,47 @@
         }
     }
 
+    private async Task AssignCredentialsAsync(SymphonyInstanceId instanceId)
+    {
+        credentialValidationMessages.Clear();
+        credentialError = null;
+        credentialSuccess = null;
+
+        if (!credentialForms.TryGetValue(instanceId, out CredentialAssignmentForm? form))
+        {
+            return;
+        }
+
+        savingCredentialInstanceId = instanceId;
+
+        try
+        {
+            InstanceCredentialAssignmentResult result = await CredentialAssignmentService.AssignAsync(new InstanceCredentialAssignmentRequest(
+                instanceId,
+                CreateCredentialSelection(form.GitHubMode, form.GitHubSecretId),
+                CreateCredentialSelection(form.OpenAiMode, form.OpenAiSecretId)));
+
+            credentialSuccess = $"Credential references for {FindInstanceDisplayName(instanceId)} now use GitHub {result.GitHubCredential.InheritanceMode} and OpenAI {result.OpenAiCredential.InheritanceMode}.";
+            await LoadInstancesAsync();
+        }
+        catch (InstanceCredentialAssignmentValidationException ex)
+        {
+            credentialValidationMessages.AddRange(ex.Errors.SelectMany(error => error.Value));
+        }
+        catch (SymphonyInstanceNotFoundException ex)
+        {
+            credentialError = ex.Message;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or FormatException)
+        {
+            credentialError = ex.Message;
+        }
+        finally
+        {
+            savingCredentialInstanceId = null;
+        }
+    }
+
     private async Task LoadInstancesAsync()
     {
         isLoading = true;
@@ -191,6 +342,15 @@
         try
         {
             instances = await InstanceSummaryQueryService.ListInstanceSummariesAsync(new InstanceSummaryQuery());
+            IReadOnlyList<SecretDescriptorProjection> secrets =
+                await SecretDescriptorQueryService.ListSecretDescriptorsAsync(new SecretDescriptorQuery());
+            gitHubSecrets = secrets
+                .Where(secret => secret.SecretType == SecretType.GitHubToken)
+                .ToArray();
+            openAiSecrets = secrets
+                .Where(secret => secret.SecretType is SecretType.OpenAiApiKey or SecretType.CodexHome)
+                .ToArray();
+            SynchronizeCredentialForms();
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException)
         {
@@ -201,6 +361,59 @@
             isLoading = false;
         }
     }
+
+    private void SynchronizeCredentialForms()
+    {
+        credentialForms.Clear();
+
+        foreach (InstanceSummaryProjection instance in instances)
+        {
+            credentialForms[instance.Id] = new CredentialAssignmentForm
+            {
+                GitHubMode = instance.GitHubCredentialInheritanceMode.ToString(),
+                GitHubSecretId = instance.GitHubCredentialSecretId?.ToString() ?? string.Empty,
+                OpenAiMode = instance.OpenAiCredentialInheritanceMode.ToString(),
+                OpenAiSecretId = instance.OpenAiCredentialSecretId?.ToString() ?? string.Empty,
+            };
+        }
+    }
+
+    private static CredentialAssignmentSelection CreateCredentialSelection(
+        string mode,
+        string? secretId)
+    {
+        CredentialInheritanceMode inheritanceMode = Enum.Parse<CredentialInheritanceMode>(mode);
+
+        return inheritanceMode == CredentialInheritanceMode.SpecificSecret &&
+            SecretId.TryParse(secretId, out SecretId parsedSecretId)
+            ? new CredentialAssignmentSelection(inheritanceMode, parsedSecretId)
+            : new CredentialAssignmentSelection(inheritanceMode);
+    }
+
+    private static IEnumerable<SecretDescriptorProjection> GetCompatibleSecrets(
+        IEnumerable<SecretDescriptorProjection> secrets,
+        InstanceSummaryProjection instance)
+    {
+        return secrets.Where(secret => IsCompatibleScope(secret, instance));
+    }
+
+    private static bool IsCompatibleScope(
+        SecretDescriptorProjection secret,
+        InstanceSummaryProjection instance)
+    {
+        return secret.ScopeType switch
+        {
+            SecretScopeType.Global => secret.ScopeId is null,
+            SecretScopeType.Project => instance.ProjectId is not null &&
+                string.Equals(secret.ScopeId, instance.ProjectId.Value.ToString(), StringComparison.OrdinalIgnoreCase),
+            SecretScopeType.Repository => string.Equals(secret.ScopeId, instance.RepositoryId.ToString(), StringComparison.OrdinalIgnoreCase),
+            SecretScopeType.SymphonyInstance => string.Equals(secret.ScopeId, instance.Id.ToString(), StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
+    }
+
+    private bool IsSavingCredentials(SymphonyInstanceId instanceId) =>
+        savingCredentialInstanceId == instanceId;
 
     private static StatusBadgeTone MapHealthTone(InstanceHealthStatus healthStatus) => healthStatus switch
     {
@@ -217,10 +430,51 @@
             : timestamp.Value.ToLocalTime().ToString("MMM d, yyyy HH:mm");
     }
 
+    private static string FormatCredential(
+        CredentialInheritanceMode mode,
+        string? secretName,
+        SecretId? secretId)
+    {
+        return mode switch
+        {
+            CredentialInheritanceMode.InheritDefault => "Inherited",
+            CredentialInheritanceMode.None => "None",
+            CredentialInheritanceMode.SpecificSecret => !string.IsNullOrWhiteSpace(secretName)
+                ? secretName
+                : secretId?.ToString() ?? "Selected secret",
+            _ => mode.ToString(),
+        };
+    }
+
+    private static string FormatCredentialMode(string mode) => mode switch
+    {
+        nameof(CredentialInheritanceMode.InheritDefault) => "Inherit default",
+        nameof(CredentialInheritanceMode.SpecificSecret) => "Specific secret",
+        nameof(CredentialInheritanceMode.None) => "None",
+        _ => mode,
+    };
+
+    private static string FormatSecretOption(SecretDescriptorProjection secret) =>
+        $"{secret.Name} ({secret.ScopeType})";
+
+    private string FindInstanceDisplayName(SymphonyInstanceId instanceId) =>
+        instances.FirstOrDefault(instance => instance.Id == instanceId)?.DisplayName ?? instanceId.ToString();
+
     private sealed class RegistrationForm
     {
         public string BaseUrl { get; set; } = string.Empty;
 
         public string? DisplayName { get; set; }
+    }
+
+    private sealed class CredentialAssignmentForm
+    {
+        public string GitHubMode { get; set; } = CredentialInheritanceMode.InheritDefault.ToString();
+
+        public string GitHubSecretId { get; set; } = string.Empty;
+
+        public string OpenAiMode { get; set; } = CredentialInheritanceMode.InheritDefault.ToString();
+
+        public string OpenAiSecretId { get; set; } = string.Empty;
     }
 }

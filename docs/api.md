@@ -46,3 +46,36 @@ Responses:
 - `201 Created` with the registered instance summary.
 - `400 Bad Request` with validation errors when the URL, health probe, or runtime probe fails.
 - `409 Conflict` when the normalized base URL is already registered.
+
+## Instance Credential Assignment
+
+`PUT /api/instances/{instanceId}/credentials` assigns GitHub and OpenAI/Codex credential references for one Symphony instance. Responses return descriptor metadata only; secret values are never returned.
+
+Request:
+
+```json
+{
+  "gitHubCredential": {
+    "inheritanceMode": "SpecificSecret",
+    "secretId": "11111111-1111-1111-1111-111111111111"
+  },
+  "openAiCredential": {
+    "inheritanceMode": "InheritDefault"
+  },
+  "requestedByUserId": "operator"
+}
+```
+
+Behavior:
+
+- Supports `InheritDefault`, `SpecificSecret`, and `None` independently for GitHub and OpenAI/Codex credentials.
+- Requires `GitHubToken` descriptors for GitHub assignments.
+- Accepts `OpenAiApiKey` or `CodexHome` descriptors for OpenAI/Codex assignments.
+- Rejects descriptors scoped to a different project, repository, or Symphony instance.
+- Records an operational event and audit event with descriptor IDs and names only.
+
+Responses:
+
+- `200 OK` with the updated assignment summary.
+- `400 Bad Request` with validation errors when modes, secret IDs, types, or scopes are invalid.
+- `404 Not Found` when the Symphony instance does not exist.
