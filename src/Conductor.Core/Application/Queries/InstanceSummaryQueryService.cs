@@ -28,4 +28,14 @@ public sealed record InstanceSummaryProjection(
     InstanceHealthStatus HealthStatus,
     DateTimeOffset? LastHealthCheckAtUtc,
     DateTimeOffset? LastSeenAtUtc,
-    DateTimeOffset? LatestSnapshotCapturedAtUtc);
+    DateTimeOffset? LatestSnapshotCapturedAtUtc,
+    string? SymphonyVersion = null,
+    string? SymphonyReleaseTag = null,
+    string? WorkflowOwner = null,
+    string? WorkflowRepository = null,
+    string? WorkflowSourcePath = null,
+    int ActiveIssueCount = 0,
+    int RunningSessionCount = 0,
+    int RetryQueueCount = 0,
+    int FailedRunCount = 0,
+    long TokenTotal = 0);
