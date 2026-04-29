@@ -670,6 +670,9 @@ Shared components:
 
 Use query services that return projection DTOs rather than EF entities.
 
+The initial persistence query service contracts and SQLite implementation are documented in
+`docs/persistence-query-services.md`.
+
 Dashboard projection:
 
 - Fleet metrics.
@@ -678,6 +681,8 @@ Dashboard projection:
 - Needs attention items.
 - Active repository rows.
 - Live activity events.
+
+The workload overview projection groups active issue workload by status and returns a stable ordered status list so the Blazor dashboard can render every bucket, including zero-count buckets, without coupling UI code to persistence entities.
 
 Refresh behavior:
 

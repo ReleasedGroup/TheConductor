@@ -1,6 +1,8 @@
 @page "/"
 @using System.Globalization
+@using System.Text.Json
 @using Conductor.Core.Application.Dashboard
+@inject IDashboardProjectionStore DashboardProjectionStore
 @inject IActiveRepositoryDashboardQuery ActiveRepositoryDashboardQuery
 
 <PageTitle>Conductor Dashboard</PageTitle>
@@ -9,99 +11,193 @@
     <header class="dashboard-header">
         <div>
             <p class="eyebrow">Fleet overview</p>
-            <h1>Dashboard</h1>
-            <p class="dashboard-subtitle">Repository health, workload, pull requests, failures, and recent orchestration activity.</p>
+            <h1>Conductor Dashboard</h1>
+            <p class="dashboard-summary">Repository health, workload, pull requests, failures, and recent orchestration activity.</p>
         </div>
-        <span class="status-pill">Sprint 2 dashboard</span>
+        <div class="dashboard-meta">
+            <span class="status-pill">Sprint 2 dashboard</span>
+            @if (projection is not null)
+            {
+                <span class="projection-stamp">Projection @projection.CapturedAtUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm", CultureInfo.InvariantCulture)</span>
+            }
+        </div>
     </header>
 
-    <section class="metric-grid" aria-label="Dashboard metrics">
-        @foreach ((string Label, string Value, string Hint) metric in Metrics)
-        {
-            <article class="metric-tile">
-                <span>@metric.Label</span>
-                <strong>@metric.Value</strong>
-                <small>@metric.Hint</small>
-            </article>
-        }
-    </section>
+    @if (loadError is not null)
+    {
+        <div class="dashboard-state dashboard-state--error" role="alert">
+            Dashboard metrics could not be loaded.
+        </div>
+    }
+    else if (projection is null)
+    {
+        <div class="dashboard-state">Loading dashboard metrics...</div>
+    }
+    else if (projection.Metrics.Count == 0)
+    {
+        <div class="dashboard-state">No dashboard metrics are available yet.</div>
+    }
+    else
+    {
+        <section class="metric-grid" aria-label="Dashboard metrics">
+            @foreach (DashboardMetric metric in projection.Metrics)
+            {
+                <MetricTile Metric="metric" />
+            }
+        </section>
+    }
 
-    <section class="active-repositories-panel" aria-labelledby="active-repositories-heading">
-        <div class="panel-heading">
-            <div>
-                <h2 id="active-repositories-heading">Active Repositories</h2>
-                <p>Live repository projection from Conductor persistence.</p>
-            </div>
-            <span>@RepositoryCountLabel</span>
+    <section class="dashboard-body">
+        <div class="dashboard-stack">
+            <HealthHeatmap Buckets="HealthBuckets" />
+
+            <section class="active-repositories-panel" aria-labelledby="active-repositories-heading">
+                <div class="panel-heading">
+                    <div>
+                        <h2 id="active-repositories-heading">Active Repositories</h2>
+                        <p>Live repository projection from Conductor persistence.</p>
+                    </div>
+                    <span>@RepositoryCountLabel</span>
+                </div>
+
+                @if (isLoadingRepositories)
+                {
+                    <div class="table-state" role="status">
+                        <strong>Loading repositories</strong>
+                        <span>Reading the persisted dashboard projection.</span>
+                    </div>
+                }
+                else if (repositoryLoadFailed)
+                {
+                    <div class="table-state table-state-warning" role="alert">
+                        <strong>Repository data is unavailable</strong>
+                        <span>The dashboard shell is running, but the repository projection could not be loaded.</span>
+                    </div>
+                }
+                else if (ActiveRepositoryRows.Count == 0)
+                {
+                    <div class="table-state">
+                        <strong>No active repositories yet</strong>
+                        <span>Imported repositories will appear here after they are persisted.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="repository-table-wrap">
+                        <table class="repository-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Project</th>
+                                    <th scope="col">Repository</th>
+                                    <th scope="col">Health</th>
+                                    <th scope="col">Active Issues</th>
+                                    <th scope="col">Running Agents</th>
+                                    <th scope="col">Failed Runs</th>
+                                    <th scope="col">PRs Open</th>
+                                    <th scope="col">Last Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (ActiveRepositoryDashboardRow repository in ActiveRepositoryRows)
+                                {
+                                    <tr>
+                                        <td>@repository.ProjectName</td>
+                                        <td>
+                                            <span class="repository-name">@RepositoryName(repository.RepositoryFullName)</span>
+                                            <small>@repository.RepositoryFullName</small>
+                                        </td>
+                                        <td>
+                                            <span class="@HealthBadgeClass(repository.Health)">@HealthLabel(repository.Health)</span>
+                                        </td>
+                                        <td class="numeric-cell">@repository.ActiveIssueCount</td>
+                                        <td class="numeric-cell">@repository.RunningAgentCount</td>
+                                        <td class="@FailedRunClass(repository.FailedRunCount)">@repository.FailedRunCount</td>
+                                        <td class="numeric-cell">@repository.OpenPullRequestCount</td>
+                                        <td>@FormatLastActivity(repository.LastActivityAtUtc)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+
+            <section class="activity-panel">
+                <div>
+                    <h2>Operational baseline</h2>
+                    <p>The host is running with the initial project, persistence, dashboard, and test structure in place.</p>
+                </div>
+                <ul>
+                    @foreach (string indicator in Indicators)
+                    {
+                        <li>@indicator</li>
+                    }
+                </ul>
+            </section>
+
+            <section class="startup-panel" aria-label="Startup verification">
+                <div>
+                    <h2>Startup verification</h2>
+                    <p>The local host can be checked from the dashboard route and the built-in health probes.</p>
+                </div>
+                <dl>
+                    @foreach ((string Label, string Route, string State) check in StartupChecks)
+                    {
+                        <div>
+                            <dt>@check.Label</dt>
+                            <dd>
+                                <code>@check.Route</code>
+                                <span>@check.State</span>
+                            </dd>
+                        </div>
+                    }
+                </dl>
+            </section>
         </div>
 
-        @if (isLoadingRepositories)
-        {
-            <div class="table-state" role="status">
-                <strong>Loading repositories</strong>
-                <span>Reading the persisted dashboard projection.</span>
-            </div>
-        }
-        else if (repositoryLoadFailed)
-        {
-            <div class="table-state table-state-warning" role="alert">
-                <strong>Repository data is unavailable</strong>
-                <span>The dashboard shell is running, but the repository projection could not be loaded.</span>
-            </div>
-        }
-        else if (ActiveRepositoryRows.Count == 0)
-        {
-            <div class="table-state">
-                <strong>No active repositories yet</strong>
-                <span>Imported repositories will appear here after they are persisted.</span>
-            </div>
-        }
-        else
-        {
-            <div class="repository-table-wrap">
-                <table class="repository-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Project</th>
-                            <th scope="col">Repository</th>
-                            <th scope="col">Health</th>
-                            <th scope="col">Active Issues</th>
-                            <th scope="col">Running Agents</th>
-                            <th scope="col">Failed Runs</th>
-                            <th scope="col">PRs Open</th>
-                            <th scope="col">Last Activity</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (ActiveRepositoryDashboardRow repository in ActiveRepositoryRows)
-                        {
-                            <tr>
-                                <td>@repository.ProjectName</td>
-                                <td>
-                                    <span class="repository-name">@RepositoryName(repository.RepositoryFullName)</span>
-                                    <small>@repository.RepositoryFullName</small>
-                                </td>
-                                <td>
-                                    <span class="@HealthBadgeClass(repository.Health)">@HealthLabel(repository.Health)</span>
-                                </td>
-                                <td class="numeric-cell">@repository.ActiveIssueCount</td>
-                                <td class="numeric-cell">@repository.RunningAgentCount</td>
-                                <td class="@FailedRunClass(repository.FailedRunCount)">@repository.FailedRunCount</td>
-                                <td class="numeric-cell">@repository.OpenPullRequestCount</td>
-                                <td>@FormatLastActivity(repository.LastActivityAtUtc)</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
+        <aside class="dashboard-rail" aria-label="Dashboard attention">
+            <NeedsAttentionPanel Items="AttentionItems" />
+        </aside>
     </section>
 </section>
 
 @code {
+    private DashboardProjection? projection;
+    private string? loadError;
     private ActiveRepositoryDashboard activeRepositoryDashboard = new([]);
     private bool isLoadingRepositories = true;
     private bool repositoryLoadFailed;
+
+    private IReadOnlyList<DashboardAttentionItem> AttentionItems =>
+        projection?.AttentionItems ?? Array.Empty<DashboardAttentionItem>();
+
+    private static readonly HealthHeatmapBucket[] HealthBuckets =
+    [
+        new("Conductor", "08:00", HealthHeatmapStatus.Healthy, 99, "All orchestration checks completed."),
+        new("Conductor", "10:00", HealthHeatmapStatus.Healthy, 98, "Workers and health probes are responsive."),
+        new("Conductor", "12:00", HealthHeatmapStatus.Warning, 82, "One repository sync ran behind schedule."),
+        new("Conductor", "14:00", HealthHeatmapStatus.Healthy, 97, "Backlog recovered after retry."),
+        new("Conductor", "16:00", HealthHeatmapStatus.Healthy, 99, "No active orchestration alerts."),
+        new("Conductor", "18:00", HealthHeatmapStatus.Healthy, 100, "All repositories are within policy."),
+        new("Symphony", "08:00", HealthHeatmapStatus.Healthy, 95, "Runtime checks passed."),
+        new("Symphony", "10:00", HealthHeatmapStatus.Warning, 76, "Release polling reported elevated latency."),
+        new("Symphony", "12:00", HealthHeatmapStatus.Warning, 73, "Two issue sync jobs are queued."),
+        new("Symphony", "14:00", HealthHeatmapStatus.Critical, 41, "Workflow dispatch failed repeatedly."),
+        new("Symphony", "16:00", HealthHeatmapStatus.Warning, 78, "Dispatch recovered with retry backlog."),
+        new("Symphony", "18:00", HealthHeatmapStatus.Healthy, 93, "Queue returned to normal."),
+        new("Release Portal", "08:00", HealthHeatmapStatus.Offline, 0, "No agent heartbeat received."),
+        new("Release Portal", "10:00", HealthHeatmapStatus.Critical, 38, "Repository credentials need rotation."),
+        new("Release Portal", "12:00", HealthHeatmapStatus.Warning, 69, "Credential rotation started."),
+        new("Release Portal", "14:00", HealthHeatmapStatus.Warning, 72, "Pending PR checks are draining."),
+        new("Release Portal", "16:00", HealthHeatmapStatus.Healthy, 91, "Credential rotation completed."),
+        new("Release Portal", "18:00", HealthHeatmapStatus.Healthy, 94, "Orchestration checks are current."),
+        new("Operations Docs", "08:00", HealthHeatmapStatus.Healthy, 96, "Documentation validation passed."),
+        new("Operations Docs", "10:00", HealthHeatmapStatus.Healthy, 96, "No blocked documentation runs."),
+        new("Operations Docs", "12:00", HealthHeatmapStatus.Healthy, 97, "Review queue is clear."),
+        new("Operations Docs", "14:00", HealthHeatmapStatus.Healthy, 96, "Scheduled checks completed."),
+        new("Operations Docs", "16:00", HealthHeatmapStatus.Warning, 80, "One stale branch requires attention."),
+        new("Operations Docs", "18:00", HealthHeatmapStatus.Healthy, 95, "Stale branch warning cleared."),
+    ];
 
     private IReadOnlyList<ActiveRepositoryDashboardRow> ActiveRepositoryRows => activeRepositoryDashboard.Rows;
 
@@ -110,15 +206,40 @@
             ? "1 repository"
             : $"{ActiveRepositoryRows.Count.ToString(CultureInfo.InvariantCulture)} repositories";
 
-    private (string Label, string Value, string Hint)[] Metrics =>
+    private static readonly string[] Indicators =
     [
-        ("Active Repos", ActiveRepositoryRows.Count.ToString(CultureInfo.InvariantCulture), "Persisted repositories"),
-        ("Healthy", CountHealth(DashboardRepositoryHealth.Healthy), "Ready for orchestration"),
-        ("Needs Attention", CountAttention(), "Warning, critical, or offline"),
-        ("PRs Open", ActiveRepositoryRows.Sum(row => row.OpenPullRequestCount).ToString(CultureInfo.InvariantCulture), "Across active repos"),
+        "Blazor Web App host",
+        "SQLite persistence registration",
+        "Health endpoints",
+        "Layered test projects",
+    ];
+
+    private static readonly (string Label, string Route, string State)[] StartupChecks =
+    [
+        ("Dashboard route", "/", "Metric tiles served"),
+        ("Live health", "/health/live", "Probe available"),
+        ("Ready health", "/health/ready", "Probe available"),
     ];
 
     protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardProjectionAsync();
+        await LoadActiveRepositoriesAsync();
+    }
+
+    private async Task LoadDashboardProjectionAsync()
+    {
+        try
+        {
+            projection = await DashboardProjectionStore.GetCurrentAsync();
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            loadError = ex.Message;
+        }
+    }
+
+    private async Task LoadActiveRepositoriesAsync()
     {
         try
         {
@@ -134,14 +255,6 @@
             isLoadingRepositories = false;
         }
     }
-
-    private string CountHealth(DashboardRepositoryHealth health) =>
-        ActiveRepositoryRows.Count(row => row.Health == health).ToString(CultureInfo.InvariantCulture);
-
-    private string CountAttention() =>
-        ActiveRepositoryRows
-            .Count(row => row.Health is DashboardRepositoryHealth.Warning or DashboardRepositoryHealth.Critical or DashboardRepositoryHealth.Offline)
-            .ToString(CultureInfo.InvariantCulture);
 
     private static string RepositoryName(string fullName)
     {

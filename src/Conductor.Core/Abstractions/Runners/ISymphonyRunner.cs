@@ -1,6 +1,6 @@
-using Conductor.Core.Abstractions.Releases;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
+using Conductor.Core.Domain.Releases;
 
 namespace Conductor.Core.Abstractions.Runners;
 
