@@ -19,7 +19,10 @@ public sealed record GitHubRepositorySummary(
     string DefaultBranch,
     Uri CloneUrl,
     Uri WebUrl,
-    bool IsArchived);
+    bool IsArchived)
+{
+    public string FullName => $"{Owner}/{Name}";
+}
 
 public sealed record GitHubRepositoryAccessValidationRequest(
     GitHubRepositoryFullName RepositoryFullName,

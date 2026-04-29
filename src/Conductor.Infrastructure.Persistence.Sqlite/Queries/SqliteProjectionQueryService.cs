@@ -5,6 +5,7 @@ using Conductor.Core.Domain.Ids;
 using Conductor.Core.Domain.Issues;
 using Conductor.Core.Domain.Projects;
 using Conductor.Core.Domain.Repositories;
+using Conductor.Core.Domain.Secrets;
 using Conductor.Core.Domain.Snapshots;
 using Conductor.Core.Domain.Symphony;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,7 @@ namespace Conductor.Infrastructure.Persistence.Sqlite.Queries;
 public sealed class SqliteProjectionQueryService :
     IDashboardQueryService,
     IRepositoryListQueryService,
+    IProjectListQueryService,
     IInstanceSummaryQueryService
 {
     private readonly ConductorDbContext dbContext;
@@ -139,6 +141,36 @@ public sealed class SqliteProjectionQueryService :
             .ToArray();
     }
 
+    public async Task<IReadOnlyList<ProjectListItemProjection>> ListProjectsAsync(
+        ProjectListQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Project> projects = dbContext.Projects.AsNoTracking();
+
+        if (!query.IncludeArchived)
+        {
+            projects = projects.Where(project => project.Status != ProjectStatus.Archived);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            string search = query.Search.Trim();
+            projects = projects.Where(project =>
+                project.Name.Contains(search) ||
+                project.OwnerName.Contains(search));
+        }
+
+        return await projects
+            .OrderBy(project => project.Name)
+            .ThenBy(project => project.OwnerName)
+            .Select(project => new ProjectListItemProjection(
+                project.Id,
+                project.Name,
+                project.OwnerName,
+                project.Status))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<InstanceSummaryProjection>> ListInstanceSummariesAsync(
         InstanceSummaryQuery query,
         CancellationToken cancellationToken = default)
@@ -178,6 +210,16 @@ public sealed class SqliteProjectionQueryService :
         Dictionary<SymphonyInstanceId, LatestInstanceSnapshot> latestSnapshotByInstanceId = await LoadLatestSnapshotsByInstanceAsync(
             instanceRows.Select(instance => instance.Id),
             cancellationToken);
+        Dictionary<SecretId, SecretDescriptor> secretDescriptorsById = await LoadSecretDescriptorsAsync(
+            instanceRows
+                .SelectMany(instance => new[]
+                {
+                    instance.GitHubCredentialSecretId,
+                    instance.OpenAiCredentialSecretId,
+                })
+                .Where(secretId => secretId.HasValue)
+                .Select(secretId => secretId!.Value),
+            cancellationToken);
 
         return instanceRows
             .Select(instance =>
@@ -214,7 +256,13 @@ public sealed class SqliteProjectionQueryService :
                     latestSnapshot?.RunningSessionCount ?? 0,
                     latestSnapshot?.RetryQueueCount ?? 0,
                     latestSnapshot?.FailedRunCount ?? 0,
-                    latestSnapshot?.TokenTotal ?? 0);
+                    latestSnapshot?.TokenTotal ?? 0,
+                    instance.GitHubCredentialInheritanceMode,
+                    instance.GitHubCredentialSecretId,
+                    GetSecretName(secretDescriptorsById, instance.GitHubCredentialSecretId),
+                    instance.OpenAiCredentialInheritanceMode,
+                    instance.OpenAiCredentialSecretId,
+                    GetSecretName(secretDescriptorsById, instance.OpenAiCredentialSecretId));
             })
             .OrderBy(instance => instance.RepositoryFullName)
             .ThenBy(instance => instance.DisplayName)
@@ -316,6 +364,32 @@ public sealed class SqliteProjectionQueryService :
                         snapshot.FailedRunCount,
                         snapshot.TokenTotal);
                 });
+    }
+
+    private async Task<Dictionary<SecretId, SecretDescriptor>> LoadSecretDescriptorsAsync(
+        IEnumerable<SecretId> secretIds,
+        CancellationToken cancellationToken)
+    {
+        SecretId[] ids = secretIds.Distinct().ToArray();
+
+        if (ids.Length == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.SecretDescriptors
+            .AsNoTracking()
+            .Where(descriptor => ids.Contains(descriptor.Id))
+            .ToDictionaryAsync(descriptor => descriptor.Id, cancellationToken);
+    }
+
+    private static string? GetSecretName(
+        IReadOnlyDictionary<SecretId, SecretDescriptor> secretDescriptorsById,
+        SecretId? secretId)
+    {
+        return secretId is not null && secretDescriptorsById.TryGetValue(secretId.Value, out SecretDescriptor? descriptor)
+            ? descriptor.Name
+            : null;
     }
 
     private static RuntimeMetadata TryReadRuntimeMetadata(string? runtimeJson)

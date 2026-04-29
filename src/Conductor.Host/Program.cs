@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Conductor.Core.Application.Dashboard;
 using Conductor.Host.Components;
 using Conductor.Host.Dashboard;
@@ -14,6 +15,10 @@ builder.Services
     .AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.Configure<DashboardProjectionOptions>(
     builder.Configuration.GetSection(DashboardProjectionOptions.SectionName));
 builder.Services.AddSingleton<IDashboardProjectionStore, JsonFileDashboardProjectionStore>();
@@ -41,6 +46,7 @@ app.UseAntiforgery();
 app.MapGet("/favicon.ico", () => Results.NoContent()).ExcludeFromDescription();
 app.MapConductorHealth();
 app.MapConductorInstances();
+app.MapConductorRepositories();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

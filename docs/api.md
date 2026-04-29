@@ -52,3 +52,68 @@ Responses:
 Conductor registers a typed HTTP client called `GitHubRepository` for GitHub repository discovery and credential checks.
 
 PAT validation uses `GET /repos/{owner}/{repo}` with the selected token as a bearer token. A `200` response confirms the token can reach the target repository metadata; when GitHub returns a repository `permissions` object, Conductor also checks that at least one read-capable repository permission is present. `401`, `403`, `404`, and rate-limit responses are mapped to actionable validation statuses without storing or returning the PAT value.
+
+## Instance Credential Assignment
+
+`PUT /api/instances/{instanceId}/credentials` assigns GitHub and OpenAI/Codex credential references for one Symphony instance. Responses return descriptor metadata only; secret values are never returned.
+
+Request:
+
+```json
+{
+  "gitHubCredential": {
+    "inheritanceMode": "SpecificSecret",
+    "secretId": "11111111-1111-1111-1111-111111111111"
+  },
+  "openAiCredential": {
+    "inheritanceMode": "InheritDefault"
+  },
+  "requestedByUserId": "operator"
+}
+```
+
+Behavior:
+
+- Supports `InheritDefault`, `SpecificSecret`, and `None` independently for GitHub and OpenAI/Codex credentials.
+- Requires `GitHubToken` descriptors for GitHub assignments.
+- Accepts `OpenAiApiKey` or `CodexHome` descriptors for OpenAI/Codex assignments.
+- Rejects descriptors scoped to a different project, repository, or Symphony instance.
+- Records an operational event and audit event with descriptor IDs and names only.
+
+Responses:
+
+- `200 OK` with the updated assignment summary.
+- `400 Bad Request` with validation errors when modes, secret IDs, types, or scopes are invalid.
+- `404 Not Found` when the Symphony instance does not exist.
+
+## Repository Import
+
+`POST /api/repos/import` imports a GitHub repository record and can create an optional Symphony instance shell.
+
+Request:
+
+```json
+{
+  "repositoryFullName": "ReleasedGroup/TheConductor",
+  "defaultBranch": "main",
+  "visibility": "Private",
+  "createSymphonyInstance": true,
+  "instanceBaseUrl": "http://localhost:8080/",
+  "port": 8080,
+  "releaseTag": "latest",
+  "gitHubCredentialInheritanceMode": "InheritDefault",
+  "openAiCredentialInheritanceMode": "InheritDefault"
+}
+```
+
+Behavior:
+
+- Validates `owner/name` repository identity and derives GitHub clone/web URLs when explicit URLs are not provided.
+- Creates or updates the repository registry record.
+- Creates a `NotProvisioned` Symphony instance shell when orchestration is requested.
+- Records an audit event for the import.
+
+Responses:
+
+- `201 Created` with repository and optional instance identifiers.
+- `400 Bad Request` with validation errors when repository identity, instance URL, port, or specific secret references are invalid.
