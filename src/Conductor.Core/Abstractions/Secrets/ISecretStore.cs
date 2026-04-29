@@ -17,6 +17,10 @@ public interface ISecretStore
         SecretReference reference,
         CancellationToken cancellationToken);
 
+    Task<ResolvedSecret?> ResolveAsync(
+        SecretResolutionRequest request,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<SecretDescriptor>> ListAsync(
         SecretQuery query,
         CancellationToken cancellationToken);
