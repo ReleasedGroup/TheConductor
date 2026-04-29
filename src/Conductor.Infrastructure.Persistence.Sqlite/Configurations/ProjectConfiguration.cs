@@ -24,6 +24,13 @@ internal sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
             .HasMaxLength(200)
             .IsRequired();
 
+        builder.Property(project => project.Description)
+            .HasMaxLength(500);
+
+        builder.Property(project => project.DefaultBranchPolicy)
+            .HasMaxLength(200)
+            .IsRequired();
+
         builder.Property(project => project.Status)
             .HasConversion<string>()
             .HasMaxLength(32)

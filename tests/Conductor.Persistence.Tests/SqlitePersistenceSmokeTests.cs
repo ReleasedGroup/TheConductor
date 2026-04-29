@@ -16,6 +16,7 @@ using Conductor.Core.Domain.Symphony;
 using Conductor.Core.Domain.SymphonyReleases;
 using Conductor.Core.Domain.Workflows;
 using Conductor.Infrastructure.Persistence.Sqlite;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,37 +26,80 @@ namespace Conductor.Persistence.Tests;
 
 public sealed class SqlitePersistenceSmokeTests
 {
+    private static readonly string[] ExpectedTables =
+    [
+        "Projects",
+        "Repositories",
+        "SymphonyInstances",
+        "WorkflowProfiles",
+        "SymphonyReleaseArtifacts",
+        "InstanceSnapshots",
+        "TrackedIssues",
+        "Runs",
+        "RunAttempts",
+        "Events",
+        "Alerts",
+        "Reports",
+        "SecretDescriptors",
+        "AuditEvents",
+        "BackgroundOperations",
+    ];
+
+    private static readonly RequiredIndex[] RequiredIndexes =
+    [
+        new("Repositories", ["ProjectId"]),
+        new("Repositories", ["Provider", "Owner", "Name"], IsUnique: true),
+        new("SymphonyInstances", ["RepositoryId"]),
+        new("SymphonyInstances", ["Status", "HealthStatus"]),
+        new("SymphonyInstances", ["ExecutionMode"]),
+        new("InstanceSnapshots", ["SymphonyInstanceId", "CapturedAtUtc"]),
+        new("TrackedIssues", ["RepositoryId", "GitHubIssueNumber"]),
+        new("TrackedIssues", ["RepositoryId", "SymphonyStatus", "IsBlocked"]),
+        new("Runs", ["SymphonyInstanceId", "Status", "StartedAtUtc"]),
+        new("Runs", ["RepositoryId", "GitHubIssueNumber"]),
+        new("Events", ["SymphonyInstanceId", "OccurredAtUtc"]),
+        new("Events", ["RepositoryId", "OccurredAtUtc"]),
+        new("Alerts", ["Status", "Severity", "CreatedAtUtc"]),
+        new("Reports", ["ReportType", "GeneratedAtUtc"]),
+        new("AuditEvents", ["ActorUserId", "OccurredAtUtc"]),
+        new("SecretDescriptors", ["ScopeType", "ScopeId", "SecretType"]),
+        new("BackgroundOperations", ["Status", "CreatedAtUtc"]),
+    ];
+
     [Fact]
-    public async Task DbContext_Creates_Configured_Sqlite_Tables()
+    public async Task Initial_Migration_Creates_Required_Tables_And_Indexes()
     {
+        await using SqliteConnection connection = new("Data Source=:memory:");
+        await connection.OpenAsync();
+
         DbContextOptions<ConductorDbContext> options = new DbContextOptionsBuilder<ConductorDbContext>()
-            .UseSqlite("Data Source=:memory:")
+            .UseSqlite(connection)
             .Options;
 
         await using ConductorDbContext dbContext = new(options);
+        await dbContext.Database.MigrateAsync();
 
-        await dbContext.Database.OpenConnectionAsync();
-        await dbContext.Database.EnsureCreatedAsync();
+        HashSet<string> tableNames = await LoadTableNamesAsync(connection);
+        IReadOnlyDictionary<string, IReadOnlyList<AppliedIndex>> indexesByTable = await LoadIndexesAsync(
+            connection,
+            RequiredIndexes.Select(index => index.TableName).Distinct(StringComparer.Ordinal));
 
-        Assert.True(await dbContext.Database.CanConnectAsync());
+        foreach (string tableName in ExpectedTables)
+        {
+            Assert.Contains(tableName, tableNames);
+        }
 
-        IReadOnlySet<string> tableNames = await ReadTableNamesAsync(dbContext);
+        foreach (RequiredIndex requiredIndex in RequiredIndexes)
+        {
+            Assert.True(
+                indexesByTable.TryGetValue(requiredIndex.TableName, out IReadOnlyList<AppliedIndex>? indexes),
+                $"Expected at least one index on {requiredIndex.TableName}.");
 
-        Assert.Contains("Alerts", tableNames);
-        Assert.Contains("AuditEvents", tableNames);
-        Assert.Contains("BackgroundOperations", tableNames);
-        Assert.Contains("Events", tableNames);
-        Assert.Contains("InstanceSnapshots", tableNames);
-        Assert.Contains("Projects", tableNames);
-        Assert.Contains("Repositories", tableNames);
-        Assert.Contains("Reports", tableNames);
-        Assert.Contains("RunAttempts", tableNames);
-        Assert.Contains("Runs", tableNames);
-        Assert.Contains("SecretDescriptors", tableNames);
-        Assert.Contains("SymphonyInstances", tableNames);
-        Assert.Contains("SymphonyReleaseArtifacts", tableNames);
-        Assert.Contains("TrackedIssues", tableNames);
-        Assert.Contains("WorkflowProfiles", tableNames);
+            Assert.Contains(
+                indexes,
+                index => index.Columns.SequenceEqual(requiredIndex.Columns, StringComparer.Ordinal)
+                    && (!requiredIndex.IsUnique || index.IsUnique));
+        }
     }
 
     [Fact]
@@ -78,7 +122,15 @@ public sealed class SqlitePersistenceSmokeTests
         SecretId secretId = SecretId.New();
         RunId runId = RunId.New();
 
-        var project = new Project(projectId, "Platform", "ReleasedGroup", ProjectStatus.Active, now, now);
+        var project = new Project(
+            projectId,
+            "Platform",
+            "ReleasedGroup",
+            "Internal orchestration",
+            "main",
+            ProjectStatus.Active,
+            now,
+            now);
         var repository = new Repository(
             repositoryId,
             RepositoryProvider.GitHub,
@@ -87,16 +139,35 @@ public sealed class SqlitePersistenceSmokeTests
             "main",
             new Uri("https://github.com/ReleasedGroup/TheConductor.git"),
             new Uri("https://github.com/ReleasedGroup/TheConductor"),
+            RepositoryVisibility.Public,
             isArchived: false,
-            projectId);
+            projectId,
+            lastSyncedAtUtc: now,
+            RepositoryOrchestrationStatus.Eligible,
+            orchestrationStatusReason: null);
+        var secret = new SecretDescriptor(
+            secretId,
+            "Repository GitHub token",
+            SecretType.GitHubToken,
+            SecretScopeType.Repository,
+            repositoryId.ToString(),
+            now);
         var instance = new SymphonyInstance(
             instanceId,
             repositoryId,
             "TheConductor main",
             ExecutionMode.Docker,
             new Uri("http://localhost:8080"),
+            now,
             InstanceLifecycleStatus.Running,
-            InstanceHealthStatus.Healthy);
+            InstanceHealthStatus.Healthy,
+            port: 8080,
+            gitHubCredentialSecretId: secretId,
+            gitHubCredentialInheritanceMode: CredentialInheritanceMode.SpecificSecret,
+            workflowPath: "./instances/workflow.md",
+            dataPath: "./instances/data",
+            lastStartedAtUtc: now,
+            lastSeenAtUtc: now);
         var workflowProfile = new WorkflowProfile(
             workflowProfileId,
             "Default",
@@ -108,13 +179,6 @@ public sealed class SqlitePersistenceSmokeTests
             new Uri("https://example.com/releases/v1.2.3/symphony-linux-x64.zip"),
             now,
             "sha256:abc");
-        var secret = new SecretDescriptor(
-            secretId,
-            "Repository GitHub token",
-            SecretType.GitHubToken,
-            SecretScopeType.Repository,
-            repositoryId.ToString(),
-            now);
         var snapshot = new InstanceSnapshot(
             InstanceSnapshotId.New(),
             instanceId,
@@ -225,10 +289,10 @@ public sealed class SqlitePersistenceSmokeTests
         dbContext.AddRange(
             project,
             repository,
+            secret,
             instance,
             workflowProfile,
             releaseArtifact,
-            secret,
             snapshot,
             issue,
             run,
@@ -251,9 +315,11 @@ public sealed class SqlitePersistenceSmokeTests
 
         Assert.Equal(projectId, savedRepository.ProjectId);
         Assert.Equal("ReleasedGroup/TheConductor", savedRepository.FullName);
+        Assert.Equal(RepositoryVisibility.Public, savedRepository.Visibility);
         Assert.Equal(new Uri("https://github.com/ReleasedGroup/TheConductor.git"), savedRepository.CloneUrl);
         Assert.Equal(ExecutionMode.Docker, savedInstance.ExecutionMode);
         Assert.Equal(InstanceLifecycleStatus.Running, savedInstance.LifecycleStatus);
+        Assert.Equal(secretId, savedInstance.GitHubCredentialSecretId);
         Assert.Equal(InstanceHealthStatus.Healthy, savedSnapshot.HealthStatus);
         Assert.Equal(140, savedSnapshot.TokenTotal);
         Assert.Equal("""{"running":1}""", savedSnapshot.StateJson);
@@ -305,26 +371,71 @@ public sealed class SqlitePersistenceSmokeTests
         Assert.Equal("wal", await ExecuteTextPragmaAsync(connection, "PRAGMA journal_mode;"));
     }
 
-    private static async Task<IReadOnlySet<string>> ReadTableNamesAsync(ConductorDbContext dbContext)
+    private static async Task<HashSet<string>> LoadTableNamesAsync(SqliteConnection connection)
     {
-        await using var command = dbContext.Database.GetDbConnection().CreateCommand();
+        HashSet<string> tableNames = new(StringComparer.Ordinal);
+
+        await using SqliteCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT name
             FROM sqlite_master
             WHERE type = 'table'
-              AND name NOT LIKE 'sqlite_%'
+                AND name NOT LIKE 'sqlite_%'
             ORDER BY name;
             """;
 
-        HashSet<string> tableNames = new(StringComparer.Ordinal);
-
-        await using var reader = await command.ExecuteReaderAsync();
+        await using SqliteDataReader reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
             tableNames.Add(reader.GetString(0));
         }
 
         return tableNames;
+    }
+
+    private static async Task<IReadOnlyDictionary<string, IReadOnlyList<AppliedIndex>>> LoadIndexesAsync(
+        SqliteConnection connection,
+        IEnumerable<string> tableNames)
+    {
+        Dictionary<string, IReadOnlyList<AppliedIndex>> indexesByTable = new(StringComparer.Ordinal);
+
+        foreach (string tableName in tableNames)
+        {
+            List<AppliedIndex> indexes = [];
+
+            await using SqliteCommand indexListCommand = connection.CreateCommand();
+            indexListCommand.CommandText = $"PRAGMA index_list({QuoteIdentifier(tableName)});";
+
+            await using SqliteDataReader indexListReader = await indexListCommand.ExecuteReaderAsync();
+            while (await indexListReader.ReadAsync())
+            {
+                string indexName = indexListReader.GetString(1);
+                bool isUnique = indexListReader.GetInt32(2) == 1;
+                IReadOnlyList<string> columns = await LoadIndexColumnsAsync(connection, indexName);
+
+                indexes.Add(new AppliedIndex(isUnique, columns));
+            }
+
+            indexesByTable[tableName] = indexes;
+        }
+
+        return indexesByTable;
+    }
+
+    private static async Task<IReadOnlyList<string>> LoadIndexColumnsAsync(SqliteConnection connection, string indexName)
+    {
+        List<string> columns = [];
+
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA index_info({QuoteIdentifier(indexName)});";
+
+        await using SqliteDataReader reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            columns.Add(reader.GetString(2));
+        }
+
+        return columns;
     }
 
     private static IConfiguration BuildConfiguration(string databasePath)
@@ -367,4 +478,13 @@ public sealed class SqlitePersistenceSmokeTests
 
         return await command.ExecuteScalarAsync();
     }
+
+    private static string QuoteIdentifier(string identifier)
+    {
+        return "\"" + identifier.Replace("\"", "\"\"") + "\"";
+    }
+
+    private sealed record RequiredIndex(string TableName, string[] Columns, bool IsUnique = false);
+
+    private sealed record AppliedIndex(bool IsUnique, IReadOnlyList<string> Columns);
 }

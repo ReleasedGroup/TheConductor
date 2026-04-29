@@ -46,11 +46,26 @@ internal sealed class RepositoryConfiguration : IEntityTypeConfiguration<Reposit
             .HasMaxLength(2048)
             .IsRequired();
 
+        builder.Property(repository => repository.Visibility)
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .IsRequired();
+
         builder.Property(repository => repository.IsArchived)
             .IsRequired();
 
         builder.Property(repository => repository.ProjectId)
             .HasConversion(StronglyTypedIdValueConverters.NullableProjectId);
+
+        builder.Property(repository => repository.LastSyncedAtUtc);
+
+        builder.Property(repository => repository.OrchestrationStatus)
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .IsRequired();
+
+        builder.Property(repository => repository.OrchestrationStatusReason)
+            .HasMaxLength(1000);
 
         builder.HasIndex(repository => repository.ProjectId);
 

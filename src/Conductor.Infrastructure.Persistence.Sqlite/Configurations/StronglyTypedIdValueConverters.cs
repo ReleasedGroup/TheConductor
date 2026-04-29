@@ -61,6 +61,10 @@ internal static class StronglyTypedIdValueConverters
         id => id.Value,
         value => new SecretId(value));
 
+    public static readonly ValueConverter<SecretId?, Guid?> NullableSecretId = new(
+        id => id.HasValue ? id.Value.Value : null,
+        value => value.HasValue ? new SecretId(value.Value) : null);
+
     public static readonly ValueConverter<SymphonyInstanceId, Guid> SymphonyInstanceId = new(
         id => id.Value,
         value => new SymphonyInstanceId(value));
