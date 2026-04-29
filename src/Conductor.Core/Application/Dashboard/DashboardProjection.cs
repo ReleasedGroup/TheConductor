@@ -8,5 +8,7 @@ public sealed class DashboardProjection
 
     public IReadOnlyList<DashboardAttentionItem> AttentionItems { get; init; } = Array.Empty<DashboardAttentionItem>();
 
+    public IReadOnlyList<DashboardInstanceRuntime> InstanceRuntimes { get; init; } = Array.Empty<DashboardInstanceRuntime>();
+
     public static DashboardProjection Empty { get; } = new();
 }

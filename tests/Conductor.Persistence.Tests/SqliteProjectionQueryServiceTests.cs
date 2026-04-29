@@ -58,6 +58,14 @@ public sealed class SqliteProjectionQueryServiceTests
         Assert.Equal("Alpha", runningInstance.ProjectName);
         Assert.Equal(InstanceLifecycleStatus.Running, runningInstance.LifecycleStatus);
         Assert.Equal(fixture.LatestSnapshotAtUtc, runningInstance.LatestSnapshotCapturedAtUtc);
+        Assert.Equal("1.2.3", runningInstance.SymphonyVersion);
+        Assert.Equal("ReleasedGroup", runningInstance.WorkflowOwner);
+        Assert.Equal("api-service", runningInstance.WorkflowRepository);
+        Assert.Equal("/config/api-service/WORKFLOW.md", runningInstance.WorkflowSourcePath);
+        Assert.Equal(1, runningInstance.ActiveIssueCount);
+        Assert.Equal(1, runningInstance.RunningSessionCount);
+        Assert.Equal(0, runningInstance.RetryQueueCount);
+        Assert.Equal(140, runningInstance.TokenTotal);
 
         Assert.DoesNotContain(instances, instance => instance.Id == fixture.DestroyedInstanceId);
     }
@@ -337,7 +345,17 @@ public sealed class SqliteProjectionQueryServiceTests
             capturedAtUtc,
             InstanceHealthStatus.Healthy,
             """{"status":"healthy"}""",
-            "{}",
+            """
+            {
+              "applicationName": "Symphony",
+              "version": "1.2.3",
+              "workflow": {
+                "owner": "ReleasedGroup",
+                "repository": "api-service",
+                "sourcePath": "/config/api-service/WORKFLOW.md"
+              }
+            }
+            """,
             "{}",
             activeIssueCount: 1,
             runningSessionCount: 1,
