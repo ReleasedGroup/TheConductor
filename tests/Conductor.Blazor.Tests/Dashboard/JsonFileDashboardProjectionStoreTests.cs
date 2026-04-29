@@ -29,6 +29,17 @@ public sealed class JsonFileDashboardProjectionStoreTests
                       "tone": "Healthy",
                       "icon": "pulse"
                     }
+                  ],
+                  "attentionItems": [
+                    {
+                      "severity": "Critical",
+                      "sourceName": "billing-api",
+                      "summary": "2 failed runs in the last 30 minutes",
+                      "targetHref": "/repositories/billing-api",
+                      "targetKind": "repository",
+                      "createdAtUtc": "2026-04-29T01:58:00Z",
+                      "ageLabel": "2m ago"
+                    }
                   ]
                 }
                 """);
@@ -44,6 +55,9 @@ public sealed class JsonFileDashboardProjectionStoreTests
             Assert.Equal("healthy-repositories", metric.Key);
             Assert.Equal(MetricTrendDirection.Positive, metric.TrendDirection);
             Assert.Equal(MetricTone.Healthy, metric.Tone);
+            DashboardAttentionItem attentionItem = Assert.Single(projection.AttentionItems);
+            Assert.Equal("billing-api", attentionItem.SourceName);
+            Assert.Equal("/repositories/billing-api", attentionItem.TargetHref);
         }
         finally
         {

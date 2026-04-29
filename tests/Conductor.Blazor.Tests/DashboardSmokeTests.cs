@@ -1,5 +1,7 @@
 using Bunit;
 using Conductor.Core.Application.Dashboard;
+using Conductor.Core.Domain;
+using Conductor.Host.Components.Dashboard;
 using Conductor.Host.Components.Pages;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,6 +23,21 @@ public sealed class DashboardSmokeTests
                 Metric("blocked-issues", "Blocked Issues", "7"),
                 Metric("open-pull-requests", "PRs Open", "23"),
                 Metric("ai-spend-today", "AI Spend Today", "$128.40")
+            ],
+            AttentionItems =
+            [
+                Attention(
+                    AlertSeverity.Critical,
+                    "billing-api",
+                    "2 failed runs in the last 30 minutes",
+                    "/repositories/billing-api",
+                    "repository"),
+                Attention(
+                    AlertSeverity.Warning,
+                    "client-mobile",
+                    "Symphony instance is offline",
+                    "/instances/client-mobile",
+                    "instance")
             ]
         }));
 
@@ -36,6 +53,11 @@ public sealed class DashboardSmokeTests
         Assert.Contains("SQLite persistence registration", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Repository orchestration health", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Release Portal", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Needs attention", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("billing-api", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("Critical", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/repositories/billing-api\"", dashboard.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/instances/client-mobile\"", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("Startup verification", dashboard.Markup, StringComparison.Ordinal);
         Assert.Contains("/health/live", dashboard.Markup, StringComparison.Ordinal);
     }
@@ -52,6 +74,63 @@ public sealed class DashboardSmokeTests
         Assert.Contains("No dashboard metrics are available yet.", dashboard.Markup, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void NeedsAttentionPanel_Renders_Critical_And_Warning_Source_Links()
+    {
+        using BunitContext context = new();
+        DashboardAttentionItem[] items =
+        [
+            Attention(
+                AlertSeverity.Info,
+                "release-notes",
+                "Daily digest is available",
+                "/reports/daily",
+                "report"),
+            Attention(
+                AlertSeverity.Warning,
+                "client-mobile",
+                "Symphony instance is offline",
+                "/instances/client-mobile",
+                "instance"),
+            Attention(
+                AlertSeverity.Critical,
+                "billing-api",
+                "2 failed runs in the last 30 minutes",
+                "/repositories/billing-api",
+                "repository"),
+        ];
+
+        IRenderedComponent<NeedsAttentionPanel> panel = context.Render<NeedsAttentionPanel>(
+            parameters => parameters.Add(component => component.Items, items));
+
+        Assert.Contains("Needs attention", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("billing-api", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("client-mobile", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/repositories/billing-api\"", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("href=\"/instances/client-mobile\"", panel.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("release-notes", panel.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NeedsAttentionPanel_Renders_Empty_State_When_No_Blocking_Items_Exist()
+    {
+        using BunitContext context = new();
+
+        IRenderedComponent<NeedsAttentionPanel> panel = context.Render<NeedsAttentionPanel>(
+            parameters => parameters.Add(
+                component => component.Items,
+                [Attention(
+                    AlertSeverity.Info,
+                    "release-notes",
+                    "Daily digest is available",
+                    "/reports/daily",
+                    "report")]));
+
+        Assert.Contains("All clear", panel.Markup, StringComparison.Ordinal);
+        Assert.Contains("No critical or warning items are active.", panel.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("release-notes", panel.Markup, StringComparison.Ordinal);
+    }
+
     private static DashboardMetric Metric(string key, string label, string value)
     {
         return new DashboardMetric
@@ -62,6 +141,25 @@ public sealed class DashboardSmokeTests
             Detail = "Sample detail",
             TrendText = "Within target",
             Icon = "pulse"
+        };
+    }
+
+    private static DashboardAttentionItem Attention(
+        AlertSeverity severity,
+        string sourceName,
+        string summary,
+        string targetHref,
+        string targetKind)
+    {
+        return new DashboardAttentionItem
+        {
+            Severity = severity,
+            SourceName = sourceName,
+            Summary = summary,
+            TargetHref = targetHref,
+            TargetKind = targetKind,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-04-29T01:58:00Z"),
+            AgeLabel = "2m ago"
         };
     }
 

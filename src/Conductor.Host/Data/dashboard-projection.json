@@ -51,5 +51,34 @@
       "tone": "Cost",
       "icon": "cost"
     }
+  ],
+  "attentionItems": [
+    {
+      "severity": "Critical",
+      "sourceName": "billing-api",
+      "summary": "2 failed runs in the last 30 minutes",
+      "targetHref": "/repositories/billing-api",
+      "targetKind": "repository",
+      "createdAtUtc": "2026-04-29T01:58:00Z",
+      "ageLabel": "2m ago"
+    },
+    {
+      "severity": "Warning",
+      "sourceName": "client-mobile",
+      "summary": "Symphony instance is offline",
+      "targetHref": "/instances/client-mobile",
+      "targetKind": "instance",
+      "createdAtUtc": "2026-04-29T01:52:00Z",
+      "ageLabel": "8m ago"
+    },
+    {
+      "severity": "Warning",
+      "sourceName": "acme-portal",
+      "summary": "PR #128 waiting for review for 3 days",
+      "targetHref": "/repositories/acme-portal",
+      "targetKind": "repository",
+      "createdAtUtc": "2026-04-29T01:45:00Z",
+      "ageLabel": "15m ago"
+    }
   ]
 }
