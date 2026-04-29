@@ -118,7 +118,7 @@ a {
 
 .eyebrow {
   margin: 0 0 8px;
-  color: #f2c14e;
+  color: #6fb7ff;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -331,6 +331,34 @@ h2 {
 .dashboard-stack {
   display: grid;
   gap: 24px;
+}
+
+.active-repositories-panel {
+  display: grid;
+  gap: 18px;
+  border: 1px solid #2b3138;
+  border-radius: 8px;
+  background: #191f25;
+  overflow: hidden;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 0;
+}
+
+.panel-heading p {
+  margin-bottom: 0;
+  color: #aeb9c5;
+}
+
+.panel-heading span {
+  flex: 0 0 auto;
+  color: #8da1b5;
+  font-size: 0.9rem;
 }
 
 .live-activity-stream {
@@ -951,10 +979,171 @@ h2 {
   color: #dbe6ee;
 }
 
+.repository-table-wrap {
+  overflow-x: auto;
+}
+
+.repository-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+
+.repository-table th,
+.repository-table td {
+  padding: 12px 18px;
+  border-top: 1px solid #2b3138;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.repository-table th {
+  color: #aeb9c5;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.repository-table tbody tr:hover {
+  background: #1d252d;
+}
+
+.repository-name {
+  display: block;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.repository-table small {
+  display: block;
+  margin-top: 3px;
+  color: #aeb9c5;
+  overflow-wrap: anywhere;
+}
+
+.numeric-cell {
+  color: #e6edf3;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.numeric-cell-critical {
+  color: #ff6b5e;
+  font-weight: 800;
+}
+
+.health-badge {
+  display: inline-grid;
+  min-width: 82px;
+  min-height: 28px;
+  place-items: center;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.health-badge-healthy {
+  background: #123b27;
+  color: #6be28f;
+}
+
+.health-badge-warning {
+  background: #3d310c;
+  color: #f3c742;
+}
+
+.health-badge-critical {
+  background: #44201f;
+  color: #ff796c;
+}
+
+.health-badge-offline,
+.health-badge-unknown {
+  background: #2a313a;
+  color: #c8d2dc;
+}
+
+.table-state {
+  display: grid;
+  gap: 6px;
+  min-height: 128px;
+  align-content: center;
+  padding: 24px;
+  border-top: 1px solid #2b3138;
+  color: #aeb9c5;
+}
+
+.table-state strong {
+  color: #ffffff;
+}
+
+.table-state-warning strong {
+  color: #f3c742;
+}
+
 .startup-panel > .ui-state {
   padding: 0;
   border: 0;
   background: transparent;
+}
+
+.secrets-page {
+  display: grid;
+  gap: 24px;
+  max-width: 1180px;
+}
+
+.secrets-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.secrets-summary {
+  margin: 8px 0 0;
+  color: #aeb9c5;
+}
+
+.secret-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.secret-type-card {
+  display: grid;
+  gap: 10px;
+  min-height: 106px;
+  padding: 18px;
+  border: 1px solid #2b3138;
+  border-radius: 8px;
+  background: #191f25;
+}
+
+.secret-type-label {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.secret-type-card code,
+.secret-mask {
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #232a31;
+  color: #f2c14e;
+  overflow-wrap: anywhere;
+}
+
+.secret-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #2b3138;
+  border-radius: 8px;
+  background: #151a1f;
 }
 
 .instance-registration,
@@ -965,6 +1154,28 @@ h2 {
   border: 1px solid #2b3138;
   border-radius: 8px;
   background: #151a1f;
+}
+
+.secret-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+
+.secret-table th,
+.secret-table td {
+  padding: 16px 14px;
+  border-top: 1px solid #2b3138;
+  vertical-align: top;
+  text-align: left;
+}
+
+.secret-table thead th {
+  border-top: 0;
+  color: #aeb9c5;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .registration-form {
@@ -1061,6 +1272,48 @@ h2 {
   font-size: 0.78rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.secret-name,
+.secret-muted {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.secret-name {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.secret-muted {
+  margin-top: 5px;
+  color: #aeb9c5;
+  font-size: 0.84rem;
+}
+
+.secret-type-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid #53606d;
+  border-radius: 999px;
+  background: #272d34;
+  color: #c7d0d9;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.secret-type-pill--github {
+  border-color: #45666d;
+  background: #17373b;
+  color: #9ee7d7;
+}
+
+.secret-type-pill--openai {
+  border-color: #8a6823;
+  background: #3d3015;
+  color: #f2c14e;
 }
 
 .instances-table td {
@@ -1268,11 +1521,31 @@ h2 {
     display: grid;
   }
 
+  .secrets-header,
+  .secret-type-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-meta {
     justify-content: flex-start;
   }
 
   .main-panel {
     padding: 20px;
+  }
+
+  .panel-heading {
+    display: grid;
+  }
+}
+
+@media (max-width: 520px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  .dashboard-header {
+    gap: 12px;
   }
 }

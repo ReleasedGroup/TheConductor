@@ -23,13 +23,15 @@ public sealed class HostSmokeTests : IClassFixture<WebApplicationFactory<global:
     }
 
     [Fact]
-    public async Task HomePageServesDashboardWithLiveActivity()
+    public async Task HomePageServesDashboardWithActiveRepositoriesAndLiveActivity()
     {
         using HttpClient client = CreateClient();
 
         string content = await client.GetStringAsync("/");
 
         Assert.Contains("Conductor Dashboard", content);
+        Assert.Contains("Active Repositories", content);
+        Assert.Contains("Repository health, workload, pull requests, failures", content);
         Assert.Contains("Live activity", content);
         Assert.Contains("Tests failed and a continuation run started.", content);
         Assert.Contains("Startup verification", content);
