@@ -145,10 +145,15 @@ public sealed class SqlitePersistenceSmokeTests
         var secret = new SecretDescriptor(
             secretId,
             "Repository GitHub token",
-            SecretType.GitHubToken,
+            SecretType.GitHubPersonalAccessToken,
             SecretScopeType.Repository,
             repositoryId.ToString(),
             now);
+        secret.RecordValidation(
+            SecretValidationStatus.Valid,
+            now.AddMinutes(1),
+            "GitHub token permissions verified.",
+            """{"scopes":["repo"]}""");
         var instance = new SymphonyInstance(
             instanceId,
             repositoryId,
@@ -322,6 +327,10 @@ public sealed class SqlitePersistenceSmokeTests
         Assert.Equal("""{"running":1}""", savedSnapshot.StateJson);
         Assert.Equal(secretId, savedSecret.Id);
         Assert.Equal(SecretScopeType.Repository, savedSecret.ScopeType);
+        Assert.Equal(SecretValidationStatus.Valid, savedSecret.ValidationStatus);
+        Assert.Equal(now.AddMinutes(1), savedSecret.ValidatedAtUtc);
+        Assert.Equal("GitHub token permissions verified.", savedSecret.ValidationMessage);
+        Assert.Equal("""{"scopes":["repo"]}""", savedSecret.ValidationMetadataJson);
         Assert.Equal(new Uri("https://github.com/ReleasedGroup/TheConductor/pull/126"), savedRun.PullRequestUrl);
         Assert.Equal(AlertStatus.Acknowledged, savedAlert.Status);
         Assert.Equal(BackgroundOperationStatus.Running, savedOperation.Status);
