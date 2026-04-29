@@ -5,6 +5,7 @@ namespace Conductor.Infrastructure.GitHub;
 public sealed class FakeGitHubRepositoryClient : IGitHubRepositoryClient
 {
     private readonly object syncRoot = new();
+    private readonly List<GitHubOrganizationSummary> organizations = [];
     private readonly List<GitHubRepositorySummary> repositories = [];
     private readonly List<string> searchQueries = [];
     private readonly List<GitHubRepositoryAccessValidationRequest> validationRequests = [];
@@ -17,6 +18,25 @@ public sealed class FakeGitHubRepositoryClient : IGitHubRepositoryClient
     public FakeGitHubRepositoryClient(IEnumerable<GitHubRepositorySummary> repositories)
     {
         AddRepositories(repositories);
+    }
+
+    public FakeGitHubRepositoryClient(
+        IEnumerable<GitHubRepositorySummary> repositories,
+        IEnumerable<GitHubOrganizationSummary> organizations)
+    {
+        AddRepositories(repositories);
+        AddOrganizations(organizations);
+    }
+
+    public IReadOnlyList<GitHubOrganizationSummary> Organizations
+    {
+        get
+        {
+            lock (syncRoot)
+            {
+                return organizations.ToArray();
+            }
+        }
     }
 
     public IReadOnlyList<GitHubRepositorySummary> Repositories
@@ -52,6 +72,26 @@ public sealed class FakeGitHubRepositoryClient : IGitHubRepositoryClient
         }
     }
 
+    public void AddOrganization(GitHubOrganizationSummary organization)
+    {
+        ArgumentNullException.ThrowIfNull(organization);
+
+        lock (syncRoot)
+        {
+            organizations.Add(organization);
+        }
+    }
+
+    public void AddOrganizations(IEnumerable<GitHubOrganizationSummary> organizations)
+    {
+        ArgumentNullException.ThrowIfNull(organizations);
+
+        foreach (GitHubOrganizationSummary organization in organizations)
+        {
+            AddOrganization(organization);
+        }
+    }
+
     public void AddRepository(GitHubRepositorySummary repository)
     {
         ArgumentNullException.ThrowIfNull(repository);
@@ -79,6 +119,34 @@ public sealed class FakeGitHubRepositoryClient : IGitHubRepositoryClient
         lock (syncRoot)
         {
             searchFailures.Enqueue(exception);
+        }
+    }
+
+    public Task<IReadOnlyList<GitHubOrganizationSummary>> ListOrganizationsAsync(
+        CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled<IReadOnlyList<GitHubOrganizationSummary>>(cancellationToken);
+        }
+
+        lock (syncRoot)
+        {
+            return Task.FromResult<IReadOnlyList<GitHubOrganizationSummary>>(organizations.ToArray());
+        }
+    }
+
+    public Task<IReadOnlyList<GitHubRepositorySummary>> ListRepositoriesAsync(
+        CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled<IReadOnlyList<GitHubRepositorySummary>>(cancellationToken);
+        }
+
+        lock (syncRoot)
+        {
+            return Task.FromResult<IReadOnlyList<GitHubRepositorySummary>>(repositories.ToArray());
         }
     }
 
