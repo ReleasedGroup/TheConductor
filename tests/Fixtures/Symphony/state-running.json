@@ -1,0 +1,102 @@
+{
+  "generated_at": "2026-04-29T01:30:00Z",
+  "counts": {
+    "running": 1,
+    "retrying": 0,
+    "tracked": 3
+  },
+  "running": [
+    {
+      "issue_id": "I_kwDOSPYGA85RUN",
+      "issue_identifier": "#30",
+      "title": "Add Symphony fixture mapping",
+      "url": "https://github.com/ReleasedGroup/TheConductor/issues/30",
+      "milestone": "Sprint 3: Symphony API Client and Manual Registration",
+      "labels": [
+        "symphony",
+        "tests"
+      ],
+      "state": "In Progress",
+      "session_id": "thread-30-turn-3",
+      "turn_count": 3,
+      "last_event": "notification",
+      "last_message": "Adding fixture-backed response mapping tests.",
+      "started_at": "2026-04-29T01:12:00Z",
+      "last_event_at": "2026-04-29T01:28:00Z",
+      "tokens": {
+        "input_tokens": 1200,
+        "output_tokens": 350,
+        "total_tokens": 1550
+      }
+    }
+  ],
+  "retrying": [],
+  "tracked": {
+    "total": 3,
+    "by_state": [
+      {
+        "state": "Open",
+        "count": 2
+      },
+      {
+        "state": "Closed",
+        "count": 1
+      }
+    ],
+    "recently_updated": [
+      {
+        "issue_id": "I_kwDOSPYGA85RUN",
+        "issue_identifier": "#30",
+        "title": "Add Symphony fixture mapping",
+        "state": "Open",
+        "status": "running",
+        "milestone": "Sprint 3: Symphony API Client and Manual Registration",
+        "updated_at": "2026-04-29T01:28:00Z",
+        "url": "https://github.com/ReleasedGroup/TheConductor/issues/30",
+        "labels": [
+          "symphony",
+          "tests"
+        ]
+      }
+    ]
+  },
+  "activity": [
+    {
+      "at": "2026-04-29T01:28:00Z",
+      "issue_id": "I_kwDOSPYGA85RUN",
+      "issue_identifier": "#30",
+      "session_id": "thread-30-turn-3",
+      "level": "Information",
+      "event": "notification",
+      "message": "Adding fixture-backed response mapping tests."
+    }
+  ],
+  "coordination": {
+    "leases": [
+      {
+        "lease_name": "poll-dispatch",
+        "owner_instance_id": "conductor-api-main",
+        "acquired_at": "2026-04-29T01:10:00Z",
+        "updated_at": "2026-04-29T01:29:30Z",
+        "expires_at": "2026-04-29T01:31:30Z",
+        "is_expired": false
+      }
+    ]
+  },
+  "codex_totals": {
+    "input_tokens": 2200,
+    "output_tokens": 700,
+    "total_tokens": 2900,
+    "seconds_running": 812.5
+  },
+  "rate_limits": {
+    "core": {
+      "remaining": 4988,
+      "reset_at": "2026-04-29T02:00:00Z"
+    },
+    "graphql": {
+      "remaining": 4992,
+      "reset_at": "2026-04-29T02:00:00Z"
+    }
+  }
+}

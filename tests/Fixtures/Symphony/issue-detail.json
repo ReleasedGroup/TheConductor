@@ -1,0 +1,76 @@
+{
+  "issue_identifier": "#30",
+  "issue_id": "I_kwDOSPYGA85RUN",
+  "status": "running",
+  "workspace": {
+    "path": "C:\\workspaces\\worktrees\\30"
+  },
+  "attempts": {
+    "restart_count": 1,
+    "current_retry_attempt": 2
+  },
+  "running": {
+    "session_id": "thread-30-turn-3",
+    "turn_count": 3,
+    "state": "In Progress",
+    "started_at": "2026-04-29T01:12:00Z",
+    "last_event": "notification",
+    "last_message": "Adding fixture-backed response mapping tests.",
+    "last_event_at": "2026-04-29T01:28:00Z",
+    "tokens": {
+      "input_tokens": 1200,
+      "output_tokens": 350,
+      "total_tokens": 1550
+    }
+  },
+  "retry": {
+    "attempt": 2,
+    "due_at": "2026-04-29T01:50:00Z",
+    "error": "Previous attempt timed out."
+  },
+  "logs": {
+    "codex_session_logs": []
+  },
+  "recent_events": [
+    {
+      "at": "2026-04-29T01:25:00Z",
+      "event": "agent_started",
+      "message": "Codex session started."
+    },
+    {
+      "at": "2026-04-29T01:28:00Z",
+      "event": "notification",
+      "message": "Adding fixture-backed response mapping tests."
+    }
+  ],
+  "last_error": "Previous attempt timed out.",
+  "tracked": {
+    "title": "Add Symphony fixture mapping",
+    "url": "https://github.com/ReleasedGroup/TheConductor/issues/30",
+    "priority": 1,
+    "cache_state": "Open",
+    "milestone": "Sprint 3: Symphony API Client and Manual Registration",
+    "updated_at": "2026-04-29T01:28:00Z",
+    "labels": [
+      "symphony",
+      "tests"
+    ],
+    "blocked_by": [
+      {
+        "Id": "I_kwDOSPYGA85BLOCK",
+        "Identifier": "#29",
+        "State": "Open"
+      }
+    ],
+    "pull_requests": [
+      {
+        "Id": "PR_kwDOSPYGA85PR",
+        "Number": 12,
+        "State": "OPEN",
+        "Url": "https://github.com/ReleasedGroup/TheConductor/pull/12",
+        "HeadRef": "symphony/30",
+        "BaseRef": "main"
+      }
+    ]
+  }
+}
