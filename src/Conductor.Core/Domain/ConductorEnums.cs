@@ -79,9 +79,22 @@ public enum ProjectStatus
     Archived,
 }
 
+public enum RepositoryOrchestrationStatus
+{
+    Eligible,
+    Ineligible,
+}
+
 public enum RepositoryProvider
 {
     GitHub,
+}
+
+public enum RepositoryVisibility
+{
+    Public,
+    Private,
+    Internal,
 }
 
 public enum ReportType
