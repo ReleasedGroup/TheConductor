@@ -1,5 +1,6 @@
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
+using Conductor.Core.Domain.Secrets;
 
 namespace Conductor.Core.Abstractions.Secrets;
 
@@ -23,22 +24,6 @@ public interface ISecretStore
     Task DeleteAsync(SecretId secretId, CancellationToken cancellationToken);
 }
 
-public enum SecretScopeType
-{
-    Global,
-    Project,
-    Repository,
-    SymphonyInstance,
-}
-
-public enum SecretType
-{
-    GitHubToken,
-    OpenAiApiKey,
-    CodexHome,
-    Other,
-}
-
 public sealed record CreateSecretRequest(
     string Name,
     SecretType SecretType,
@@ -55,12 +40,3 @@ public sealed record SecretReference(
 public sealed record ResolvedSecret(SecretId SecretId, string Value);
 
 public sealed record SecretQuery(SecretType? SecretType = null, SecretScopeType? ScopeType = null);
-
-public sealed record SecretDescriptor(
-    SecretId Id,
-    string Name,
-    SecretType SecretType,
-    SecretScopeType ScopeType,
-    string? ScopeId,
-    DateTimeOffset CreatedAtUtc,
-    DateTimeOffset? RotatedAtUtc);
