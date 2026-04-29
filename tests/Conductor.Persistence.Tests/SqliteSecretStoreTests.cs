@@ -32,6 +32,10 @@ public sealed class SqliteSecretStoreTests
 
         Assert.Equal(descriptor.Id, savedDescriptor.Id);
         Assert.Equal("Repository GitHub token", savedDescriptor.Name);
+        Assert.Equal(SecretValidationStatus.Valid, savedDescriptor.ValidationStatus);
+        Assert.NotNull(savedDescriptor.ValidatedAtUtc);
+        Assert.Contains("GitHub PAT", savedDescriptor.ValidationMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("ghp_test_secret_value", savedDescriptor.ValidationMetadataJson, StringComparison.Ordinal);
         Assert.Equal(descriptor.Id, encryptedValue.SecretId);
         Assert.NotEqual("ghp_test_secret_value", encryptedValue.ProtectedValue);
         Assert.DoesNotContain("ghp_test_secret_value", encryptedValue.ProtectedValue, StringComparison.Ordinal);
@@ -67,6 +71,72 @@ public sealed class SqliteSecretStoreTests
     }
 
     [Fact]
+    public async Task ResolveAsync_Uses_Inherited_Scope_Precedence()
+    {
+        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        DataProtectionSecretStore store = CreateStore(dbContext);
+        ProjectId projectId = ProjectId.New();
+        RepositoryId repositoryId = RepositoryId.New();
+        SymphonyInstanceId instanceId = SymphonyInstanceId.New();
+
+        await store.CreateAsync(
+            new CreateSecretRequest(
+                "Global GitHub token",
+                SecretType.GitHubToken,
+                SecretScopeType.Global,
+                ScopeId: null,
+                "ghp_global_secret_value"),
+            CancellationToken.None);
+        await store.CreateAsync(
+            new CreateSecretRequest(
+                "Repository GitHub token",
+                SecretType.GitHubToken,
+                SecretScopeType.Repository,
+                repositoryId.ToString(),
+                "ghp_repository_secret_value"),
+            CancellationToken.None);
+        SecretDescriptor instanceSecret = await store.CreateAsync(
+            new CreateSecretRequest(
+                "Instance GitHub token",
+                SecretType.GitHubToken,
+                SecretScopeType.SymphonyInstance,
+                instanceId.ToString(),
+                "ghp_instance_secret_value"),
+            CancellationToken.None);
+
+        ResolvedSecret? resolved = await store.ResolveAsync(
+            new SecretResolutionRequest(
+                SecretType.GitHubToken,
+                instanceId,
+                repositoryId,
+                projectId,
+                CredentialInheritanceMode.InheritDefault),
+            CancellationToken.None);
+
+        Assert.NotNull(resolved);
+        Assert.Equal(instanceSecret.Id, resolved.SecretId);
+        Assert.Equal("ghp_instance_secret_value", resolved.Value);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Returns_Null_When_Inheritance_Mode_Is_None()
+    {
+        await using ConductorDbContext dbContext = await CreateDbContextAsync();
+        DataProtectionSecretStore store = CreateStore(dbContext);
+
+        ResolvedSecret? resolved = await store.ResolveAsync(
+            new SecretResolutionRequest(
+                SecretType.OpenAiApiKey,
+                SymphonyInstanceId.New(),
+                RepositoryId.New(),
+                projectId: null,
+                CredentialInheritanceMode.None),
+            CancellationToken.None);
+
+        Assert.Null(resolved);
+    }
+
+    [Fact]
     public async Task RotateAsync_Updates_Metadata_And_Replaces_Encrypted_Value()
     {
         await using ConductorDbContext dbContext = await CreateDbContextAsync();
@@ -93,6 +163,8 @@ public sealed class SqliteSecretStoreTests
             CancellationToken.None);
 
         Assert.NotNull(rotatedDescriptor.RotatedAtUtc);
+        Assert.Equal(SecretValidationStatus.Invalid, rotatedDescriptor.ValidationStatus);
+        Assert.NotNull(rotatedDescriptor.ValidatedAtUtc);
         Assert.NotNull(rotatedValue.RotatedAtUtc);
         Assert.NotEqual(originalProtectedValue, rotatedValue.ProtectedValue);
         Assert.Equal("new-secret", resolved.Value);
@@ -126,46 +198,6 @@ public sealed class SqliteSecretStoreTests
 
         Assert.Single(descriptors);
         Assert.Equal(SecretType.GitHubToken, descriptors[0].SecretType);
-    }
-
-    [Fact]
-    public async Task ResolveAsync_Uses_Secret_Resolution_Request()
-    {
-        await using ConductorDbContext dbContext = await CreateDbContextAsync();
-        DataProtectionSecretStore store = CreateStore(dbContext);
-        SymphonyInstanceId instanceId = SymphonyInstanceId.New();
-        RepositoryId repositoryId = RepositoryId.New();
-        ProjectId projectId = ProjectId.New();
-        await store.CreateAsync(
-            new CreateSecretRequest(
-                "Repository GitHub token",
-                SecretType.GitHubToken,
-                SecretScopeType.Repository,
-                repositoryId.ToString(),
-                "repository-secret"),
-            CancellationToken.None);
-        SecretDescriptor instanceDescriptor = await store.CreateAsync(
-            new CreateSecretRequest(
-                "Instance GitHub token",
-                SecretType.GitHubToken,
-                SecretScopeType.SymphonyInstance,
-                instanceId.ToString(),
-                "instance-secret"),
-            CancellationToken.None);
-
-        ResolvedSecret? resolved = await store.ResolveAsync(
-            new SecretResolutionRequest(
-                SecretType.GitHubToken,
-                instanceId,
-                repositoryId,
-                projectId,
-                CredentialInheritanceMode.InheritDefault),
-            CancellationToken.None);
-
-        Assert.NotNull(resolved);
-        Assert.Equal(instanceDescriptor.Id, resolved.SecretId);
-        Assert.Equal("instance-secret", resolved.Value);
-        Assert.DoesNotContain("instance-secret", resolved.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]

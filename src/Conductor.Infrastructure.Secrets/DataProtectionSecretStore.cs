@@ -27,6 +27,8 @@ public sealed class DataProtectionSecretStore(
             request.ScopeType,
             request.ScopeId,
             now);
+        RecordLocalValidation(descriptor, request.Value, now);
+
         var encryptedValue = new EncryptedSecretValue(descriptor.Id, protectedValue, now);
 
         dbContext.SecretDescriptors.Add(descriptor);
@@ -49,6 +51,7 @@ public sealed class DataProtectionSecretStore(
         DateTimeOffset now = timeProvider.GetUtcNow();
         encryptedValue.Rotate(secretProtector.Protect(request.Value), now);
         descriptor.MarkRotated(now);
+        RecordLocalValidation(descriptor, request.Value, now);
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -78,24 +81,24 @@ public sealed class DataProtectionSecretStore(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        SecretDescriptor[] descriptors = await dbContext.SecretDescriptors
+        List<SecretDescriptor> descriptors = await dbContext.SecretDescriptors
             .AsNoTracking()
             .Where(secret => secret.SecretType == request.SecretType)
-            .ToArrayAsync(cancellationToken);
-        SecretDescriptor? descriptor = SecretResolutionPolicy.Resolve(request, descriptors);
+            .ToListAsync(cancellationToken);
+        SecretDescriptor? resolvedDescriptor = SecretResolutionPolicy.Resolve(request, descriptors);
 
-        if (descriptor is null)
+        if (resolvedDescriptor is null)
         {
             return null;
         }
 
         EncryptedSecretValue encryptedValue = await dbContext.EncryptedSecretValues
             .AsNoTracking()
-            .SingleOrDefaultAsync(secret => secret.SecretId == descriptor.Id, cancellationToken)
-            ?? throw new KeyNotFoundException($"Encrypted value for secret '{descriptor.Id}' was not found.");
+            .SingleOrDefaultAsync(secret => secret.SecretId == resolvedDescriptor.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Encrypted value for secret '{resolvedDescriptor.Id}' was not found.");
 
         return new ResolvedSecret(
-            descriptor.Id,
+            resolvedDescriptor.Id,
             secretProtector.Unprotect(encryptedValue.ProtectedValue));
     }
 
@@ -155,4 +158,25 @@ public sealed class DataProtectionSecretStore(
         CancellationToken cancellationToken) =>
         await dbContext.EncryptedSecretValues.FindAsync([secretId], cancellationToken)
             ?? throw new KeyNotFoundException($"Encrypted value for secret '{secretId}' was not found.");
+
+    private static void RecordLocalValidation(
+        SecretDescriptor descriptor,
+        string secretValue,
+        DateTimeOffset validatedAtUtc)
+    {
+        SecretValueValidationResult validation = SecretTypeMetadata.ValidateValue(
+            descriptor.SecretType,
+            secretValue);
+
+        if (validation.Status is SecretValidationStatus.NotValidated)
+        {
+            return;
+        }
+
+        descriptor.RecordValidation(
+            validation.Status,
+            validatedAtUtc,
+            validation.Message,
+            validation.MetadataJson);
+    }
 }
