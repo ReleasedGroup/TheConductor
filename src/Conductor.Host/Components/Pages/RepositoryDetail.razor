@@ -1,0 +1,108 @@
+@page "/repositories/{RepositoryId:guid}"
+@using Conductor.Core.Application.Queries
+@using Conductor.Core.Domain
+@using Conductor.Core.Domain.Ids
+@inject IRepositoryListQueryService RepositoryQueries
+@inject IInstanceSummaryQueryService InstanceQueries
+
+<PageTitle>Repository - Conductor</PageTitle>
+
+<section class="dashboard">
+    @if (Repository is null)
+    {
+        <section class="empty-state">
+            <p>Repository not found.</p>
+        </section>
+    }
+    else
+    {
+        <header class="dashboard-header">
+            <div>
+                <p class="eyebrow">Repository command centre</p>
+                <h1>@Repository.FullName</h1>
+                <p class="dashboard-summary">Seeded repository and Symphony runtime state.</p>
+            </div>
+            <span class="@HealthStatusClass(Repository.WorstHealthStatus)">@Repository.WorstHealthStatus</span>
+        </header>
+
+        <section class="detail-grid">
+            <article class="detail-panel">
+                <span>Project</span>
+                <strong>@(Repository.ProjectName ?? "Unassigned")</strong>
+            </article>
+            <article class="detail-panel">
+                <span>Default branch</span>
+                <strong>@Repository.DefaultBranch</strong>
+            </article>
+            <article class="detail-panel">
+                <span>Instances</span>
+                <strong>@Repository.RunningInstanceCount / @Repository.InstanceCount running</strong>
+            </article>
+            <article class="detail-panel">
+                <span>Last check</span>
+                <strong>@FormatLastSeen(Repository.LastHealthCheckAtUtc)</strong>
+            </article>
+        </section>
+
+        <section class="data-panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Runtime connection</h2>
+                    <p>Seeded instance endpoint and repository source.</p>
+                </div>
+            </div>
+            <dl class="detail-list">
+                <div>
+                    <dt>Repository URL</dt>
+                    <dd><a class="text-link" href="@Repository.WebUrl.ToString()">@Repository.WebUrl</a></dd>
+                </div>
+                <div>
+                    <dt>Instance URL</dt>
+                    <dd>@(PrimaryInstance?.BaseUrl.ToString() ?? "No instance registered")</dd>
+                </div>
+                <div>
+                    <dt>Lifecycle</dt>
+                    <dd>@(PrimaryInstance?.LifecycleStatus.ToString() ?? "None")</dd>
+                </div>
+                <div>
+                    <dt>Execution mode</dt>
+                    <dd>@(PrimaryInstance?.ExecutionMode.ToString() ?? "None")</dd>
+                </div>
+            </dl>
+        </section>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public Guid RepositoryId { get; set; }
+
+    private RepositoryListItemProjection? Repository { get; set; }
+
+    private IReadOnlyList<InstanceSummaryProjection> Instances { get; set; } = [];
+
+    private InstanceSummaryProjection? PrimaryInstance => Instances.FirstOrDefault();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var repositoryId = new RepositoryId(RepositoryId);
+        IReadOnlyList<RepositoryListItemProjection> repositories =
+            await RepositoryQueries.ListRepositoriesAsync(new RepositoryListQuery(IncludeArchived: true));
+
+        Repository = repositories.SingleOrDefault(repository => repository.Id == repositoryId);
+        Instances = await InstanceQueries.ListInstanceSummariesAsync(
+            new InstanceSummaryQuery(RepositoryId: repositoryId, IncludeDestroyed: true));
+    }
+
+    private static string FormatLastSeen(DateTimeOffset? lastSeenAtUtc) =>
+        lastSeenAtUtc?.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) ?? "Never";
+
+    private static string HealthStatusClass(InstanceHealthStatus status) =>
+        status switch
+        {
+            InstanceHealthStatus.Healthy => "status-badge status-healthy",
+            InstanceHealthStatus.Warning => "status-badge status-warning",
+            InstanceHealthStatus.Critical or InstanceHealthStatus.Offline => "status-badge status-critical",
+            _ => "status-badge",
+        };
+}

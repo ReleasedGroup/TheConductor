@@ -19,6 +19,9 @@ mono_crash.*
 #auth
 codex/auth.json
 
+# Local Conductor runtime data
+/data/
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/

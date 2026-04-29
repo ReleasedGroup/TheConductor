@@ -227,7 +227,9 @@
                         {
                             <tr>
                                 <td>
-                                    <strong>@repository.FullName</strong>
+                                    <strong>
+                                        <a class="text-link" href="@RepositoryHref(repository)">@repository.FullName</a>
+                                    </strong>
                                     <a href="@repository.WebUrl.AbsoluteUri" target="_blank" rel="noreferrer">@repository.Provider</a>
                                 </td>
                                 <td>@(repository.ProjectName ?? "Unassigned")</td>
@@ -338,6 +340,9 @@
             isLoading = false;
         }
     }
+
+    private static string RepositoryHref(RepositoryListItemProjection repository) =>
+        $"/repositories/{repository.Id.Value:D}";
 
     private static TEnum ParseEnum<TEnum>(string value)
         where TEnum : struct, Enum

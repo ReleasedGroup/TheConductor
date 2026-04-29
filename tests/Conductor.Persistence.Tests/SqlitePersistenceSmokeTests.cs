@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Globalization;
 using Conductor.Core.Abstractions.Secrets;
+using Conductor.Core.Application.Queries;
 using Conductor.Core.Application.Secrets;
 using Conductor.Core.Application.Snapshots;
 using Conductor.Core.Domain;
@@ -19,11 +20,13 @@ using Conductor.Core.Domain.Symphony;
 using Conductor.Core.Domain.SymphonyReleases;
 using Conductor.Core.Domain.Workflows;
 using Conductor.Infrastructure.Persistence.Sqlite;
+using Conductor.Infrastructure.Persistence.Sqlite.Queries;
 using Conductor.Infrastructure.Persistence.Sqlite.Snapshots;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using DomainEvent = Conductor.Core.Domain.Events.Event;
 
 namespace Conductor.Persistence.Tests;
@@ -76,7 +79,6 @@ public sealed class SqlitePersistenceSmokeTests
     {
         await using SqliteConnection connection = await OpenConnectionAsync();
         await using ConductorDbContext dbContext = CreateDbContext(connection);
-
         await dbContext.Database.MigrateAsync();
 
         HashSet<string> tableNames = await LoadTableNamesAsync(connection);
@@ -654,6 +656,68 @@ public sealed class SqlitePersistenceSmokeTests
         Assert.Equal("wal", await ExecuteTextPragmaAsync(connection, "PRAGMA journal_mode;"));
     }
 
+    [Fact]
+    public async Task DevelopmentSeedData_Is_Idempotent_And_Populates_Dashboard_Data()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateMigratedDbContextAsync(connection);
+
+        await DevelopmentSeedData.SeedAsync(dbContext);
+        await DevelopmentSeedData.SeedAsync(dbContext);
+
+        Assert.Equal(2, await CountRowsAsync(connection, "Projects"));
+        Assert.Equal(3, await CountRowsAsync(connection, "Repositories"));
+        Assert.Equal(3, await CountRowsAsync(connection, "SymphonyInstances"));
+        Assert.Equal(3, await CountRowsAsync(connection, "InstanceSnapshots"));
+    }
+
+    [Fact]
+    public async Task ReadModelQueries_Return_Seeded_Dashboard_Projection()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using ConductorDbContext dbContext = await CreateMigratedDbContextAsync(connection);
+        await DevelopmentSeedData.SeedAsync(dbContext);
+
+        SqliteProjectionQueryService queries = new(dbContext);
+
+        DashboardProjection summary = await queries.GetDashboardAsync(new DashboardQuery());
+
+        Assert.Equal(3, summary.Metrics.ManagedRepositoryCount);
+        Assert.Equal(1, summary.Metrics.HealthyRepositoryCount);
+        Assert.Equal(2, summary.Metrics.ActiveAgentCount);
+        Assert.Equal(0, summary.Metrics.BlockedIssueCount);
+        Assert.Equal(0, summary.Metrics.OpenPullRequestCount);
+        Assert.Contains(summary.ActiveRepositories, repository => repository.FullName == "ReleasedGroup/TheConductor");
+        Assert.Contains(summary.InstanceSummaries, instance => instance.HealthStatus == InstanceHealthStatus.Offline);
+        Assert.Equal(1, summary.HealthBuckets.Single(bucket => bucket.Status == InstanceHealthStatus.Healthy).Count);
+        Assert.Equal(1, summary.HealthBuckets.Single(bucket => bucket.Status == InstanceHealthStatus.Warning).Count);
+        Assert.Equal(1, summary.HealthBuckets.Single(bucket => bucket.Status == InstanceHealthStatus.Offline).Count);
+    }
+
+    [Fact]
+    public async Task DevelopmentBootstrap_Migrates_And_Seeds_Configured_Database()
+    {
+        string databasePath = CreateTemporaryDatabasePath();
+        IConfiguration configuration = BuildConfiguration(databasePath);
+        ServiceCollection services = new();
+
+        services.AddConductorPersistence(configuration);
+
+        await using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
+        await provider.BootstrapDevelopmentDatabaseAsync(NullLogger.Instance);
+
+        await using AsyncServiceScope scope = provider.CreateAsyncScope();
+        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        await dbContext.Database.OpenConnectionAsync();
+
+        DbConnection connection = dbContext.Database.GetDbConnection();
+
+        Assert.Equal(2, await CountRowsAsync(connection, "Projects"));
+        Assert.Equal(3, await CountRowsAsync(connection, "Repositories"));
+        Assert.Equal(3, await CountRowsAsync(connection, "SymphonyInstances"));
+        Assert.Equal(3, await CountRowsAsync(connection, "InstanceSnapshots"));
+    }
+
     private static async Task<ConductorDbContext> CreateMigratedDbContextAsync(SqliteConnection connection)
     {
         ConductorDbContext dbContext = CreateDbContext(connection);
@@ -952,6 +1016,13 @@ public sealed class SqlitePersistenceSmokeTests
         command.CommandText = commandText;
 
         return await command.ExecuteScalarAsync();
+    }
+
+    private static async Task<long> CountRowsAsync(DbConnection connection, string tableName)
+    {
+        object? value = await ExecuteScalarAsync(connection, $"SELECT COUNT(*) FROM {QuoteIdentifier(tableName)};");
+
+        return Convert.ToInt64(value, CultureInfo.InvariantCulture);
     }
 
     private static string QuoteIdentifier(string identifier)

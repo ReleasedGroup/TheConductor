@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -97,15 +98,38 @@ public sealed class RepositoryImportEndpointTests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             connection.Open();
+            using (ConductorDbContext dbContext = CreateDbContext())
+            {
+                dbContext.Database.EnsureCreated();
+            }
 
+            builder.ConfigureAppConfiguration((_, configuration) =>
+            {
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Conductor:BootstrapDevelopmentDatabase"] = "false",
+                    ["InstanceCollector:Enabled"] = "false",
+                });
+            });
             builder.ConfigureServices(services =>
             {
+                services.RemoveAll<ConductorDbContext>();
                 services.RemoveAll<DbContextOptions<ConductorDbContext>>();
+                services.RemoveAll<IDbContextFactory<ConductorDbContext>>();
                 services.RemoveAll<ISymphonyApiClient>();
 
                 services.AddDbContext<ConductorDbContext>(options => options.UseSqlite(connection));
                 services.AddSingleton<ISymphonyApiClient>(new NoOpSymphonyApiClient());
             });
+        }
+
+        private ConductorDbContext CreateDbContext()
+        {
+            DbContextOptions<ConductorDbContext> options = new DbContextOptionsBuilder<ConductorDbContext>()
+                .UseSqlite(connection)
+                .Options;
+
+            return new ConductorDbContext(options);
         }
 
         public override async ValueTask DisposeAsync()

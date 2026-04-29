@@ -29,12 +29,15 @@ public static class SqlitePersistenceServiceCollectionExtensions
         services.AddSingleton<SqliteConnectionPragmaInterceptor>();
         services.AddScoped<IActiveRepositoryDashboardQuery, SqliteActiveRepositoryDashboardQuery>();
 
-        services.AddDbContext<ConductorDbContext>((serviceProvider, options) =>
+        void Configure(IServiceProvider serviceProvider, DbContextOptionsBuilder options)
         {
             options
                 .UseConductorSqlite(connectionString)
                 .AddInterceptors(serviceProvider.GetRequiredService<SqliteConnectionPragmaInterceptor>());
-        });
+        }
+
+        services.AddDbContextFactory<ConductorDbContext>(Configure);
+        services.AddScoped(provider => provider.GetRequiredService<IDbContextFactory<ConductorDbContext>>().CreateDbContext());
 
         services.AddScoped<SqliteProjectionQueryService>();
         services.AddScoped<IDashboardQueryService>(provider =>

@@ -29,7 +29,17 @@ builder.Services.AddConductorWorkers(builder.Configuration);
 
 WebApplication app = builder.Build();
 
-await app.Services.ApplyConductorPersistenceMigrationsAsync();
+if (app.Environment.IsDevelopment())
+{
+    if (app.Configuration.GetValue("Conductor:BootstrapDevelopmentDatabase", defaultValue: true))
+    {
+        await app.Services.BootstrapDevelopmentDatabaseAsync(app.Logger);
+    }
+}
+else
+{
+    await app.Services.ApplyConductorPersistenceMigrationsAsync();
+}
 
 if (!app.Environment.IsDevelopment())
 {
