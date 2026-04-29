@@ -1,4 +1,5 @@
 using Conductor.Core.Domain.Ids;
+using Conductor.Core.Domain.Releases;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Conductor.Infrastructure.Persistence.Sqlite.Configurations;
@@ -88,4 +89,8 @@ internal static class StronglyTypedIdValueConverters
     public static readonly ValueConverter<Uri?, string?> NullableAbsoluteUri = new(
         uri => uri == null ? null : uri.ToString(),
         value => value == null ? null : new Uri(value, UriKind.Absolute));
+
+    public static readonly ValueConverter<ReleaseTag, string> ReleaseTag = new(
+        tag => tag.Value,
+        value => new ReleaseTag(value));
 }

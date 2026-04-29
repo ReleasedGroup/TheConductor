@@ -309,7 +309,7 @@ public sealed class SqlitePersistenceSmokeTests
         BackgroundOperation savedOperation = await dbContext.BackgroundOperations.SingleAsync();
 
         Assert.Equal(projectId, savedRepository.ProjectId);
-        Assert.Equal("ReleasedGroup/TheConductor", savedRepository.FullName);
+        Assert.Equal("ReleasedGroup/TheConductor", savedRepository.FullName.Value);
         Assert.Equal(RepositoryVisibility.Public, savedRepository.Visibility);
         Assert.Equal(new Uri("https://github.com/ReleasedGroup/TheConductor.git"), savedRepository.CloneUrl);
         Assert.Equal(ExecutionMode.Docker, savedInstance.ExecutionMode);
@@ -533,12 +533,14 @@ public sealed class SqlitePersistenceSmokeTests
         await ExecuteNonQueryAsync(
             connection,
             """
-            INSERT INTO Projects (Id, Name, OwnerName, Status, CreatedAtUtc, UpdatedAtUtc)
-            VALUES ($id, $name, $ownerName, $status, $createdAtUtc, $updatedAtUtc);
+            INSERT INTO Projects (Id, Name, OwnerName, Description, DefaultBranchPolicy, Status, CreatedAtUtc, UpdatedAtUtc)
+            VALUES ($id, $name, $ownerName, $description, $defaultBranchPolicy, $status, $createdAtUtc, $updatedAtUtc);
             """,
             ("$id", projectId),
             ("$name", "Platform"),
             ("$ownerName", "Platform Engineering"),
+            ("$description", "Internal orchestration"),
+            ("$defaultBranchPolicy", "main"),
             ("$status", "Active"),
             ("$createdAtUtc", FormatUtc(new DateTimeOffset(2026, 4, 29, 0, 0, 0, TimeSpan.Zero))),
             ("$updatedAtUtc", FormatUtc(new DateTimeOffset(2026, 4, 29, 0, 0, 0, TimeSpan.Zero))));
@@ -556,9 +558,9 @@ public sealed class SqlitePersistenceSmokeTests
             connection,
             """
             INSERT INTO Repositories
-                (Id, ProjectId, Provider, Owner, Name, DefaultBranch, CloneUrl, WebUrl, IsArchived, OpenIssueCount, PullRequestCount, ImportedAtUtc, UpdatedAtUtc)
+                (Id, ProjectId, Provider, Owner, Name, DefaultBranch, CloneUrl, WebUrl, Visibility, IsArchived, LastSyncedAtUtc, OrchestrationStatus, OrchestrationStatusReason)
             VALUES
-                ($id, $projectId, $provider, $owner, $name, $defaultBranch, $cloneUrl, $webUrl, $isArchived, $openIssueCount, $pullRequestCount, $importedAtUtc, $updatedAtUtc);
+                ($id, $projectId, $provider, $owner, $name, $defaultBranch, $cloneUrl, $webUrl, $visibility, $isArchived, $lastSyncedAtUtc, $orchestrationStatus, $orchestrationStatusReason);
             """,
             ("$id", repositoryId),
             ("$projectId", projectId),
@@ -568,11 +570,11 @@ public sealed class SqlitePersistenceSmokeTests
             ("$defaultBranch", "main"),
             ("$cloneUrl", $"https://github.com/{owner}/{name}.git"),
             ("$webUrl", $"https://github.com/{owner}/{name}"),
+            ("$visibility", "Public"),
             ("$isArchived", false),
-            ("$openIssueCount", 12),
-            ("$pullRequestCount", 3),
-            ("$importedAtUtc", FormatUtc(new DateTimeOffset(2026, 4, 29, 0, 5, 0, TimeSpan.Zero))),
-            ("$updatedAtUtc", FormatUtc(new DateTimeOffset(2026, 4, 29, 0, 5, 0, TimeSpan.Zero))));
+            ("$lastSyncedAtUtc", FormatUtc(new DateTimeOffset(2026, 4, 29, 0, 5, 0, TimeSpan.Zero))),
+            ("$orchestrationStatus", "Eligible"),
+            ("$orchestrationStatusReason", null));
     }
 
     private static async Task InsertInstanceAsync(SqliteConnection connection, string instanceId, string repositoryId)
@@ -581,9 +583,9 @@ public sealed class SqlitePersistenceSmokeTests
             connection,
             """
             INSERT INTO SymphonyInstances
-                (Id, RepositoryId, DisplayName, ExecutionMode, BaseUrl, Status, HealthStatus, DeliveryStatus, CreatedAtUtc, UpdatedAtUtc)
+                (Id, RepositoryId, DisplayName, ExecutionMode, BaseUrl, Status, HealthStatus, GitHubCredentialInheritanceMode, OpenAiCredentialInheritanceMode, CreatedAtUtc, LastHealthCheckAtUtc, LastSeenAtUtc)
             VALUES
-                ($id, $repositoryId, $displayName, $executionMode, $baseUrl, $status, $healthStatus, $deliveryStatus, $createdAtUtc, $updatedAtUtc);
+                ($id, $repositoryId, $displayName, $executionMode, $baseUrl, $status, $healthStatus, $gitHubCredentialInheritanceMode, $openAiCredentialInheritanceMode, $createdAtUtc, $lastHealthCheckAtUtc, $lastSeenAtUtc);
             """,
             ("$id", instanceId),
             ("$repositoryId", repositoryId),
@@ -592,9 +594,11 @@ public sealed class SqlitePersistenceSmokeTests
             ("$baseUrl", "http://localhost:5001"),
             ("$status", "Provisioned"),
             ("$healthStatus", "Unknown"),
-            ("$deliveryStatus", "Healthy"),
+            ("$gitHubCredentialInheritanceMode", "InheritDefault"),
+            ("$openAiCredentialInheritanceMode", "InheritDefault"),
             ("$createdAtUtc", FormatUtc(new DateTimeOffset(2026, 4, 29, 0, 10, 0, TimeSpan.Zero))),
-            ("$updatedAtUtc", FormatUtc(new DateTimeOffset(2026, 4, 29, 0, 10, 0, TimeSpan.Zero))));
+            ("$lastHealthCheckAtUtc", null),
+            ("$lastSeenAtUtc", null));
     }
 
     private static async Task InsertSnapshotAsync(
@@ -609,9 +613,9 @@ public sealed class SqlitePersistenceSmokeTests
             connection,
             """
             INSERT INTO InstanceSnapshots
-                (Id, SymphonyInstanceId, CapturedAtUtc, HealthStatus, HealthJson, RuntimeJson, StateJson)
+                (Id, SymphonyInstanceId, CapturedAtUtc, HealthStatus, HealthJson, RuntimeJson, StateJson, ActiveIssueCount, RunningSessionCount, RetryQueueCount, FailedRunCount, TokenInputTotal, TokenOutputTotal)
             VALUES
-                ($id, $instanceId, $capturedAtUtc, $healthStatus, $healthJson, $runtimeJson, $stateJson);
+                ($id, $instanceId, $capturedAtUtc, $healthStatus, $healthJson, $runtimeJson, $stateJson, $activeIssueCount, $runningSessionCount, $retryQueueCount, $failedRunCount, $tokenInputTotal, $tokenOutputTotal);
             """,
             ("$id", snapshotId),
             ("$instanceId", instanceId),
@@ -619,7 +623,13 @@ public sealed class SqlitePersistenceSmokeTests
             ("$healthStatus", healthStatus),
             ("$healthJson", """{"status":"ok"}"""),
             ("$runtimeJson", """{"version":"1.0.0"}"""),
-            ("$stateJson", stateJson));
+            ("$stateJson", stateJson),
+            ("$activeIssueCount", 2),
+            ("$runningSessionCount", 1),
+            ("$retryQueueCount", 0),
+            ("$failedRunCount", 0),
+            ("$tokenInputTotal", 100),
+            ("$tokenOutputTotal", 40));
     }
 
     private static async Task ExecuteNonQueryAsync(

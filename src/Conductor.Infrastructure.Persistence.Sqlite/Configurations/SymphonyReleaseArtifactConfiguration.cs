@@ -13,6 +13,7 @@ internal sealed class SymphonyReleaseArtifactConfiguration : IEntityTypeConfigur
         builder.HasKey(artifact => new { artifact.ReleaseTag, artifact.AssetName });
 
         builder.Property(artifact => artifact.ReleaseTag)
+            .HasConversion(StronglyTypedIdValueConverters.ReleaseTag)
             .HasMaxLength(128)
             .IsRequired();
 
