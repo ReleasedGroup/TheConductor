@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Conductor.Core/Conductor.Core.csproj" />
+    <Project Path="src/Conductor.Host/Conductor.Host.csproj" />
     <Project Path="src/Conductor.Infrastructure.GitHub/Conductor.Infrastructure.GitHub.csproj" />
     <Project Path="src/Conductor.Infrastructure.Notifications/Conductor.Infrastructure.Notifications.csproj" />
     <Project Path="src/Conductor.Infrastructure.Reporting/Conductor.Infrastructure.Reporting.csproj" />
@@ -11,5 +12,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Conductor.Core.Tests/Conductor.Core.Tests.csproj" />
+    <Project Path="tests/Conductor.Host.Tests/Conductor.Host.Tests.csproj" />
   </Folder>
 </Solution>

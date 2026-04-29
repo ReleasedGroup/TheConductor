@@ -1,0 +1,401 @@
+:root {
+    color-scheme: dark;
+    --bg: #101318;
+    --surface: #171c22;
+    --surface-strong: #202833;
+    --border: #303946;
+    --text: #eef3f8;
+    --muted: #9aa7b5;
+    --accent: #5ec8e5;
+    --green: #42d392;
+    --amber: #f5bd4f;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+}
+
+a {
+    color: inherit;
+}
+
+h1,
+h2,
+p {
+    margin: 0;
+}
+
+h1:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+}
+
+.app-shell {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.sidebar {
+    border-right: 1px solid var(--border);
+    background: #12171d;
+    padding: 24px 18px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 34px;
+}
+
+.brand-mark {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border: 1px solid #3a9ab4;
+    border-radius: 8px;
+    background: #103241;
+    color: var(--accent);
+    font-weight: 800;
+}
+
+.brand-name {
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.brand-subtitle,
+.eyebrow,
+.panel-meta,
+.metric-label,
+.metric-detail {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.eyebrow {
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.nav-list {
+    display: grid;
+    gap: 6px;
+}
+
+.nav-link {
+    border-radius: 8px;
+    color: #c6d0dc;
+    padding: 10px 12px;
+    text-decoration: none;
+}
+
+.nav-link:hover,
+.nav-link:focus,
+.nav-link.active {
+    background: var(--surface-strong);
+    color: var(--text);
+    outline: none;
+}
+
+.workspace {
+    min-width: 0;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    background: #151a20;
+    padding: 18px 28px;
+}
+
+.topbar-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.environment-pill,
+.status-summary,
+.health-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.environment-pill {
+    border: 1px solid #385064;
+    color: #d3e9f7;
+    padding: 7px 10px;
+}
+
+.content {
+    display: grid;
+    gap: 22px;
+    padding: 28px;
+}
+
+.dashboard-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.dashboard-heading h1 {
+    font-size: 2rem;
+    line-height: 1.1;
+}
+
+.status-summary {
+    border: 1px solid #286b4d;
+    background: #10271f;
+    color: #bff5d8;
+    gap: 8px;
+    padding: 8px 12px;
+}
+
+.status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+}
+
+.status-dot.healthy {
+    background: var(--green);
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.metric-panel,
+.panel {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+.metric-panel {
+    display: grid;
+    gap: 7px;
+    min-height: 120px;
+    padding: 18px;
+}
+
+.metric-panel strong {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 18px;
+}
+
+.panel {
+    min-width: 0;
+    padding: 20px;
+}
+
+.panel-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.panel h2 {
+    font-size: 1.1rem;
+}
+
+.repository-table {
+    display: grid;
+    gap: 8px;
+    overflow-x: auto;
+}
+
+.table-row {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 112px 88px 120px;
+    align-items: center;
+    min-width: 680px;
+    border-radius: 8px;
+    background: #1c232c;
+    color: #dbe5ee;
+    gap: 14px;
+    padding: 12px 14px;
+}
+
+.table-head {
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.health-badge {
+    justify-content: center;
+    min-width: 84px;
+    padding: 5px 9px;
+}
+
+.health-badge.healthy {
+    background: #123426;
+    color: #a8f1ca;
+}
+
+.health-badge.warning {
+    background: #332711;
+    color: #f8d88a;
+}
+
+.attention-list {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding-left: 20px;
+}
+
+.attention-list li {
+    color: #dfe8f0;
+    padding-left: 4px;
+}
+
+.attention-list strong,
+.attention-list span {
+    display: block;
+}
+
+.attention-list span {
+    color: var(--muted);
+    font-size: 0.86rem;
+    margin-top: 2px;
+}
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 1000;
+    max-width: 520px;
+    border: 1px solid #7b2e2e;
+    border-radius: 8px;
+    background: #2a1515;
+    color: #fff0f0;
+    padding: 14px 44px 14px 16px;
+}
+
+#blazor-error-ui .reload {
+    color: #ffd1d1;
+    font-weight: 700;
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid #e50000;
+}
+
+.validation-message {
+    color: #e50000;
+}
+
+.blazor-error-boundary {
+    border: 1px solid #7b2e2e;
+    border-radius: 8px;
+    background: #2a1515;
+    color: #fff0f0;
+    padding: 1rem;
+}
+
+.blazor-error-boundary::after {
+    content: "An error has occurred.";
+}
+
+.darker-border-checkbox.form-check-input {
+    border-color: #929292;
+}
+
+.form-floating > .form-control-plaintext::placeholder,
+.form-floating > .form-control::placeholder {
+    color: var(--bs-secondary-color);
+    text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder,
+.form-floating > .form-control:focus::placeholder {
+    text-align: start;
+}
+
+@media (max-width: 980px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .nav-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .metric-grid,
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .topbar,
+    .dashboard-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .content {
+        padding: 20px 16px;
+    }
+
+    .nav-list {
+        grid-template-columns: 1fr 1fr;
+    }
+}
