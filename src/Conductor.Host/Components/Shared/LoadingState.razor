@@ -1,0 +1,30 @@
+<section class="@CssClass" role="status" aria-live="polite" aria-busy="true">
+    <span class="ui-state-spinner" aria-hidden="true"></span>
+    <div class="ui-state-copy">
+        <h2>@Title</h2>
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <p>@Message</p>
+        }
+        @ChildContent
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Loading";
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string CssClass =>
+        string.IsNullOrWhiteSpace(Class)
+            ? "ui-state ui-state--loading"
+            : $"ui-state ui-state--loading {Class}";
+}

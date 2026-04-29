@@ -14,18 +14,18 @@
 
     @if (!HasBuckets)
     {
-        <p class="empty-state">No repository health buckets are available yet.</p>
+        <EmptyState
+            Title="No repository health buckets are available yet."
+            Message="Repository health snapshots will appear after dashboard projections are available." />
     }
     else
     {
         <div class="heatmap-summary" aria-label="Health status summary">
             @foreach (StatusSummary summary in statusSummaries)
             {
-                <span class="heatmap-legend-item">
-                    <span class="@GetLegendSwatchClass(summary.Status)" aria-hidden="true"></span>
-                    <span>@GetStatusLabel(summary.Status)</span>
-                    <strong>@summary.Count.ToString(CultureInfo.InvariantCulture)</strong>
-                </span>
+                <StatusBadge
+                    Text="@GetSummaryLabel(summary)"
+                    Tone="@GetBadgeTone(summary.Status)" />
             }
         </div>
 
@@ -133,9 +133,6 @@
     private static string GetCellClass(HealthHeatmapStatus status) =>
         $"heatmap-cell heatmap-cell--{GetStatusCssName(status)}";
 
-    private static string GetLegendSwatchClass(HealthHeatmapStatus status) =>
-        $"heatmap-legend-swatch heatmap-cell--{GetStatusCssName(status)}";
-
     private static string GetCellLabel(HealthHeatmapBucket bucket)
     {
         string detail = string.IsNullOrWhiteSpace(bucket.Detail) ? "No detail recorded." : bucket.Detail;
@@ -173,8 +170,21 @@
             _ => "unknown",
         };
 
+    private static StatusBadgeTone GetBadgeTone(HealthHeatmapStatus status) =>
+        status switch
+        {
+            HealthHeatmapStatus.Healthy => StatusBadgeTone.Success,
+            HealthHeatmapStatus.Warning => StatusBadgeTone.Warning,
+            HealthHeatmapStatus.Critical => StatusBadgeTone.Critical,
+            HealthHeatmapStatus.Offline => StatusBadgeTone.Neutral,
+            _ => StatusBadgeTone.Neutral,
+        };
+
     private static string GetScoreText(int score) =>
         Math.Clamp(score, 0, 100).ToString(CultureInfo.InvariantCulture);
+
+    private static string GetSummaryLabel(StatusSummary summary) =>
+        $"{GetStatusLabel(summary.Status)} {summary.Count.ToString(CultureInfo.InvariantCulture)}";
 
     private sealed record HeatmapRow(
         string RepositoryName,
