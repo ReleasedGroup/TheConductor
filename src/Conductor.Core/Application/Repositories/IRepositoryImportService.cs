@@ -1,3 +1,4 @@
+using Conductor.Core.Abstractions.GitHub;
 using Conductor.Core.Common;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
@@ -34,7 +35,26 @@ public sealed record RepositoryImportRequest(
     SecretId? OpenAiCredentialSecretId = null,
     string? WorkflowPath = null,
     string? DataPath = null,
-    string? RequestedByUserId = null);
+    string? RequestedByUserId = null)
+{
+    public static RepositoryImportRequest FromGitHubRepositorySummary(
+        GitHubRepositorySummary repository,
+        ProjectId? projectId = null,
+        bool createSymphonyInstance = false)
+    {
+        ArgumentNullException.ThrowIfNull(repository);
+
+        return new RepositoryImportRequest(
+            repository.FullName,
+            DefaultBranch: repository.DefaultBranch,
+            CloneUrl: repository.CloneUrl.AbsoluteUri,
+            WebUrl: repository.WebUrl.AbsoluteUri,
+            Visibility: repository.Visibility,
+            IsArchived: repository.IsArchived,
+            ProjectId: projectId,
+            CreateSymphonyInstance: createSymphonyInstance);
+    }
+}
 
 public sealed record RepositoryImportResult(
     string RepositoryId,

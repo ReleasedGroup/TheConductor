@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Conductor.Core.Abstractions.GitHub;
+using Conductor.Core.Domain;
 
 namespace Conductor.Infrastructure.GitHub;
 
@@ -40,6 +41,7 @@ public sealed class GitHubRepositoryClient(HttpClient httpClient) : IGitHubRepos
                 item.DefaultBranch,
                 new Uri(item.CloneUrl),
                 new Uri(item.HtmlUrl),
+                MapVisibility(item),
                 item.Archived))
             .ToList();
     }
@@ -162,6 +164,19 @@ public sealed class GitHubRepositoryClient(HttpClient httpClient) : IGitHubRepos
                 permissions.Triage,
                 permissions.Pull);
 
+    private static RepositoryVisibility MapVisibility(GitHubRepositoryResponse repository)
+    {
+        if (Enum.TryParse(repository.Visibility, ignoreCase: true, out RepositoryVisibility visibility) &&
+            Enum.IsDefined(visibility))
+        {
+            return visibility;
+        }
+
+        return repository.IsPrivate
+            ? RepositoryVisibility.Private
+            : RepositoryVisibility.Public;
+    }
+
     private static ValidationResponseMetadata ReadMetadata(HttpResponseMessage response) =>
         new(
             ReadTokenScopes(response),
@@ -272,6 +287,11 @@ public sealed class GitHubRepositoryClient(HttpClient httpClient) : IGitHubRepos
 
         [JsonPropertyName("html_url")]
         public string HtmlUrl { get; init; } = string.Empty;
+
+        [JsonPropertyName("private")]
+        public bool IsPrivate { get; init; }
+
+        public string? Visibility { get; init; }
 
         public bool Archived { get; init; }
 

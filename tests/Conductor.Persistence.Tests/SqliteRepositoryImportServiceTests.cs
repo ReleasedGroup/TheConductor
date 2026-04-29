@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Conductor.Core.Abstractions.GitHub;
 using Conductor.Core.Application.Repositories;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Auditing;
@@ -71,6 +72,48 @@ public sealed class SqliteRepositoryImportServiceTests
         Assert.True(metadata.GetProperty("createSymphonyInstance").GetBoolean());
         Assert.True(metadata.GetProperty("createdSymphonyInstance").GetBoolean());
         Assert.Equal(instance.Id.ToString(), metadata.GetProperty("symphonyInstanceId").GetString());
+    }
+
+    [Fact]
+    public async Task ImportAsync_Persists_Discovered_Repository_Metadata()
+    {
+        DateTimeOffset importedAtUtc = DateTimeOffset.Parse("2026-04-29T04:00:00Z");
+        await using ServiceProvider provider = BuildProvider(importedAtUtc);
+        await using AsyncServiceScope scope = provider.CreateAsyncScope();
+        ConductorDbContext dbContext = scope.ServiceProvider.GetRequiredService<ConductorDbContext>();
+        await dbContext.Database.MigrateAsync();
+        IRepositoryImportService importService = scope.ServiceProvider.GetRequiredService<IRepositoryImportService>();
+
+        GitHubRepositorySummary discoveredRepository = new(
+            "ReleasedGroup",
+            "TheConductor",
+            "trunk",
+            new Uri("https://github.com/ReleasedGroup/TheConductor.git"),
+            new Uri("https://github.com/ReleasedGroup/TheConductor"),
+            RepositoryVisibility.Internal,
+            IsArchived: true);
+
+        RepositoryImportResult result = await importService.ImportAsync(
+            RepositoryImportRequest.FromGitHubRepositorySummary(discoveredRepository) with
+            {
+                RequestedByUserId = "nick",
+            });
+
+        Repository repository = await dbContext.Repositories.SingleAsync();
+
+        Assert.True(result.CreatedRepository);
+        Assert.False(result.CreatedSymphonyInstance);
+        Assert.Equal("ReleasedGroup/TheConductor", result.RepositoryFullName);
+        Assert.Equal("ReleasedGroup", repository.Owner);
+        Assert.Equal("TheConductor", repository.Name);
+        Assert.Equal("trunk", repository.DefaultBranch);
+        Assert.Equal(discoveredRepository.CloneUrl, repository.CloneUrl);
+        Assert.Equal(discoveredRepository.WebUrl, repository.WebUrl);
+        Assert.Equal(RepositoryVisibility.Internal, repository.Visibility);
+        Assert.True(repository.IsArchived);
+        Assert.Equal(importedAtUtc, repository.LastSyncedAtUtc);
+        Assert.Equal(RepositoryOrchestrationStatus.Ineligible, repository.OrchestrationStatus);
+        Assert.Equal("Archived repositories cannot be orchestrated.", repository.OrchestrationStatusReason);
     }
 
     [Fact]

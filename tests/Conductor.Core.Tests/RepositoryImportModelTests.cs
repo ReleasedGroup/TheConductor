@@ -1,3 +1,4 @@
+using Conductor.Core.Abstractions.GitHub;
 using Conductor.Core.Application.Repositories;
 using Conductor.Core.Domain;
 using Conductor.Core.Domain.Ids;
@@ -40,6 +41,33 @@ public sealed class RepositoryImportModelTests
         Assert.Equal("v1.2.3", plan.InstancePlan.ReleaseSelector.ToString());
         Assert.Equal(CredentialInheritanceMode.None, plan.InstancePlan.GitHubCredential.InheritanceMode);
         Assert.Equal("./instances/theconductor/WORKFLOW.md", plan.InstancePlan.WorkflowPath);
+    }
+
+    [Fact]
+    public void RepositoryImportRequest_FromGitHubRepositorySummary_Copies_Discovered_Metadata()
+    {
+        ProjectId projectId = ProjectId.New();
+        GitHubRepositorySummary repository = new(
+            "ReleasedGroup",
+            "TheConductor",
+            "trunk",
+            new Uri("https://github.com/ReleasedGroup/TheConductor.git"),
+            new Uri("https://github.com/ReleasedGroup/TheConductor"),
+            RepositoryVisibility.Internal,
+            IsArchived: true);
+
+        RepositoryImportRequest request = RepositoryImportRequest.FromGitHubRepositorySummary(
+            repository,
+            projectId);
+
+        Assert.Equal("ReleasedGroup/TheConductor", request.RepositoryFullName);
+        Assert.Equal("trunk", request.DefaultBranch);
+        Assert.Equal("https://github.com/ReleasedGroup/TheConductor.git", request.CloneUrl);
+        Assert.Equal("https://github.com/ReleasedGroup/TheConductor", request.WebUrl);
+        Assert.Equal(RepositoryVisibility.Internal, request.Visibility);
+        Assert.True(request.IsArchived);
+        Assert.Equal(projectId, request.ProjectId);
+        Assert.False(request.CreateSymphonyInstance);
     }
 
     [Fact]

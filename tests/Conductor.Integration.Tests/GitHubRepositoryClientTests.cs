@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Conductor.Core.Abstractions.GitHub;
+using Conductor.Core.Domain;
 using Conductor.Core.Domain.Repositories;
 using Conductor.Infrastructure.GitHub;
 using Microsoft.Extensions.DependencyInjection;
@@ -154,7 +155,7 @@ public sealed class GitHubRepositoryClientTests
     }
 
     [Fact]
-    public async Task SearchRepositoriesAsync_Maps_Public_Search_Response()
+    public async Task SearchRepositoriesAsync_Maps_Search_Response_Metadata()
     {
         var handler = new QueueHandler(_ => JsonResponse(
             HttpStatusCode.OK,
@@ -167,6 +168,8 @@ public sealed class GitHubRepositoryClientTests
                   "default_branch": "main",
                   "clone_url": "https://github.com/ReleasedGroup/TheConductor.git",
                   "html_url": "https://github.com/ReleasedGroup/TheConductor",
+                  "private": true,
+                  "visibility": "internal",
                   "archived": false
                 }
               ]
@@ -183,6 +186,8 @@ public sealed class GitHubRepositoryClientTests
         Assert.Equal("TheConductor", repository.Name);
         Assert.Equal("main", repository.DefaultBranch);
         Assert.Equal(new Uri("https://github.com/ReleasedGroup/TheConductor.git"), repository.CloneUrl);
+        Assert.Equal(new Uri("https://github.com/ReleasedGroup/TheConductor"), repository.WebUrl);
+        Assert.Equal(RepositoryVisibility.Internal, repository.Visibility);
         Assert.False(repository.IsArchived);
 
         RecordedRequest request = Assert.Single(handler.Requests);

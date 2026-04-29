@@ -1,3 +1,4 @@
+using Conductor.Core.Domain;
 using Conductor.Core.Domain.Repositories;
 
 namespace Conductor.Core.Abstractions.GitHub;
@@ -19,6 +20,7 @@ public sealed record GitHubRepositorySummary(
     string DefaultBranch,
     Uri CloneUrl,
     Uri WebUrl,
+    RepositoryVisibility Visibility,
     bool IsArchived)
 {
     public string FullName => $"{Owner}/{Name}";
