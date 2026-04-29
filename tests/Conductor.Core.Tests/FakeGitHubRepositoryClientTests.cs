@@ -1,4 +1,5 @@
 using Conductor.Core.Abstractions.GitHub;
+using Conductor.Core.Domain;
 using Conductor.Core.Domain.Repositories;
 using Conductor.Infrastructure.GitHub;
 
@@ -109,5 +110,6 @@ public sealed class FakeGitHubRepositoryClientTests
             "main",
             new Uri($"https://github.com/{owner}/{name}.git"),
             new Uri($"https://github.com/{owner}/{name}"),
+            RepositoryVisibility.Public,
             IsArchived: false);
 }
