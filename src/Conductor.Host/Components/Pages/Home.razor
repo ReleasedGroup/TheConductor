@@ -1,5 +1,7 @@
 @page "/"
 @using System.Text.Json
+@using Conductor.Core.Application.Dashboard
+@using Conductor.Core.Domain
 @inject IDashboardProjectionStore DashboardProjectionStore
 
 <PageTitle>Conductor Dashboard</PageTitle>
@@ -53,19 +55,6 @@
         <div class="dashboard-stack">
             <HealthHeatmap Buckets="HealthBuckets" />
 
-            <section class="activity-panel">
-                <div>
-                    <h2>Operational baseline</h2>
-                    <p>The host is running with the initial project, persistence, dashboard, and test structure in place.</p>
-                </div>
-                <ul>
-                    @foreach (string indicator in Indicators)
-                    {
-                        <li>@indicator</li>
-                    }
-                </ul>
-            </section>
-
             <section class="startup-panel" aria-label="Startup verification">
                 <SuccessState
                     Title="Startup verification"
@@ -87,6 +76,7 @@
 
         <aside class="dashboard-rail" aria-label="Dashboard attention">
             <NeedsAttentionPanel Items="AttentionItems" />
+            <LiveActivityStream Events="ActivityEvents" ReferenceTimeUtc="ReferenceTimeUtc" />
         </aside>
     </section>
 </section>
@@ -126,12 +116,38 @@
         new("Operations Docs", "18:00", HealthHeatmapStatus.Healthy, 95, "Stale branch warning cleared."),
     ];
 
-    private static readonly string[] Indicators =
+    private static readonly DateTimeOffset ReferenceTimeUtc = new(2026, 4, 29, 18, 20, 0, TimeSpan.Zero);
+
+    private static readonly LiveActivityEvent[] ActivityEvents =
     [
-        "Blazor Web App host",
-        "SQLite persistence registration",
-        "Health endpoints",
-        "Layered test projects",
+        new(
+            ReferenceTimeUtc.AddMinutes(-4),
+            EventSeverity.Information,
+            "Workspace prepared",
+            "acme-portal",
+            128,
+            "Workspace prepared for the next orchestration run."),
+        new(
+            ReferenceTimeUtc.AddMinutes(-8),
+            EventSeverity.Error,
+            "Continuation started",
+            "billing-api",
+            77,
+            "Tests failed and a continuation run started."),
+        new(
+            ReferenceTimeUtc.AddMinutes(-12),
+            EventSeverity.Warning,
+            "Instance offline",
+            "client-mobile",
+            null,
+            "Symphony instance health moved to offline."),
+        new(
+            ReferenceTimeUtc.AddMinutes(-15),
+            EventSeverity.Information,
+            "Run completed",
+            "data-pipeline",
+            102,
+            "Run completed successfully."),
     ];
 
     private static readonly (string Label, string Route, string State)[] StartupChecks =

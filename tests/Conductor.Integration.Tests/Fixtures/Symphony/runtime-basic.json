@@ -1,19 +1,13 @@
 {
   "applicationName": "Symphony",
-  "version": "3.1.4",
-  "instanceId": "symphony-billing-api",
+  "version": "1.2.3",
+  "instanceId": "symphony-local-1",
   "workflow": {
-    "repository": {
-      "owner": "ReleasedGroup",
-      "name": "BillingApi",
-      "defaultBranch": "main",
-      "cloneUrl": "https://github.com/ReleasedGroup/BillingApi.git",
-      "webUrl": "https://github.com/ReleasedGroup/BillingApi"
-    },
+    "owner": "ReleasedGroup",
+    "repository": "TheConductor",
     "sourcePath": "/config/WORKFLOW.md"
   },
-  "executionMode": "Docker",
   "persistence": {
-    "provider": "SQLite"
+    "provider": "sqlite"
   }
 }

@@ -18,6 +18,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Conductor.Core\Conductor.Core.csproj" />
+    <ProjectReference Include="..\..\src\Conductor.Infrastructure.Symphony\Conductor.Infrastructure.Symphony.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Fixtures\Symphony\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

@@ -1,90 +1,185 @@
 using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using Conductor.Core.Abstractions.Symphony;
 using Conductor.Core.Domain;
 using Conductor.Infrastructure.Symphony;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Conductor.Integration.Tests;
 
 public sealed class SymphonyApiClientTests
 {
-    [Fact]
-    public async Task GetHealthAsync_Calls_Health_Endpoint_And_Maps_Status()
-    {
-        List<string> requestedPaths = [];
-        using HttpClient httpClient = CreateHttpClient(request =>
-        {
-            requestedPaths.Add(request.RequestUri?.AbsolutePath ?? string.Empty);
-
-            return JsonResponse(HttpStatusCode.OK, ReadFixture("health-ok.json"));
-        });
-        SymphonyApiClient client = new(httpClient);
-
-        var response = await client.GetHealthAsync(new Uri("http://localhost:5173"), CancellationToken.None);
-
-        Assert.Equal(InstanceHealthStatus.Healthy, response.Status);
-        Assert.Equal(200, response.HttpStatusCode);
-        Assert.Equal("/api/v1/health", Assert.Single(requestedPaths));
-        Assert.Contains("healthy", response.RawJson, StringComparison.Ordinal);
-    }
+    private static readonly Uri BaseUri = new("http://symphony.local/root/");
 
     [Fact]
-    public async Task GetRuntimeAsync_Returns_Raw_Runtime_Json()
+    public async Task Client_Calls_Read_Endpoints_And_Preserves_Raw_Json()
     {
-        using HttpClient httpClient = CreateHttpClient(request =>
-        {
-            Assert.Equal("/ops/api/v1/runtime", request.RequestUri?.AbsolutePath);
+        string healthJson = Fixture("health-ok.json");
+        string runtimeJson = Fixture("runtime-basic.json");
+        string stateJson = Fixture("state-running.json");
+        string issueJson = Fixture("issue-detail.json");
+        string refreshJson = """{"accepted":true}""";
+        var handler = new QueueHandler(
+            _ => JsonResponse(HttpStatusCode.OK, healthJson),
+            _ => JsonResponse(HttpStatusCode.OK, runtimeJson),
+            _ => JsonResponse(HttpStatusCode.OK, stateJson),
+            _ => JsonResponse(HttpStatusCode.OK, issueJson),
+            _ => JsonResponse(HttpStatusCode.Accepted, refreshJson));
+        using HttpClient httpClient = new(handler);
+        var client = new SymphonyApiClient(httpClient);
 
-            return JsonResponse(HttpStatusCode.OK, ReadFixture("runtime-basic.json"));
-        });
-        SymphonyApiClient client = new(httpClient);
+        SymphonyHealthResponse health = await client.GetHealthAsync(BaseUri, CancellationToken.None);
+        SymphonyRuntimeResponse runtime = await client.GetRuntimeAsync(BaseUri, CancellationToken.None);
+        SymphonyStateResponse state = await client.GetStateAsync(BaseUri, CancellationToken.None);
+        SymphonyIssueResponse? issue = await client.GetIssueAsync(BaseUri, "issue-42", CancellationToken.None);
+        SymphonyRefreshResponse refresh = await client.RequestRefreshAsync(BaseUri, CancellationToken.None);
 
-        var response = await client.GetRuntimeAsync(new Uri("http://localhost:5173/ops/"), CancellationToken.None);
-
-        Assert.Contains("\"version\": \"3.1.4\"", response.RawJson, StringComparison.Ordinal);
-        Assert.Contains("\"owner\": \"ReleasedGroup\"", response.RawJson, StringComparison.Ordinal);
+        Assert.Equal(InstanceHealthStatus.Healthy, health.Status);
+        Assert.Equal(200, health.HttpStatusCode);
+        Assert.Equal(healthJson, health.RawJson);
+        Assert.Equal(runtimeJson, runtime.RawJson);
+        Assert.Equal(stateJson, state.RawJson);
+        Assert.NotNull(issue);
+        Assert.Equal("issue-42", issue.IssueIdentifier);
+        Assert.Equal(issueJson, issue.RawJson);
+        Assert.True(refresh.Accepted);
+        Assert.Equal(refreshJson, refresh.RawJson);
+        Assert.Equal(
+            [
+                "GET /root/api/v1/health",
+                "GET /root/api/v1/runtime",
+                "GET /root/api/v1/state",
+                "GET /root/api/v1/issue-42",
+                "POST /root/api/v1/refresh",
+            ],
+            handler.Requests.Select(request => $"{request.Method} {request.Uri.AbsolutePath}"));
     }
 
     [Fact]
-    public async Task GetStateAsync_Throws_When_State_Endpoint_Fails()
+    public async Task Workflow_Methods_Read_And_Save_Source_With_ETags()
     {
-        using HttpClient httpClient = CreateHttpClient(_ =>
-            JsonResponse(HttpStatusCode.ServiceUnavailable, """{"error":"offline"}"""));
-        SymphonyApiClient client = new(httpClient);
+        var handler = new QueueHandler(
+            _ => JsonResponse(
+                HttpStatusCode.OK,
+                """{"source":"# Workflow\nsteps: []"}""",
+                "\"workflow-1\""),
+            _ => EmptyResponse(HttpStatusCode.NoContent, "\"workflow-2\""));
+        using HttpClient httpClient = new(handler);
+        var client = new SymphonyApiClient(httpClient);
 
-        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
-            client.GetStateAsync(new Uri("http://localhost:5173"), CancellationToken.None));
+        SymphonyWorkflowDocument workflow = await client.GetWorkflowAsync(BaseUri, CancellationToken.None);
+        SymphonyWorkflowDocument saved = await client.SaveWorkflowAsync(
+            BaseUri,
+            workflow with { Source = "# Updated workflow" },
+            CancellationToken.None);
 
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, exception.StatusCode);
+        Assert.Equal("# Workflow\nsteps: []", workflow.Source);
+        Assert.Equal("\"workflow-1\"", workflow.ETag);
+        Assert.Equal("# Updated workflow", saved.Source);
+        Assert.Equal("\"workflow-2\"", saved.ETag);
+        Assert.Equal("GET /root/api/v1/workflow", Format(handler.Requests[0]));
+        Assert.Equal("PUT /root/api/v1/workflow", Format(handler.Requests[1]));
+        Assert.Equal("\"workflow-1\"", handler.Requests[1].IfMatch);
+
+        using JsonDocument payload = JsonDocument.Parse(handler.Requests[1].Content!);
+        Assert.Equal("# Updated workflow", payload.RootElement.GetProperty("source").GetString());
     }
 
-    private static HttpClient CreateHttpClient(Func<HttpRequestMessage, HttpResponseMessage> handler)
+    [Fact]
+    public async Task Issue_Returns_Null_For_NotFound_Response()
     {
-        return new HttpClient(new StubHttpMessageHandler(handler))
+        var handler = new QueueHandler(_ => JsonResponse(HttpStatusCode.NotFound, """{"error":"missing"}"""));
+        using HttpClient httpClient = new(handler);
+        var client = new SymphonyApiClient(httpClient);
+
+        SymphonyIssueResponse? issue = await client.GetIssueAsync(BaseUri, "issue-404", CancellationToken.None);
+
+        Assert.Null(issue);
+    }
+
+    [Fact]
+    public async Task Health_Returns_Offline_For_Request_Failure()
+    {
+        var handler = new QueueHandler(_ => throw new HttpRequestException("connection refused"));
+        using HttpClient httpClient = new(handler);
+        var client = new SymphonyApiClient(httpClient);
+
+        SymphonyHealthResponse health = await client.GetHealthAsync(BaseUri, CancellationToken.None);
+
+        Assert.Equal(InstanceHealthStatus.Offline, health.Status);
+        Assert.Null(health.HttpStatusCode);
+        Assert.Contains("request_failed", health.RawJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AddConductorSymphony_Registers_Api_Client()
+    {
+        ServiceCollection services = [];
+
+        services.AddConductorSymphony();
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+        Assert.IsType<SymphonyApiClient>(provider.GetRequiredService<ISymphonyApiClient>());
+    }
+
+    private static string Fixture(string fileName) =>
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Symphony", fileName));
+
+    private static string Format(RecordedRequest request) =>
+        $"{request.Method} {request.Uri.AbsolutePath}";
+
+    private static HttpResponseMessage JsonResponse(
+        HttpStatusCode statusCode,
+        string json,
+        string? etag = null)
+    {
+        HttpResponseMessage response = EmptyResponse(statusCode, etag);
+        response.Content = new StringContent(json, Encoding.UTF8, "application/json");
+        return response;
+    }
+
+    private static HttpResponseMessage EmptyResponse(HttpStatusCode statusCode, string? etag = null)
+    {
+        HttpResponseMessage response = new(statusCode);
+
+        if (etag is not null)
         {
-            Timeout = Timeout.InfiniteTimeSpan,
-        };
+            response.Headers.ETag = new EntityTagHeaderValue(etag);
+        }
+
+        return response;
     }
 
-    private static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string content)
+    private sealed class QueueHandler(
+        params Func<RecordedRequest, HttpResponseMessage>[] responses) : HttpMessageHandler
     {
-        return new HttpResponseMessage(statusCode)
-        {
-            Content = new StringContent(content, System.Text.Encoding.UTF8, "application/json"),
-        };
-    }
+        private readonly Queue<Func<RecordedRequest, HttpResponseMessage>> responses = new(responses);
 
-    private static string ReadFixture(string fileName)
-    {
-        return File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Symphony", fileName));
-    }
+        public List<RecordedRequest> Requests { get; } = [];
 
-    private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
-        : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            return Task.FromResult(handler(request));
+            string? content = request.Content is null
+                ? null
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+            string? ifMatch = request.Headers.TryGetValues("If-Match", out IEnumerable<string>? values)
+                ? values.SingleOrDefault()
+                : null;
+            var recordedRequest = new RecordedRequest(
+                request.Method.Method,
+                request.RequestUri ?? throw new InvalidOperationException("Request URI was not set."),
+                content,
+                ifMatch);
+
+            Requests.Add(recordedRequest);
+
+            return responses.Dequeue()(recordedRequest);
         }
     }
+
+    private sealed record RecordedRequest(string Method, Uri Uri, string? Content, string? IfMatch);
 }

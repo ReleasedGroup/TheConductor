@@ -18,12 +18,12 @@ Dashboard projections include:
 
 - fleet metrics for managed repositories, healthy repositories, and active agents
 - blocked issue count from tracked issues
-- open pull request count from repository metadata
+- open pull request count, currently returned as zero until pull request metadata is persisted
 - health buckets by `InstanceHealthStatus`
 - repository rows for the active repositories table
 - instance summary rows for dashboard drill-down
 
-Estimated spend is currently returned as zero until run and usage persistence models are added.
+Estimated spend is currently returned as zero until run and usage persistence models are added. Open pull request count is also returned as zero until pull request metadata is added to the mapped domain persistence model.
 
 Repository list projections include:
 

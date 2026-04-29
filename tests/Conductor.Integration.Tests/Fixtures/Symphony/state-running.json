@@ -1,14 +1,20 @@
 {
   "runningSessions": [
     {
-      "issueIdentifier": "31",
-      "sessionId": "session-31"
+      "issueIdentifier": "issue-42",
+      "sessionId": "session-1",
+      "turnCount": 3,
+      "lastActivityUtc": "2026-04-29T00:00:00Z"
     }
   ],
   "retryQueue": [],
-  "trackedIssueCount": 4,
-  "tokenTotals": {
+  "trackedIssueDistribution": {
+    "running": 1,
+    "queued": 2,
+    "blocked": 0
+  },
+  "tokens": {
     "input": 1200,
-    "output": 640
+    "output": 340
   }
 }

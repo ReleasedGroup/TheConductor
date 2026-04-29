@@ -4,8 +4,13 @@ using System.Text.Json;
 using Conductor.Core.Abstractions.Symphony;
 using Conductor.Core.Application.Instances;
 using Conductor.Core.Domain;
-using Conductor.Infrastructure.Persistence.Sqlite.Schema;
+using Conductor.Core.Domain.Auditing;
+using Conductor.Core.Domain.Ids;
+using Conductor.Core.Domain.Repositories;
+using Conductor.Core.Domain.Snapshots;
+using Conductor.Core.Domain.Symphony;
 using Microsoft.EntityFrameworkCore;
+using DomainEvent = Conductor.Core.Domain.Events.Event;
 
 namespace Conductor.Infrastructure.Persistence.Sqlite.Instances;
 
@@ -42,88 +47,81 @@ internal sealed class SqliteManualInstanceRegistrationService : IManualInstanceR
         string repositoryOwner = metadata.Owner ?? ManualRepositoryOwner;
         string repositoryName = metadata.RepositoryName ?? CreateManualRepositoryName(baseUri);
         string repositoryFullName = $"{repositoryOwner}/{repositoryName}";
-        RepositoryRecord repository = await GetOrCreateRepositoryAsync(
+        Repository repository = await GetOrCreateRepositoryAsync(
             metadata,
             repositoryOwner,
             repositoryName,
             now,
             cancellationToken);
 
-        string instanceId = Guid.NewGuid().ToString("D", CultureInfo.InvariantCulture);
-        string snapshotId = Guid.NewGuid().ToString("D", CultureInfo.InvariantCulture);
+        SymphonyInstanceId instanceId = SymphonyInstanceId.New();
+        InstanceSnapshotId snapshotId = InstanceSnapshotId.New();
         string displayName = ResolveDisplayName(request.DisplayName, metadata, repositoryFullName, baseUri);
-        string healthStatus = health.Status.ToString();
-        string lifecycleStatus = InstanceLifecycleStatus.Running.ToString();
+        ExecutionMode executionMode = ResolveExecutionMode(metadata);
         DateTimeOffset? lastSeenAtUtc = health.Status is InstanceHealthStatus.Offline or InstanceHealthStatus.Unknown
             ? null
             : now;
-
-        dbContext.Set<SymphonyInstanceRecord>().Add(new SymphonyInstanceRecord
+        string payloadJson = JsonSerializer.Serialize(new
         {
-            Id = instanceId,
-            RepositoryId = repository.Id,
-            DisplayName = displayName,
-            ExecutionMode = ResolveExecutionMode(metadata).ToString(),
-            BaseUrl = baseUri.AbsoluteUri,
-            Status = lifecycleStatus,
-            HealthStatus = healthStatus,
-            DeliveryStatus = "Healthy",
-            ResolvedReleaseTag = metadata.Version,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now,
-            LastHealthCheckAtUtc = now,
-            LastSeenAtUtc = lastSeenAtUtc,
+            baseUrl = baseUri.AbsoluteUri,
+            repositoryFullName,
+            healthStatus = health.Status.ToString(),
+            runtimeMetadataAvailable = metadata.HasRepositoryMetadata,
+            stateCaptured = state is not null,
         });
+        StateSnapshotMetrics stateMetrics = StateSnapshotMetrics.Parse(state?.RawJson);
 
-        dbContext.Set<InstanceSnapshotRecord>().Add(new InstanceSnapshotRecord
-        {
-            Id = snapshotId,
-            SymphonyInstanceId = instanceId,
-            CapturedAtUtc = now,
-            HealthStatus = healthStatus,
-            HttpStatusCode = health.HttpStatusCode,
-            LatencyMilliseconds = (long)Math.Round(health.Latency.TotalMilliseconds),
-            HealthJson = health.RawJson,
-            RuntimeJson = runtime.RawJson,
-            StateJson = state?.RawJson,
-        });
+        SymphonyInstance instance = new(
+            instanceId,
+            repository.Id,
+            displayName,
+            executionMode,
+            baseUri,
+            now,
+            InstanceLifecycleStatus.Running,
+            health.Status,
+            symphonyVersion: metadata.Version,
+            symphonyReleaseTag: metadata.Version,
+            lastStartedAtUtc: now,
+            lastSeenAtUtc: lastSeenAtUtc);
+        instance.RecordHealth(health.Status, now);
 
-        dbContext.Set<EventRecord>().Add(new EventRecord
-        {
-            Id = Guid.NewGuid().ToString("D", CultureInfo.InvariantCulture),
-            SymphonyInstanceId = instanceId,
-            RepositoryId = repository.Id,
-            EventType = "SymphonyInstanceRegistered",
-            Severity = EventSeverity.Information.ToString(),
-            Message = $"Registered Symphony instance {displayName}.",
-            OccurredAtUtc = now,
-            PayloadJson = JsonSerializer.Serialize(new
-            {
-                baseUrl = baseUri.AbsoluteUri,
-                repositoryFullName,
-                healthStatus,
-                runtimeMetadataAvailable = metadata.HasRepositoryMetadata,
-                stateCaptured = state is not null,
-            }),
-        });
-
-        dbContext.Set<AuditEventRecord>().Add(new AuditEventRecord
-        {
-            Id = Guid.NewGuid().ToString("D", CultureInfo.InvariantCulture),
-            ActorUserId = string.IsNullOrWhiteSpace(request.RequestedByUserId)
-                ? "system"
-                : request.RequestedByUserId.Trim(),
-            Action = "RegisterSymphonyInstance",
-            ResourceType = "SymphonyInstance",
-            ResourceId = instanceId,
-            OccurredAtUtc = now,
-            MetadataJson = JsonSerializer.Serialize(new
-            {
-                baseUrl = baseUri.AbsoluteUri,
-                repositoryFullName,
-                healthStatus,
-            }),
-        });
+        dbContext.SymphonyInstances.Add(instance);
+        dbContext.InstanceSnapshots.Add(new InstanceSnapshot(
+            snapshotId,
+            instanceId,
+            now,
+            health.Status,
+            health.RawJson,
+            runtime.RawJson,
+            state?.RawJson,
+            stateMetrics.ActiveIssueCount,
+            stateMetrics.RunningSessionCount,
+            stateMetrics.RetryQueueCount,
+            stateMetrics.FailedRunCount,
+            stateMetrics.TokenInputTotal,
+            stateMetrics.TokenOutputTotal));
+        dbContext.Events.Add(new DomainEvent(
+            EventId.New(),
+            instanceId,
+            repository.Id,
+            issueNumber: null,
+            EventSeverity.Information,
+            "SymphonyInstanceRegistered",
+            $"Registered Symphony instance {displayName}.",
+            payloadJson,
+            now));
+        dbContext.AuditEvents.Add(new AuditEvent(
+            AuditEventId.New(),
+            string.IsNullOrWhiteSpace(request.RequestedByUserId) ? "system" : request.RequestedByUserId.Trim(),
+            "RegisterSymphonyInstance",
+            "SymphonyInstance",
+            instanceId.ToString(),
+            now,
+            AuditEventOutcome.Succeeded,
+            correlationId: null,
+            message: $"Registered Symphony instance {displayName}.",
+            metadataJson: payloadJson));
 
         await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
             await dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -131,17 +129,17 @@ internal sealed class SqliteManualInstanceRegistrationService : IManualInstanceR
         await transaction.CommitAsync(cancellationToken);
 
         return new ManualInstanceRegistrationResult(
-            instanceId,
-            repository.Id,
+            instanceId.ToString(),
+            repository.Id.ToString(),
             repositoryFullName,
             displayName,
             baseUri,
-            lifecycleStatus,
-            healthStatus,
+            InstanceLifecycleStatus.Running.ToString(),
+            health.Status.ToString(),
             now,
             lastSeenAtUtc,
             metadata.Version,
-            snapshotId);
+            snapshotId.ToString());
     }
 
     private static Uri ValidateAndNormalizeBaseUri(ManualInstanceRegistrationRequest request)
@@ -208,15 +206,16 @@ internal sealed class SqliteManualInstanceRegistrationService : IManualInstanceR
     {
         string withSlash = baseUri.AbsoluteUri;
         string withoutSlash = withSlash.TrimEnd('/');
-        SymphonyInstanceRecord? existing = await dbContext.Set<SymphonyInstanceRecord>()
+        Uri withoutSlashUri = new(withoutSlash, UriKind.Absolute);
+        SymphonyInstance? existing = await dbContext.SymphonyInstances
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                instance => instance.BaseUrl == withSlash || instance.BaseUrl == withoutSlash,
+                instance => instance.BaseUrl == baseUri || instance.BaseUrl == withoutSlashUri,
                 cancellationToken);
 
         if (existing is not null)
         {
-            throw new DuplicateSymphonyInstanceRegistrationException(existing.Id, baseUri);
+            throw new DuplicateSymphonyInstanceRegistrationException(existing.Id.ToString(), baseUri);
         }
     }
 
@@ -290,24 +289,23 @@ internal sealed class SqliteManualInstanceRegistrationService : IManualInstanceR
         }
     }
 
-    private async Task<RepositoryRecord> GetOrCreateRepositoryAsync(
+    private async Task<Repository> GetOrCreateRepositoryAsync(
         RuntimeMetadata metadata,
         string owner,
         string name,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        RepositoryRecord? existing = await dbContext.Set<RepositoryRecord>()
+        Repository? existing = await dbContext.Repositories
             .FirstOrDefaultAsync(
                 repository =>
-                    repository.Provider == RepositoryProvider.GitHub.ToString() &&
+                    repository.Provider == RepositoryProvider.GitHub &&
                     repository.Owner == owner &&
                     repository.Name == name,
                 cancellationToken);
 
         if (existing is not null)
         {
-            existing.UpdatedAtUtc = now;
             return existing;
         }
 
@@ -316,23 +314,22 @@ internal sealed class SqliteManualInstanceRegistrationService : IManualInstanceR
         Uri cloneUrl = metadata.CloneUrl
             ?? new Uri($"https://github.com/{owner}/{name}.git", UriKind.Absolute);
 
-        RepositoryRecord repository = new()
-        {
-            Id = Guid.NewGuid().ToString("D", CultureInfo.InvariantCulture),
-            Provider = RepositoryProvider.GitHub.ToString(),
-            Owner = owner,
-            Name = name,
-            DefaultBranch = metadata.DefaultBranch ?? "main",
-            CloneUrl = cloneUrl.AbsoluteUri,
-            WebUrl = webUrl.AbsoluteUri,
-            IsArchived = false,
-            OpenIssueCount = 0,
-            PullRequestCount = 0,
-            ImportedAtUtc = now,
-            UpdatedAtUtc = now,
-        };
+        Repository repository = new(
+            RepositoryId.New(),
+            RepositoryProvider.GitHub,
+            owner,
+            name,
+            metadata.DefaultBranch ?? "main",
+            cloneUrl,
+            webUrl,
+            RepositoryVisibility.Public,
+            isArchived: false,
+            projectId: null,
+            lastSyncedAtUtc: now,
+            RepositoryOrchestrationStatus.Eligible,
+            orchestrationStatusReason: null);
 
-        dbContext.Set<RepositoryRecord>().Add(repository);
+        dbContext.Repositories.Add(repository);
 
         return repository;
     }
@@ -454,58 +451,182 @@ internal sealed class SqliteManualInstanceRegistrationService : IManualInstanceR
                 return new RuntimeMetadata(null, null, null, null, null, null, null, null);
             }
         }
+    }
 
-        private static (string? Owner, string? Name) SplitRepositoryFullName(string? fullName)
+    private sealed record StateSnapshotMetrics(
+        int ActiveIssueCount,
+        int RunningSessionCount,
+        int RetryQueueCount,
+        int FailedRunCount,
+        long TokenInputTotal,
+        long TokenOutputTotal)
+    {
+        public static StateSnapshotMetrics Empty { get; } = new(0, 0, 0, 0, 0, 0);
+
+        public static StateSnapshotMetrics Parse(string? rawJson)
         {
-            string? trimmed = TrimToNull(fullName);
-            if (trimmed is null)
+            if (string.IsNullOrWhiteSpace(rawJson))
             {
-                return (null, null);
+                return Empty;
             }
 
-            string[] parts = trimmed.Split('/', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(rawJson);
+                JsonElement root = document.RootElement;
 
-            return parts.Length == 2 ? (parts[0], parts[1]) : (null, null);
+                return new StateSnapshotMetrics(
+                    ReadInt(root, "trackedIssueCount") ?? SumObjectNumbers(root, "trackedIssueDistribution"),
+                    ReadArrayCount(root, "runningSessions") ?? ReadInt(root, "runningSessionCount") ?? 0,
+                    ReadArrayCount(root, "retryQueue") ?? ReadInt(root, "retryQueueCount") ?? 0,
+                    ReadInt(root, "failedRunCount") ?? ReadNestedInt(root, "trackedIssueDistribution", "failed") ?? 0,
+                    ReadNestedLong(root, "tokens", "input") ?? ReadNestedLong(root, "tokenTotals", "input") ?? 0,
+                    ReadNestedLong(root, "tokens", "output") ?? ReadNestedLong(root, "tokenTotals", "output") ?? 0);
+            }
+            catch (JsonException)
+            {
+                return Empty;
+            }
+        }
+    }
+
+    private static (string? Owner, string? Name) SplitRepositoryFullName(string? fullName)
+    {
+        string? trimmed = TrimToNull(fullName);
+        if (trimmed is null)
+        {
+            return (null, null);
         }
 
-        private static string? FindFirstString(JsonElement element, params string[] names)
+        string[] parts = trimmed.Split('/', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        return parts.Length == 2 ? (parts[0], parts[1]) : (null, null);
+    }
+
+    private static string? FindFirstString(JsonElement element, params string[] names)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
         {
-            if (element.ValueKind == JsonValueKind.Object)
+            foreach (JsonProperty property in element.EnumerateObject())
             {
-                foreach (JsonProperty property in element.EnumerateObject())
+                if (names.Any(name => string.Equals(name, property.Name, StringComparison.OrdinalIgnoreCase)) &&
+                    property.Value.ValueKind == JsonValueKind.String)
                 {
-                    if (names.Any(name => string.Equals(name, property.Name, StringComparison.OrdinalIgnoreCase)) &&
-                        property.Value.ValueKind == JsonValueKind.String)
-                    {
-                        return TrimToNull(property.Value.GetString());
-                    }
+                    return TrimToNull(property.Value.GetString());
+                }
 
-                    string? nested = FindFirstString(property.Value, names);
-                    if (nested is not null)
-                    {
-                        return nested;
-                    }
+                string? nested = FindFirstString(property.Value, names);
+                if (nested is not null)
+                {
+                    return nested;
                 }
             }
-            else if (element.ValueKind == JsonValueKind.Array)
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in element.EnumerateArray())
             {
-                foreach (JsonElement item in element.EnumerateArray())
+                string? nested = FindFirstString(item, names);
+                if (nested is not null)
                 {
-                    string? nested = FindFirstString(item, names);
-                    if (nested is not null)
-                    {
-                        return nested;
-                    }
+                    return nested;
                 }
             }
+        }
 
+        return null;
+    }
+
+    private static int? ReadArrayCount(JsonElement element, string propertyName)
+    {
+        if (!TryGetProperty(element, propertyName, out JsonElement property) ||
+            property.ValueKind != JsonValueKind.Array)
+        {
             return null;
         }
 
-        private static Uri? TryParseAbsoluteUri(string? value) =>
-            Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) ? uri : null;
-
-        private static string? TrimToNull(string? value) =>
-            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        return property.GetArrayLength();
     }
+
+    private static int? ReadInt(JsonElement element, string propertyName)
+    {
+        if (!TryGetProperty(element, propertyName, out JsonElement property))
+        {
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out int value))
+        {
+            return Math.Max(0, value);
+        }
+
+        return null;
+    }
+
+    private static int? ReadNestedInt(JsonElement element, string parentName, string propertyName)
+    {
+        if (TryGetProperty(element, parentName, out JsonElement parent))
+        {
+            return ReadInt(parent, propertyName);
+        }
+
+        return null;
+    }
+
+    private static long? ReadNestedLong(JsonElement element, string parentName, string propertyName)
+    {
+        if (!TryGetProperty(element, parentName, out JsonElement parent) ||
+            !TryGetProperty(parent, propertyName, out JsonElement property) ||
+            property.ValueKind != JsonValueKind.Number ||
+            !property.TryGetInt64(out long value))
+        {
+            return null;
+        }
+
+        return Math.Max(0, value);
+    }
+
+    private static int SumObjectNumbers(JsonElement element, string propertyName)
+    {
+        if (!TryGetProperty(element, propertyName, out JsonElement property) ||
+            property.ValueKind != JsonValueKind.Object)
+        {
+            return 0;
+        }
+
+        int total = 0;
+        foreach (JsonProperty item in property.EnumerateObject())
+        {
+            if (item.Value.ValueKind == JsonValueKind.Number && item.Value.TryGetInt32(out int value))
+            {
+                total += Math.Max(0, value);
+            }
+        }
+
+        return total;
+    }
+
+    private static bool TryGetProperty(JsonElement element, string propertyName, out JsonElement value)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = property.Value;
+                    return true;
+                }
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static Uri? TryParseAbsoluteUri(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) ? uri : null;
+
+    private static string? TrimToNull(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

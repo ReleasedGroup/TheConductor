@@ -1,3 +1,5 @@
 {
-  "status": "healthy"
+  "status": "healthy",
+  "version": "1.2.3",
+  "checkedAtUtc": "2026-04-29T00:00:00Z"
 }
