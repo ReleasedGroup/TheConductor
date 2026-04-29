@@ -43,6 +43,36 @@ public sealed class Repository
         string defaultBranch,
         Uri cloneUrl,
         Uri webUrl,
+        RepositoryVisibility visibility,
+        bool isArchived,
+        ProjectId? projectId,
+        DateTimeOffset? lastSyncedAtUtc,
+        RepositoryOrchestrationStatus orchestrationStatus,
+        string? orchestrationStatusReason)
+        : this(
+            id,
+            provider,
+            new GitHubRepositoryFullName(owner, name),
+            defaultBranch,
+            cloneUrl,
+            webUrl,
+            visibility,
+            isArchived,
+            projectId,
+            lastSyncedAtUtc,
+            orchestrationStatus,
+            orchestrationStatusReason)
+    {
+    }
+
+    public Repository(
+        RepositoryId id,
+        RepositoryProvider provider,
+        string owner,
+        string name,
+        string defaultBranch,
+        Uri cloneUrl,
+        Uri webUrl,
         bool isArchived,
         ProjectId? projectId)
         : this(
@@ -54,6 +84,31 @@ public sealed class Repository
             webUrl,
             isArchived,
             projectId)
+    {
+    }
+
+    public Repository(
+        RepositoryId id,
+        RepositoryProvider provider,
+        GitHubRepositoryFullName fullName,
+        string defaultBranch,
+        Uri cloneUrl,
+        Uri webUrl,
+        bool isArchived,
+        ProjectId? projectId)
+        : this(
+            id,
+            provider,
+            fullName,
+            defaultBranch,
+            cloneUrl,
+            webUrl,
+            RepositoryVisibility.Public,
+            isArchived,
+            projectId,
+            lastSyncedAtUtc: null,
+            isArchived ? RepositoryOrchestrationStatus.Ineligible : RepositoryOrchestrationStatus.Eligible,
+            isArchived ? "Archived repositories cannot be orchestrated." : null)
     {
     }
 
