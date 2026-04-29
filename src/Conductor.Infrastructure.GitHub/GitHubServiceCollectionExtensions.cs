@@ -14,7 +14,7 @@ public static class GitHubServiceCollectionExtensions
             client =>
             {
                 client.BaseAddress = new Uri("https://api.github.com/");
-                client.Timeout = TimeSpan.FromSeconds(10);
+                client.Timeout = TimeSpan.FromSeconds(30);
             });
 
         return services;
